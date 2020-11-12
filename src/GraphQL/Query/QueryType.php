@@ -444,8 +444,6 @@ class QueryType extends ObjectType
                         'type' => Type::id(),
                         'description' => "ID of the category to filter by.",
                     ],
-                    'priceFrom' => ['type' => Type::float()],
-                    'priceTo' => ['type' => Type::float()],
                     'facets' => [
                         'type' => Type::listOf(new InputObjectType([
                             'name' => $ucFirstClassName . 'FilterFacetArg',

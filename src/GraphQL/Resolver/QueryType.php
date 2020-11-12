@@ -703,14 +703,7 @@ class QueryType
         if (!empty($args['category']) && ($category = AbstractObject::getById($args['category']))) {
             $resultList->setCategory($category);
         }
-        // Price filter.
-        if (isset($args['priceFrom']) && !isset($args['priceTo'])) {
-            $resultList->addPriceCondition($args['priceFrom']);
-        } elseif (isset($args['priceFrom']) && !isset($args['priceTo'])) {
-            $resultList->addPriceCondition(null, $args['priceTo']);
-        } elseif (isset($args['priceFrom']) && isset($args['priceTo'])) {
-            $resultList->addPriceCondition($args['priceFrom'], $args['priceTo']);
-        }
+
         $resultList->getInProductList(!isset($args['published']) || !empty($args['published']));
 
         $totalCount = $resultList->count();
