@@ -432,12 +432,12 @@ class QueryType extends ObjectType
                         'type' => new InputObjectType([
                             'name' => $ucFirstClassName . 'FilterDefinitionArg',
                             'fields' => [
-                                'id' => ['type' => Type::int()],
+                                'id' => ['type' => Type::id()],
                                 'relationField' => ['type' => Type::string()],
-                                'fallbackFilterDefinitionId' => ['type' => Type::int()],
+                                'fallbackFilterDefinitionId' => ['type' => Type::id()],
                             ],
                         ]),
-                        'description' => "Define the id of a filterDefinition to use to configure the filter.",
+                        'description' => "Define the id of a filterDefinition or from an object and its relationField to the filterDefinition to get the correct filter. Otherwise it uses the fallBackFilterDefinition",
                     ],
                     'published' => ['type' => Type::boolean()],
                     'category' => [
