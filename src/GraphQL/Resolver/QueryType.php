@@ -524,11 +524,16 @@ class QueryType
                 $orderByField = null;
                 $orderByDirection = null;
 
+                // adds default sort from FilterDefinition "Default OrderBy"
                 $orderByList = [];
                 if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
                     foreach ($orderByCollection as $orderBy) {
-                        if ($orderBy->getField()) {
-                            $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
+                        if(method_exists($orderBy, 'getAdvancedSort')){
+                            $orderByList =  $orderBy->getAdvancedSort();
+                        }else{
+                            if ($orderBy->getField()) {
+                                $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
+                            }
                         }
                     }
                 }
