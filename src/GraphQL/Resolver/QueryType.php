@@ -529,7 +529,9 @@ class QueryType
                 if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
                     foreach ($orderByCollection as $orderBy) {
                         if(method_exists($orderBy, 'getAdvancedSort')){
-                            $orderByList =  $orderBy->getAdvancedSort();
+                            $config = $factory->getIndexService()->getCurrentTenantConfig();
+                            $orderByList =  $orderBy->getAdvancedSort($orderByCollection, $config);
+                            break;
                         }else{
                             if ($orderBy->getField()) {
                                 $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
