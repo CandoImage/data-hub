@@ -524,23 +524,27 @@ class QueryType
                 $orderByField = null;
                 $orderByDirection = null;
 
-                // adds default sort from FilterDefinition "Default OrderBy"
-                $orderByList = [];
-                if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
-                    foreach ($orderByCollection as $orderBy) {
-                        if(method_exists($orderBy, 'getAdvancedSort')){
-                            $config = $factory->getIndexService()->getCurrentTenantConfig();
-                            $orderByList =  $orderBy->getAdvancedSort($orderByCollection, $config);
-                            break;
-                        }else{
-                            if ($orderBy->getField()) {
-                                $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
+                // we need to set the default OrderBy only on specific preconditions
+                if(empty($args['fulltext']) && empty($args['facets'])){
+                    // adds default sort from FilterDefinition "Default OrderBy"
+                    $orderByList = [];
+                    if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
+                        foreach ($orderByCollection as $orderBy) {
+                            if(method_exists($orderBy, 'getAdvancedSort')){
+                                $config = $factory->getIndexService()->getCurrentTenantConfig();
+                                $orderByList =  $orderBy->getAdvancedSort($orderByCollection, $config);
+                                break;
+                            }else{
+                                if ($orderBy->getField()) {
+                                    $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
+                                }
                             }
                         }
                     }
+                    $resultList->setOrderKey($orderByList);
+                    $resultList->setOrder('ASC');
                 }
-                $resultList->setOrderKey($orderByList);
-                $resultList->setOrder('ASC');
+
                 $filterValues = [];
                 if (!empty($args['facets'])) {
                     foreach ($args['facets'] as $facet) {
