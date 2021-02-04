@@ -40,6 +40,7 @@ use Pimcore\Model\DataObject\Listing;
 use Pimcore\Model\Document;
 use Pimcore\Model\Element\Service;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Security\Core\Security;
 
 
 class QueryType
@@ -481,6 +482,25 @@ class QueryType
         // Set tenant config.
         if (!empty($args['tenant'])) {
             $factory->getEnvironment()->setCurrentAssortmentTenant($args['tenant']);
+        } else {
+            if (class_exists('\Pimcore\Model\DataObject\Tenant')) {
+                $security = new Security(\Pimcore::getKernel()->getContainer());
+                $user = $security->getUser();
+                $environment = $factory->getEnvironment();
+                if (!$user) {
+                    //get Default Assortment for anonymous user
+                    $defaultAssortmentSetting = \Pimcore\Model\WebsiteSetting::getByName('defaultAssortment');
+                    $defaultAssortmentId = $defaultAssortmentSetting->getData();
+                    if ($defaultAssortmentId) {
+                        $defaultTenant = \Pimcore\Model\DataObject\Tenant::getById($defaultAssortmentId);
+                        if ($defaultTenant) {
+                            $environment->setMultipleAssortmentTenants([$defaultTenant]);
+                        }
+                    }
+                } else {
+                    $environment->setMultipleAssortmentTenants($user->getTenants());
+                }
+            }
         }
 
         /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface $resultList */
@@ -525,16 +545,16 @@ class QueryType
                 $orderByDirection = null;
 
                 // we need to set the default OrderBy only on specific preconditions
-                if(empty($args['fulltext']) && empty($args['facets'])){
+                if (empty($args['fulltext']) && empty($args['facets'])) {
                     // adds default sort from FilterDefinition "Default OrderBy"
                     $orderByList = [];
                     if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
                         foreach ($orderByCollection as $orderBy) {
-                            if(method_exists($orderBy, 'getAdvancedSort')){
+                            if (method_exists($orderBy, 'getAdvancedSort')) {
                                 $config = $factory->getIndexService()->getCurrentTenantConfig();
-                                $orderByList =  $orderBy->getAdvancedSort($orderByCollection, $config);
+                                $orderByList = $orderBy->getAdvancedSort($orderByCollection, $config);
                                 break;
-                            }else{
+                            } else {
                                 if ($orderBy->getField()) {
                                     $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
                                 }
@@ -778,7 +798,7 @@ class QueryType
         $storeFragments = false;
         foreach ($filterNodes as $filterNode) {
             if ($filterNode->kind == NodeKind::FRAGMENT_SPREAD) {
-                $fragmentNames[] =  $filterNode->name->value;
+                $fragmentNames[] = $filterNode->name->value;
                 $storeFragments = true;
             }
             if ($filterNode->kind == NodeKind::INLINE_FRAGMENT) {
@@ -789,7 +809,7 @@ class QueryType
         if ($storeFragments) {
             //store all fragment type names which are set as filter fragments
             foreach ($resolveInfo->fragments as $fragment) {
-                if(in_array($fragment->name->value, $fragmentNames)){
+                if (in_array($fragment->name->value, $fragmentNames)) {
                     $filterNames[] = $fragment->typeCondition->name->value;
                 }
             }
