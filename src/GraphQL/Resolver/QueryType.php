@@ -494,11 +494,17 @@ class QueryType
                     if ($defaultAssortmentId) {
                         $defaultTenant = \Pimcore\Model\DataObject\Tenant::getById($defaultAssortmentId);
                         if ($defaultTenant) {
-                            $environment->setMultipleAssortmentTenants([$defaultTenant]);
+                            if (method_exists($environment, 'setMultipleAssortmentTenants')) {
+                                $environment->setMultipleAssortmentTenants([$defaultTenant]);
+                            }
                         }
                     }
                 } else {
-                    $environment->setMultipleAssortmentTenants($user->getTenants());
+                    if (method_exists($user, 'getTenants')) {
+                        if (method_exists($environment, 'setMultipleAssortmentTenants')) {
+                            $environment->setMultipleAssortmentTenants($user->getTenants());
+                        }
+                    }
                 }
             }
         }
