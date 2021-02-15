@@ -490,12 +490,14 @@ class QueryType
                 if (!$user) {
                     //get Default Assortment for anonymous user
                     $defaultAssortmentSetting = \Pimcore\Model\WebsiteSetting::getByName('defaultAssortment');
-                    $defaultAssortmentId = $defaultAssortmentSetting->getData();
-                    if ($defaultAssortmentId) {
-                        $defaultTenant = \Pimcore\Model\DataObject\Tenant::getById($defaultAssortmentId);
-                        if ($defaultTenant) {
-                            if (method_exists($environment, 'setMultipleAssortmentTenants')) {
-                                $environment->setMultipleAssortmentTenants([$defaultTenant]);
+                    if ($defaultAssortmentSetting) {
+                        $defaultAssortmentId = $defaultAssortmentSetting->getData();
+                        if ($defaultAssortmentId) {
+                            $defaultTenant = \Pimcore\Model\DataObject\Tenant::getById($defaultAssortmentId);
+                            if ($defaultTenant) {
+                                if (method_exists($environment, 'setMultipleAssortmentTenants')) {
+                                    $environment->setMultipleAssortmentTenants([$defaultTenant]);
+                                }
                             }
                         }
                     }
