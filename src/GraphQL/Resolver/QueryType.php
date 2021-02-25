@@ -34,12 +34,9 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
 use Pimcore\Db;
 use Pimcore\Logger;
-use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
-use Pimcore\Model\DataObject\Folder;
 use Pimcore\Model\DataObject\Listing;
-use Pimcore\Model\Document;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
 
@@ -306,7 +303,9 @@ class QueryType
         $object = $value['node'];
 
         $data = new ElementDescriptor();
-        if ($this->omitPermissionCheck || WorkspaceHelper::checkPermission($object, 'read')) {
+        // We have Mockup Objects from Elastic here. To check the permission and avoid loading each element from DB
+        // an element Type is set here
+        if ($this->omitPermissionCheck || WorkspaceHelper::checkPermission($object, 'read', 'object')) {
             $fieldHelper = $this->getGraphQlService()->getObjectFieldHelper();
             $nodeData = $fieldHelper->extractData($data, $object, $args, $context, $resolveInfo);
         }
@@ -328,7 +327,9 @@ class QueryType
         $nodes = [];
 
         foreach ($objectList as $object) {
-            if (!$this->omitPermissionCheck && !WorkspaceHelper::checkPermission($object, 'read')) {
+            // We have Mockup Objects from Elastic here. To check the permission and avoid loading each element from DB
+            // an element Type is set here
+            if (!$this->omitPermissionCheck && !WorkspaceHelper::checkPermission($object, 'read', 'object')) {
                 continue;
             }
 
@@ -786,23 +787,10 @@ class QueryType
 
         $resultList->getInProductList(!isset($args['published']) || !empty($args['published']));
 
-        $totalCount = $resultList->count();
-        $objectList = $resultList->load();
-
-        // Process result objects.
-        foreach ($objectList as $object) {
-            $data = [];
-            $data['id'] = $object->getId();
-            $nodes[] = [
-                'cursor' => 'object-' . $object->getId(),
-                'node' => $data,
-            ];
-        }
-
         $connection = [];
-        $connection['edges'] = $nodes;
+        $connection['edges'] = [$resultList, 'load'];
         $connection['facets'] = $facets;
-        $connection['totalCount'] = $totalCount;
+        $connection['totalCount'] = [$resultList, 'count'];
 
         return $connection;
     }
@@ -817,7 +805,7 @@ class QueryType
      */
     public function resolveFilterTotalCount($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
     {
-        return $value['totalCount'];
+        return $value['totalCount']();
     }
 
     /**

@@ -377,7 +377,6 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                 }
             }
         }
-
         if (method_exists($container, $getter)) {
             if ($isLocalizedField) {
                 // defer it
@@ -389,6 +388,15 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                 };
             } else {
                 $data[$astName] = $container->$getter();
+            }
+        }else{
+            // we could also have a Mockup objects from Elastic which not supports the "method_exists"
+            // in this case we just try to get the data directly
+            try{
+                // we don't have to take care about localization because this is already handled in elastic
+                $data[$astName] = $container->$getter();
+            } catch (\Exception $e){
+
             }
         }
     }
