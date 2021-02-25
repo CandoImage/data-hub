@@ -24,6 +24,7 @@ use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Helper;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementIdentificationTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\PermissionInfoTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ListingEvents;
@@ -32,13 +33,13 @@ use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
 use Pimcore\Db;
+use Pimcore\Logger;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Folder;
 use Pimcore\Model\DataObject\Listing;
 use Pimcore\Model\Document;
-use Pimcore\Model\Element\Service;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
 
@@ -48,6 +49,7 @@ class QueryType
 
     use ServiceTrait;
     use PermissionInfoTrait;
+    use ElementIdentificationTrait;
 
     /**
      * @var EventDispatcherInterface
@@ -93,15 +95,7 @@ class QueryType
             $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
         }
 
-        $element = null;
-
-        if ($elementType == "asset") {
-            $element = Asset\Folder::getById($args['id']);
-        } else if ($elementType == "document") {
-            $element = Document\Folder::getById($args['id']);
-        } else if ($elementType == "object") {
-            $element = Folder::getById($args['id']);
-        }
+        $element = $this->getElementByTypeAndIdOrPath($args, $elementType);
 
         if (!$element) {
             return null;
@@ -127,8 +121,7 @@ class QueryType
      * @return array
      * @throws ClientSafeException
      */
-    public function resolveAssetFolderGetter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
-    {
+    public function resolveAssetFolderGetter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null) {
         return $this->resolveFolderGetter($value, $args, $context, $resolveInfo, "asset");
     }
 
@@ -141,8 +134,7 @@ class QueryType
      * @return array
      * @throws ClientSafeException
      */
-    public function resolveDocumentFolderGetter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
-    {
+    public function resolveDocumentFolderGetter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null) {
         return $this->resolveFolderGetter($value, $args, $context, $resolveInfo, "document");
     }
 
@@ -154,12 +146,12 @@ class QueryType
      * @return array
      * @throws ClientSafeException
      */
-    public function resolveObjectFolderGetter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
-    {
+    public function resolveObjectFolderGetter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null) {
         return $this->resolveFolderGetter($value, $args, $context, $resolveInfo, "object");
     }
 
     /**
+     * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
      * @param null $value
      * @param array $args
      * @param array $context
@@ -173,20 +165,20 @@ class QueryType
             $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
         }
 
-        $documentElement = null;
-
-        if (isset($args['id'])) {
-            $documentElement = Document::getById($args['id']);
-        } else if (isset($args['path'])) {
-            $documentElement = Document::getByPath($args['path']);
+        // TODO: remove this workaround for Release 1.0
+        if ($args['path'] ?? false) {
+            Logger::warn("Argument 'path' deprecated: will no longer be supported by Release 1.0. Use 'fullpath' instead.");
+            $args['fullpath'] = $args['path'];
         }
+
+        $documentElement = $this->getElementByTypeAndIdOrPath($args, 'document');
 
         if (!$documentElement) {
             return null;
         }
 
         if (!$this->omitPermissionCheck) {
-            if (!WorkspaceHelper::checkPermission($documentElement, 'read')) {
+            if (!WorkspaceHelper::checkPermission($documentElement, 'read') ) {
                 return null;
             }
         }
@@ -213,7 +205,7 @@ class QueryType
             $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
         }
 
-        $assetElement = Asset::getById($args['id']);
+        $assetElement = $this->getElementByTypeAndIdOrPath($args, 'asset');
         if (!$assetElement) {
             return null;
         }
@@ -240,12 +232,14 @@ class QueryType
      */
     public function resolveObjectGetter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
     {
+        $isIdSet = $args['id'] ?? false;
+        $isFullpathSet = $args['fullpath'] ?? false;
 
-        if (!$args["id"]) {
-            return null;
+        if (!$isIdSet && !$isFullpathSet) {
+            throw new ClientSafeException('object id or fullpath expected');
         }
 
-        if ($args && isset($args['defaultLanguage'])) {
+        if ($args['defaultLanguage'] ?? false) {
             $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
         }
 
@@ -255,7 +249,14 @@ class QueryType
         $objectList = $modelFactory->build($listClass);
         $conditionParts = [];
 
-        $conditionParts[] = '(o_id =' . $args['id'] . ')';
+        if ($isIdSet) {
+            $conditionParts[] = '(o_id =' . $args['id'] . ')';
+        }
+
+        if ($isFullpathSet) {
+            $fullpath = Service::correctPath($args['fullpath']);
+            $conditionParts[] = '(concat(o_path, o_key) =' . Db::get()->quote($fullpath) . ')';
+        }
 
         /** @var $configuration Configuration */
         $configuration = $context['configuration'];
@@ -275,7 +276,8 @@ class QueryType
         $objectList->setUnpublished(1);
         $objectList = $objectList->load();
         if (!$objectList) {
-            throw new ClientSafeException('object with ID ' . $args["id"] . ' not found');
+            $errorMessage = $this->createArgumentErrorMessage($isFullpathSet, $isIdSet, $args);
+            throw new ClientSafeException($errorMessage);
         }
         $object = $objectList[0];
 
@@ -301,10 +303,7 @@ class QueryType
      */
     public function resolveEdge($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
     {
-        $nodeData = $value['node'];
-        $objectId = $nodeData['id'];
-
-        $object = AbstractObject::getById($objectId);
+        $object = $value['node'];
 
         $data = new ElementDescriptor();
         if ($this->omitPermissionCheck || WorkspaceHelper::checkPermission($object, 'read')) {
@@ -325,7 +324,23 @@ class QueryType
      */
     public function resolveEdges($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
     {
-        return $value['edges'];
+        $objectList = $value['edges']();
+        $nodes = [];
+
+        foreach ($objectList as $object) {
+            if (!$this->omitPermissionCheck && !WorkspaceHelper::checkPermission($object, 'read')) {
+                continue;
+            }
+
+            $data = [];
+            $data['id'] = $object->getId();
+            $nodes[] = [
+                'cursor' => 'object-' . $object->getId(),
+                'node' => $object,
+            ];
+        }
+
+        return $nodes;
     }
 
     /**
@@ -342,13 +357,32 @@ class QueryType
             $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
         }
 
+        $db = Db::get();
         $modelFactory = $this->getGraphQlService()->getModelFactory();
         $listClass = 'Pimcore\\Model\\DataObject\\' . ucfirst($this->class->getName()) . '\\Listing';
         /** @var Listing $objectList */
         $objectList = $modelFactory->build($listClass);
+
         $conditionParts = [];
+        $db = Db::get();
         if (isset($args['ids'])) {
-            $conditionParts[] = '(o_id IN (' . $args['ids'] . '))';
+            // Explode it and then quote it
+            if (!is_array($args['ids'])) {
+                $args['ids'] = explode(',', $args['ids']);
+            }
+            $ids = implode(', ', array_map([$db, 'quote'], $args['ids']));
+            $conditionParts[] = '(o_id IN (' . $ids . '))';
+        }
+        if (isset($args['fullpaths'])) {
+            $quotedFullpaths = array_map(
+                static function ($fullpath) use ($db) {
+                    $fullpath = trim($fullpath, " '");
+                    $fullpath = Service::correctPath($fullpath);
+                    return $db->quote($fullpath);
+                },
+                explode(',', $args['fullpaths'])
+            );
+            $conditionParts[] = '(concat(o_path, o_key) IN (' . implode(',', $quotedFullpaths) . '))';
         }
 
         // paging
@@ -382,7 +416,6 @@ class QueryType
         }
 
         // check permissions
-        $db = Db::get();
         $workspacesTableName = 'plugin_datahub_workspaces_object';
         $conditionParts[] = ' (
             (
@@ -407,7 +440,13 @@ class QueryType
             if (!$filter) {
                 throw new ClientSafeException('unable to decode filter');
             }
-            $filterCondition = Helper::buildSqlCondition($objectList->getTableName(), $filter);
+
+            $className = $this->class->getName();
+            $columns = $this->configuration->configuration["schema"]["queryEntities"][$className]["columnConfig"]["columns"];
+
+            Helper::addJoins($objectList, $filter, $columns, $mappingTable);
+
+            $filterCondition = Helper::buildSqlCondition($objectList->getTableName(), $filter, null, null, $mappingTable);
             $conditionParts[] = $filterCondition;
         }
 
@@ -418,31 +457,19 @@ class QueryType
 
         $objectList->setObjectTypes([AbstractObject::OBJECT_TYPE_OBJECT, AbstractObject::OBJECT_TYPE_FOLDER, AbstractObject::OBJECT_TYPE_VARIANT]);
 
-        $event = new ListingEvent(
+        $event =  new ListingEvent(
             $objectList,
             $args,
             $context,
             $resolveInfo
         );
-        $this->eventDispatcher->dispatch(ListingEvents::PRE_LOAD, $event);
+        $this->eventDispatcher->dispatch($event, ListingEvents::PRE_LOAD);
         $objectList = $event->getListing();
 
-        $totalCount = $objectList->getTotalCount();
-        $objectList = $objectList->load();
 
-        $nodes = [];
-
-        foreach ($objectList as $object) {
-            $data = [];
-            $data['id'] = $object->getId();
-            $nodes[] = [
-                'cursor' => 'object-' . $object->getId(),
-                'node' => $data,
-            ];
-        }
         $connection = [];
-        $connection['edges'] = $nodes;
-        $connection['totalCount'] = $totalCount;
+        $connection['edges'] = [$objectList, 'load'];
+        $connection['totalCount'] = [$objectList, 'getTotalCount'];
 
         return $connection;
     }
@@ -457,9 +484,23 @@ class QueryType
      */
     public function resolveListingTotalCount($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
     {
-        return $value['totalCount'];
+        return $value['totalCount']();
     }
 
+    private function createArgumentErrorMessage($isFullpathSet, $isIdSet, $args)
+    {
+        if ($isIdSet && $isFullpathSet) {
+            return 'either id or fullpath expected but not both';
+        }
+        if ($isIdSet) {
+            return "object with id:'" . $args['id'] . "' not found";
+        }
+        if ($isFullpathSet) {
+            return "object with fullpath:'" . $args['fullpath'] . "' not found";
+        }
+
+        return 'either id or fullpath expected';
+    }
     /**
      * Build a filter query.
      *

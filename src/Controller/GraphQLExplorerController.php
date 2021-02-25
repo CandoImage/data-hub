@@ -16,17 +16,17 @@
 namespace Pimcore\Bundle\DataHubBundle\Controller;
 
 use Pimcore\Bundle\CoreBundle\EventListener\Frontend\TagManagerListener;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Cache;
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\RouterInterface;
 
-class GraphQLExplorerController extends Controller
+class GraphQLExplorerController extends AbstractController
 {
     /**
      * @param RouterInterface $routingService
      * @param Request $request
-     * @param TagManagerListener $tagManagerListener
      *
      * @Cache(expires="tomorrow", public=true)
      *
@@ -34,10 +34,13 @@ class GraphQLExplorerController extends Controller
      *
      * @throws \Exception
      */
-    public function explorerAction(RouterInterface $routingService, Request $request, TagManagerListener $tagManagerListener)
+    public function explorerAction(RouterInterface $routingService, Request $request, Service $service)
     {
+        $tagManagerListener = $service->getTagManagerListener();
         // disable Tag & Snippet Management
-        $tagManagerListener->disable();
+        if($tagManagerListener) {
+            $tagManagerListener->disable();
+        }
 
         $urlParams = array_merge($request->request->all(), $request->query->all());
 
@@ -53,7 +56,7 @@ class GraphQLExplorerController extends Controller
             $url = $url . '?' . http_build_query($urlParams);
         }
 
-        return $this->render('PimcoreDataHubBundle:Feature:explorer.html.twig', [
+        return $this->render('@PimcoreDataHub/Feature/explorer.html.twig', [
             'graphQLUrl' => $url,
             'tokenHeader' => 'access-token'
         ]);

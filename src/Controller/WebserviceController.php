@@ -26,6 +26,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\ClassTypeDefinitions;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Mutation\MutationType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\QueryType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
+use Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Cache\Runtime;
 use Pimcore\Controller\FrontendController;
@@ -46,11 +47,17 @@ class WebserviceController extends FrontendController
     private $eventDispatcher;
 
     /**
+     * @var CheckConsumerPermissionsService
+     */
+    private $permissionsService;
+
+    /**
      * @param EventDispatcherInterface $eventDispatcher
      */
-    public function __construct(EventDispatcherInterface $eventDispatcher)
+    public function __construct(EventDispatcherInterface $eventDispatcher, CheckConsumerPermissionsService $permissionsService)
     {
         $this->eventDispatcher = $eventDispatcher;
+        $this->permissionsService = $permissionsService;
     }
 
     /**
@@ -72,12 +79,14 @@ class WebserviceController extends FrontendController
             throw new NotFoundHttpException('No active configuration found for ' . $clientname);
         }
 
-        $this->performSecurityCheck($request, $configuration);
+        if (!$this->permissionsService->performSecurityCheck($request, $configuration)) {
+            throw new AccessDeniedHttpException('Permission denied, apikey not valid');
+        }
 
         // context info, will be passed on to all resolver function
         $context = ['clientname' => $clientname, 'configuration' => $configuration];
 
-        $config = $this->container->getParameter('pimcore_data_hub');
+        $config = $this->getParameter('pimcore_data_hub');
 
         if (isset($config['graphql']) && isset($config['graphql']['not_allowed_policy'])) {
             PimcoreDataHubBundle::setNotAllowedPolicy($config['graphql']['not_allowed_policy']);
@@ -134,7 +143,11 @@ class WebserviceController extends FrontendController
                 $schema,
                 $context);
 
-            $this->eventDispatcher->dispatch(ExecutorEvents::PRE_EXECUTE, $event);
+            $this->eventDispatcher->dispatch($event, ExecutorEvents::PRE_EXECUTE);
+
+            if ($event->getRequest() instanceof Request) {
+                $variableValues =  $event->getRequest()->get('variables', $variableValues);
+            }
 
             if ($event->getRequest() instanceof Request) {
                 $variableValues =  $event->getRequest()->get('variables');
@@ -153,8 +166,7 @@ class WebserviceController extends FrontendController
             );
 
             $exResult = new ExecutorResultEvent($request, $result);
-            $this->eventDispatcher->dispatch(ExecutorEvents::POST_EXECUTE,
-                $exResult);
+            $this->eventDispatcher->dispatch($exResult, ExecutorEvents::POST_EXECUTE);
             $result = $exResult->getResult();
 
             if (PIMCORE_DEBUG) {
@@ -184,26 +196,5 @@ class WebserviceController extends FrontendController
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token');
         return $response;
-    }
-
-    /**
-     * @param Request $request
-     * @param Configuration $configuration
-     *
-     * @return void
-     *
-     * @throws AccessDeniedHttpException
-     */
-    protected function performSecurityCheck(Request $request, Configuration $configuration): void
-    {
-        $securityConfig = $configuration->getSecurityConfig();
-        if ($securityConfig['method'] === 'datahub_apikey') {
-            $apiKey = $request->get('apikey');
-            if ($apiKey === $securityConfig['apikey']) {
-                return;
-            }
-        }
-
-        throw new AccessDeniedHttpException('Permission denied, apikey not valid');
     }
 }

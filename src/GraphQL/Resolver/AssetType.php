@@ -198,11 +198,12 @@ class AssetType
             if(!$asset) {
                 return [];
             }
+            /** @var Asset\Image\Thumbnail $thumbnail */
             $thumbnail = $asset->getThumbnail($thumbnailName, false);
             $thumbnailConfig = $thumbnail->getConfig();
-            $thumbConfigRes = clone $thumbnailConfig;
             $resolutions = [];
             foreach ($types as $type) {
+                $thumbConfigRes = clone $thumbnailConfig;
                 $thumbConfigRes->setHighResolution($type);
                 $thumbConfigRes->setMedias([]);
                 $resolutions[] = [

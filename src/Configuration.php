@@ -16,7 +16,9 @@
 namespace Pimcore\Bundle\DataHubBundle;
 
 use Pimcore\Bundle\DataHubBundle\Configuration\Dao;
+use Pimcore\Bundle\DataHubBundle\Event\ConfigurationEvents;
 use Pimcore\Model\AbstractModel;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
 /**
  * Class Configuration
@@ -24,6 +26,8 @@ use Pimcore\Model\AbstractModel;
  */
 class Configuration extends AbstractModel
 {
+    public const SECURITYCONFIG_AUTH_APIKEY = "datahub_apikey";
+
     /**
      * @var string
      */
@@ -117,7 +121,7 @@ class Configuration extends AbstractModel
      */
     public function getSqlObjectCondition(): ?string
     {
-        return $this->configuration && $this->configuration['general'] ? $this->configuration['general']['sqlObjectCondition'] : null;
+        return $this->configuration && $this->configuration['general'] ? $this->configuration['general']['sqlObjectCondition'] ?? null : null;
     }
 
     /**
@@ -125,7 +129,7 @@ class Configuration extends AbstractModel
      */
     public function isActive()
     {
-        return $this->configuration && $this->configuration['general'] ? $this->configuration['general']['active'] : false;
+        return $this->configuration && $this->configuration['general'] ? ($this->configuration['general']['active'] ?? false) : false;
     }
 
     /**
@@ -175,7 +179,7 @@ class Configuration extends AbstractModel
         $this->configuration['general']['name'] = $this->name;
 
         $securityConfig = $this->getSecurityConfig();
-        if (($this->configuration['general']['active']  ?? false) && isset($securityConfig['method']) && $securityConfig['method'] === 'datahub_apikey') {
+        if (($this->configuration['general']['active']  ?? false) && isset($securityConfig['method']) && $securityConfig['method'] === self::SECURITYCONFIG_AUTH_APIKEY) {
             $apikey = $securityConfig['apikey'] ?? "";
             if (strlen($apikey) < 16) {
                 throw new \Exception('API key does not satisfy the minimum length of 16 characters');
@@ -196,6 +200,10 @@ class Configuration extends AbstractModel
     public function delete(): void
     {
         $this->getDao()->delete();
+
+        $event = new GenericEvent($this);
+        $event->setArgument("configuration", $this);
+        \Pimcore::getEventDispatcher()->dispatch($event, ConfigurationEvents::CONFIGURATION_POST_DELETE);
     }
 
     /**
@@ -223,7 +231,7 @@ class Configuration extends AbstractModel
      */
     public function getQueryEntities(): array
     {
-        $schema = $this->configuration['schema'];
+        $schema = $this->configuration['schema'] ?? null;
         $entities = $schema ? $schema['queryEntities'] : [];
         $entities = is_array($entities) ? array_keys($entities) : [];
 
@@ -235,7 +243,7 @@ class Configuration extends AbstractModel
      */
     public function getSpecialEntities(): array
     {
-        $schema = $this->configuration['schema'];
+        $schema = $this->configuration['schema'] ?? null;
         $entities = $schema ? $schema['specialEntities'] : [];
 
         return $entities;
@@ -246,7 +254,7 @@ class Configuration extends AbstractModel
      */
     public function getMutationEntities(): array
     {
-        $schema = $this->configuration['schema'];
+        $schema = $this->configuration['schema'] ?? null;
         $entities = $schema ? $schema['mutationEntities'] : [];
         $entities = is_array($entities) ? array_keys($entities) : [];
 

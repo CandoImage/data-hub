@@ -32,7 +32,6 @@ use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
-use Pimcore\Model\DataObject\Localizedfield;
 use Pimcore\Model\DataObject\Objectbrick\Data\AbstractData;
 use Pimcore\Model\DataObject\Objectbrick\Definition;
 use Pimcore\Model\Document;
@@ -61,7 +60,13 @@ class Service
     /**
      * @var ContainerInterface
      */
-    protected $documentElementTypeGeneratorFactories;
+    protected $documentElementQueryTypeGeneratorFactories;
+
+    /**
+     * @var ContainerInterface
+     */
+    protected $documentElementMutationTypeGeneratorFactories;
+
 
     /**
      * @var ContainerInterface
@@ -92,6 +97,11 @@ class Service
      * @var array
      */
     protected $supportedDocumentElementQueryDataTypes;
+
+    /**
+     * @var array
+     */
+    protected $supportedDocumentElementMutationDataTypes;
 
     /**
      * @var array
@@ -164,6 +174,9 @@ class Service
     protected $dataObjectDataTypes = [];
 
 
+    protected $tagManagerListener;
+
+
     /**
      * Service constructor.
      * @param AssetFieldHelper $assetFieldHelper
@@ -176,7 +189,8 @@ class Service
      * @param ContainerInterface $dataObjectQueryOperatorFactories
      * @param ContainerInterface $dataObjectMutationTypeGeneratorFactories
      * @param ContainerInterface $dataObjectMutationOperatorFactories
-     * @param ContainerInterface $documentElementTypeGeneratorFactories
+     * @param ContainerInterface $documentElementQueryTypeGeneratorFactories
+     * @param ContainerInterface $documentElementMutationTypeGeneratorFactories
      * @param ContainerInterface $generalTypeGeneratorFactories
      * @param ContainerInterface $assetTypeGeneratorFactories
      * @param ContainerInterface $csFeatureTypeGeneratorFactories
@@ -192,7 +206,8 @@ class Service
         ContainerInterface $dataObjectQueryOperatorFactories,
         ContainerInterface $dataObjectMutationTypeGeneratorFactories,
         ContainerInterface $dataObjectMutationOperatorFactories,
-        ContainerInterface $documentElementTypeGeneratorFactories,
+        ContainerInterface $documentElementQueryTypeGeneratorFactories,
+        ContainerInterface $documentElementMutationTypeGeneratorFactories,
         ContainerInterface $generalTypeGeneratorFactories,
         ContainerInterface $assetTypeGeneratorFactories,
         ContainerInterface $csFeatureTypeGeneratorFactories
@@ -208,7 +223,8 @@ class Service
         $this->dataObjectQueryOperatorFactories = $dataObjectQueryOperatorFactories;
         $this->dataObjectMutationTypeGeneratorFactories = $dataObjectMutationTypeGeneratorFactories;
         $this->dataObjectMutationOperatorFactories = $dataObjectMutationOperatorFactories;
-        $this->documentElementTypeGeneratorFactories = $documentElementTypeGeneratorFactories;
+        $this->documentElementQueryTypeGeneratorFactories = $documentElementQueryTypeGeneratorFactories; //TODO rename this to query
+        $this->documentElementMutationGeneratorFactories = $documentElementMutationTypeGeneratorFactories;
         $this->generalTypeGeneratorFactories = $generalTypeGeneratorFactories;
         $this->assetTypeGeneratorFactories = $assetTypeGeneratorFactories;
         $this->csFeatureTypeGeneratorFactories = $csFeatureTypeGeneratorFactories;
@@ -235,11 +251,11 @@ class Service
     /**
      * @param $nodeDef
      * @param $typeName
-     * @param ClassDefinition|null $class
+     * @param ClassDefinition|\Pimcore\Model\DataObject\Fieldcollection\Definition $class
      * @param null $container
      * @return mixed
      */
-    public function buildDataObjectMutationDataConfig($nodeDef, ClassDefinition $class = null, $container = null)
+    public function buildDataObjectMutationDataConfig($nodeDef, $class = null, $container = null)
     {
         /** @var DataObjectMutationFieldConfigGeneratorInterface $factory */
         $typeName = $nodeDef["attributes"]["dataType"];
@@ -291,8 +307,20 @@ class Service
      */
     public function buildDocumentElementDataQueryType($elementName)
     {
-        $factory = $this->documentElementTypeGeneratorFactories->get('typegenerator_documentelementquerydatatype_' . $elementName);
+        $factory = $this->documentElementQueryTypeGeneratorFactories->get('typegenerator_documentelementquerydatatype_' . $elementName);
         $result = $factory->getFieldType();
+
+        return $result;
+    }
+
+    /**
+     * @param $elementName
+     * @return mixed
+     */
+    public function buildDocumentElementDataMutationType($elementName)
+    {
+        $factory = $this->documentElementMutationGeneratorFactories->get('typegenerator_documentelementmutationdatatype_' . $elementName);
+        $result = $factory->getDocumentElementMutationFieldConfig();
 
         return $result;
     }
@@ -475,6 +503,15 @@ class Service
     }
 
     /**
+     * @param $supportedDocumentElementMutationDataTypes
+     */
+    public function setSupportedDocumentElementMutationDataTypes($supportedDocumentElementMutationDataTypes)
+    {
+        $this->supportedDocumentElementMutationDataTypes = $supportedDocumentElementMutationDataTypes;
+    }
+
+
+    /**
      * @param $supportedCsFeatureQueryDataTypes
      */
     public function setSupportedCsFeatureQueryDataTypes($supportedCsFeatureQueryDataTypes)
@@ -498,6 +535,14 @@ class Service
     public function getSupportedDocumentElementQueryDataTypes()
     {
         return $this->supportedDocumentElementQueryDataTypes;
+    }
+
+    /**
+     * @return array
+     */
+    public function getSupportedDocumentElementMutationDataTypes()
+    {
+        return $this->supportedDocumentElementMutationDataTypes;
     }
 
     /**
@@ -789,7 +834,7 @@ class Service
      * @return \stdclass|null
      * @throws \Exception
      */
-    public static function setValue($object, /* Data $fieldDefinition, */ $attribute, $callback)
+    public static function setValue($object, $attribute, $callback)
     {
 
         $result = null;
@@ -966,7 +1011,8 @@ class Service
             }
             else {
                 $blockGetter = "get".ucfirst($descriptorData['__blockName']);
-                $blockData = $object->$blockGetter();
+                $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
+                $blockData = $object->$blockGetter($isLocalizedField && isset($descriptorData['args']['language']) ?  $descriptorData['args']['language'] : null);                
             }
 
             if ($blockData) {
@@ -1021,27 +1067,37 @@ class Service
             }
 
         } else if (method_exists($container, $getter)) {
-            $isLocalizedField = false;
-            $containerDefinition = null;
-
-            if ($container instanceof Concrete) {
-                $containerDefinition = $container->getClass();
-            } else if ($container instanceof AbstractData || $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData) {
-                $containerDefinition = $container->getDefinition();
-            }
-
-            if ($containerDefinition) {
-                if ($lfDefs = $containerDefinition->getFieldDefinition('localizedfields')) {
-                    if ($lfDefs->getFieldDefinition($fieldDefinition->getName())) {
-                        $isLocalizedField = true;
-                    }
-                }
-            }
-
+            $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
             $result = $container->$getter($isLocalizedField && isset($args['language']) ?  $args['language'] : null);
 
         }
         return $result;
+    }
+    
+    /**
+     * Check whether given field in container is localized
+     * @param Concrete|AbstractData|\Pimcore\Model\DataObject\Objectbrick\Data\AbstractData $container
+     * @param string $fieldName
+     * @return bool
+     */
+    private static function isLocalizedField($container,$fieldName): bool {
+        $containerDefinition = null;
+
+        if ($container instanceof Concrete) {
+            $containerDefinition = $container->getClass();
+        } else if ($container instanceof AbstractData || $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData) {
+            $containerDefinition = $container->getDefinition();
+        }
+
+        if ($containerDefinition) {
+            if ($lfDefs = $containerDefinition->getFieldDefinition('localizedfields')) {
+                if ($lfDefs->getFieldDefinition($fieldName)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1123,4 +1179,18 @@ class Service
         }
         return $enabled;
     }
+
+    public function setTagManagerListener($tagManagerListener) {
+        $this->tagManagerListener = $tagManagerListener;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getTagManagerListener()
+    {
+        return $this->tagManagerListener;
+    }
+
+
 }
