@@ -101,6 +101,8 @@ class OutputCacheService
         // Cando Special:
         $this->excludedQueries[] = '__schema';
         $this->excludedQueries[] = 'getAvailabilitiesAndPrices';
+        $this->excludedQueries[] = 'performAddToCartMutation';
+        $this->excludedQueries[] = 'getCartListing';
     }
 
 
