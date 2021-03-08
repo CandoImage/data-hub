@@ -139,12 +139,17 @@ class OutputCacheService
 
     public function save(Request $request, JsonResponse $response, $extraTags = []): void
     {
+        // check if we have an excluded query here
+        if ($this->isExcludedQuery($this->query)) {
+            return;
+        }
+
         if ($this->useCache($request)) {
 
             // Original Code
 //            $cacheKey = $this->computeKey($request);
             $clientname = $request->get('clientname');
-            $extraTags = array_merge(["output","datahub", $clientname], $extraTags);
+            $extraTags = array_merge(["output", "datahub", $clientname], $extraTags);
 
             $extraTags = array_merge(CacheHelper::getTenantTags(), $extraTags);
             $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues]);
