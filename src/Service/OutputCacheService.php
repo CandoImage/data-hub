@@ -172,7 +172,7 @@ class OutputCacheService
             $extraTags = array_merge(["output", "datahub", $clientname], $extraTags);
 
             $extraTags = array_merge(CacheHelper::getTenantTags(), $extraTags);
-            $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues]);
+            $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues, $this->sortValues]);
 
             $event = new OutputCachePreSaveEvent($request, $response);
             $this->eventDispatcher->dispatch(OutputCacheEvents::PRE_SAVE, $event);
