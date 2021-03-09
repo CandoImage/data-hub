@@ -70,6 +70,14 @@ class OutputCacheService
     private string $filterValues = '';
 
     /**
+     * Specific imploded Sorting Values from Input Variables
+     * used for Cache Key generation
+     *
+     * @var string
+     */
+    private string $sortValues = '';
+
+    /**
      * @var EventDispatcherInterface
      */
     public $eventDispatcher;
@@ -126,12 +134,25 @@ class OutputCacheService
         // Original Code
         //$cacheKey = $this->computeKey($request);
 
+        // Check the filter values separate
         if (isset($this->variables['filters'])) {
             $this->filterValues = $this->getImplodedFilterValues($this->variables);
         } else {
             $this->filterValues = '';
         }
-        $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues]);
+        // Check the sort values separate
+        if (isset($this->variables['sortBy'])) {
+            if (isset($this->variables['sortOrder'])) {
+                $this->sortValues = implode('-', $this->variables['sortBy']);
+                $this->sortValues .= '-' . implode('-', $this->variables['sortOrder']);
+            } else {
+                $this->sortValues = implode('-', $this->variables['sortBy']);
+            }
+        } else {
+            $this->sortValues = '';
+        }
+
+        $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues, $this->sortValues]);
 
         return $this->loadFromCache($cacheKey);
     }
