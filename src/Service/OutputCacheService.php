@@ -139,12 +139,11 @@ class OutputCacheService
 
     public function save(Request $request, JsonResponse $response, $extraTags = []): void
     {
-        // check if we have an excluded query here
-        if ($this->isExcludedQuery($this->query)) {
-            return;
-        }
-
         if ($this->useCache($request)) {
+            // check if we have an excluded query here
+            if ($this->query && $this->isExcludedQuery($this->query)) {
+                return;
+            }
 
             // Original Code
 //            $cacheKey = $this->computeKey($request);
