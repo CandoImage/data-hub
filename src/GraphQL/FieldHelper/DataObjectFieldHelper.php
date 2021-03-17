@@ -398,7 +398,7 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                     // we don't have to take care about localization because this is already handled in elastic
                     $data[$astName] = $container->$getter();
                 } catch (\Exception $e) {
-                    Logger::error('Could not get data from DataObjectFieldHelper with message: ' . $e->getMessage());
+                    Logger::info('Could not get data from Datahub/DataObjectFieldHelper with message: ' . $e->getMessage());
                 }
             }
         }
