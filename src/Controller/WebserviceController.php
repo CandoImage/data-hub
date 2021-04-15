@@ -163,10 +163,6 @@ class WebserviceController extends FrontendController
                 $variableValues =  $event->getRequest()->get('variables', $variableValues);
             }
 
-            if ($event->getRequest() instanceof Request) {
-                $variableValues =  $event->getRequest()->get('variables');
-            }
-
             $result = GraphQL::executeQuery(
                 $event->getSchema(),
                 $event->getQuery(),
