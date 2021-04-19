@@ -458,7 +458,7 @@ class QueryType extends ObjectType
                             'fields' => [
                                 'field' => ['type' => Type::string()],
                                 'values' => ['type' => CustomScalarType::listOf(new CustomScalarType([
-                                        'name' => 'Object', //used for GraphIQL Editor to recognize a Type
+                                        'name' => $ucFirstClassName . 'Object', //used for GraphIQL Editor to recognize a Type
                                         'description' => 'The Input can be any kind of array.
                                     For Select Filters a String Array is required e.g.
                                     "values": [
