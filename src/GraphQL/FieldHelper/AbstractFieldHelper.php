@@ -5,12 +5,12 @@
  *
  * This source file is available under two different licenses:
  * - GNU General Public License version 3 (GPLv3)
- * - Pimcore Enterprise License (PEL)
+ * - Pimcore Commercial License (PCL)
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PEL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper;
@@ -27,7 +27,6 @@ use Pimcore\Model\Element\ElementInterface;
 
 abstract class AbstractFieldHelper
 {
-
     use ServiceTrait;
 
     /**
@@ -55,7 +54,7 @@ abstract class AbstractFieldHelper
      * @param $args
      * @param ResolveInfo|null $resolveInfo
      */
-    public function doExtractData(FieldNode $ast, &$data = [], $container, $args, $context, $resolveInfo = null)
+    public function doExtractData(FieldNode $ast, &$data, $container, $args, $context, $resolveInfo = null)
     {
         $astName = $ast->name->value;
 
@@ -121,7 +120,7 @@ abstract class AbstractFieldHelper
      *
      * @return array
      */
-    public function extractData(&$data = [], $container, $args, $context, ResolveInfo $resolveInfo = null)
+    public function extractData(&$data, $container, $args, $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($container instanceof ElementInterface) {
             // we have to at least add the ID and pass it around even if not requested because we need it internally
@@ -159,7 +158,6 @@ abstract class AbstractFieldHelper
         }
 
         foreach ($selections as $selectionNode) {
-
             if ($selectionNode instanceof FieldNode) {
                 $this->doExtractData($selectionNode, $data, $container, $args, $context, $resolveInfo);
             } elseif ($selectionNode instanceof InlineFragmentNode) {

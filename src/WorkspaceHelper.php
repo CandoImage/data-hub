@@ -5,12 +5,12 @@
  *
  * This source file is available under two different licenses:
  * - GNU General Public License version 3 (GPLv3)
- * - Pimcore Enterprise License (PEL)
+ * - Pimcore Commercial License (PCL)
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PEL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle;
@@ -45,13 +45,11 @@ class WorkspaceHelper
     public static function cleanupWorkspaces(array $workspaces)
     {
         foreach ($workspaces as $type => &$spaces) {
-
             if (!is_array($spaces)) {
                 continue;
             }
 
             foreach ($spaces as $spaceIndex => $space) {
-
                 $element = Service::getElementByPath($type, $space['cpath']);
                 if ($element instanceof ElementInterface) {
                     continue;
@@ -95,7 +93,6 @@ class WorkspaceHelper
         }
 
         foreach ($spaces as $spaceIndex => &$space) {
-
             if (!isset($space['cpath'])) {
                 continue;
             }
@@ -116,7 +113,6 @@ class WorkspaceHelper
                     unset($spaces[$spaceIndex]);
                     $spaces = array_values($spaces); // reset array keys
                 }
-
             } elseif (strpos($cTrailingPath, $cTrailingSearchValue) !== false) {
 
                 // it's a sub element
@@ -220,7 +216,6 @@ class WorkspaceHelper
         $db->delete(Dao::TABLE_NAME_DATAOBJECT, ['configuration' => $config->getName()]);
     }
 
-
     /**
      * @param ElementInterface|OwnerAwareFieldInterface $element
      * @param string $type
@@ -291,7 +286,7 @@ class WorkspaceHelper
             if (empty($permissionsParent) && $type === 'read') {
                 // check for children with permissions
                 $path = $element->getRealFullPath() . '/';
-                $path = str_replace("_", '\\_', $path);
+                $path = str_replace('_', '\\_', $path);
                 if ($element->getId() === 1) {
                     $path = '/';
                 }

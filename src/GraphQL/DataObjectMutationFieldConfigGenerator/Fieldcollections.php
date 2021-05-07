@@ -5,12 +5,12 @@
  *
  * This source file is available under two different licenses:
  * - GNU General Public License version 3 (GPLv3)
- * - Pimcore Enterprise License (PEL)
+ * - Pimcore Commercial License (PCL)
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PEL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectMutationFieldConfigGenerator;
@@ -24,15 +24,11 @@ use Pimcore\Model\DataObject\Fieldcollection\Definition;
 
 class Fieldcollections extends Base
 {
+    /** @var array */
+    public static $typeCache = [];
 
-    /**
-     * @param $nodeDef
-     * @param $class
-     * @param $container
-     * @return array
-     * @throws \Exception
-     */
-    public function getGraphQlMutationFieldConfig($nodeDef, $class, $container = null)
+    /** {@inheritdoc } */
+    public function getGraphQlMutationFieldConfig($nodeDef, $class, $container = null, $params = [])
     {
         $fieldName = $nodeDef['attributes']['attribute'];
 
@@ -50,21 +46,18 @@ class Fieldcollections extends Base
             }
         }
 
-
-        $groupsInputTypeName = "fieldcollections_" . $fieldName . "_groups_input";
+        $groupsInputTypeName = 'fieldcollections_' . $fieldName . '_groups_input';
 
         $groupsInputFields = [];
 
         $fieldProcessors = [];
 
-
         foreach ($allowedFcTypes as $allowedFcType) {
             $fcDef = Definition::getByKey($allowedFcType);
 
-            $listInputTypeName = "fieldcollections_" . $fieldName . "_" . $allowedFcType . "_input";
+            $listInputTypeName = 'fieldcollections_' . $fieldName . '_' . $allowedFcType . '_input';
 
             $inputFields = [];
-
 
             $this->generateInputFieldsAndProcessors($inputFields, $processors, $fcDef);
 
@@ -77,7 +70,6 @@ class Fieldcollections extends Base
             ]);
             $groupsInputFields[$allowedFcType] = Type::listOf($listItemType);
             $fieldProcessors[$allowedFcType] = $processors;
-
         }
 
         $groupsInputType = new InputObjectType([
@@ -85,17 +77,23 @@ class Fieldcollections extends Base
             'fields' => $groupsInputFields
         ]);
 
-        $inputTypeName = "fieldcollections_" . $fieldName . "_input";
-        $inputType = new InputObjectType([
-            'name' => $inputTypeName,
-            'fields' => [
-                'replace' => [
-                    'type' => Type::boolean(),
-                    'description' => "if true then the entire item list will be overwritten"
-                ],
-                'items' => $groupsInputType
-            ]
-        ]);
+        $inputTypeName = 'fieldcollections_' . $fieldName . '_input';
+
+        $inputType = self::$typeCache[$inputTypeName] ?? null;
+
+        if (!$inputType) {
+            $inputType = new InputObjectType([
+                'name' => $inputTypeName,
+                'fields' => [
+                    'replace' => [
+                        'type' => Type::boolean(),
+                        'description' => 'if true then the entire item list will be overwritten'
+                    ],
+                    'items' => $groupsInputType
+                ]
+            ]);
+            self::$typeCache[$inputTypeName] = $inputType;
+        }
 
         $processor = new \Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectInputProcessor\Fieldcollections($nodeDef, $fieldProcessors);
         $processor->setGraphQLService($this->getGraphQlService());
@@ -111,12 +109,12 @@ class Fieldcollections extends Base
      * @param $processors
      * @param Definition $fcDef
      */
-    public function generateInputFieldsAndProcessors(&$inputFields, &$processors, Definition $fcDef) {
+    public function generateInputFieldsAndProcessors(&$inputFields, &$processors, Definition $fcDef)
+    {
         $fcFieldDefinitions = $fcDef->getFieldDefinitions();
 
         /** @var $fieldHelper DataObjectFieldHelper */
         $fieldHelper = $this->getGraphQlService()->getObjectFieldHelper();
-
 
         /** @var Data $fcFieldDef */
         foreach ($fcFieldDefinitions as $fcFieldDef) {

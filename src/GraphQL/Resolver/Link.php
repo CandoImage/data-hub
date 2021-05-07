@@ -5,12 +5,12 @@
  *
  * This source file is available under two different licenses:
  * - GNU General Public License version 3 (GPLv3)
- * - Pimcore Enterprise License (PEL)
+ * - Pimcore Commercial License (PCL)
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PEL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -18,10 +18,8 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 
-
 class Link
 {
-
     use ServiceTrait;
 
     /**
@@ -29,10 +27,12 @@ class Link
      * @param array $args
      * @param array $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return array
+     *
      * @throws \Exception
      */
-    public function resolveText($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolveText($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof \Pimcore\Model\DataObject\Data\Link) {
             return $value->getText();
@@ -46,10 +46,12 @@ class Link
      * @param array $args
      * @param array $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return array
+     *
      * @throws \Exception
      */
-    public function resolvePath($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolvePath($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof \Pimcore\Model\DataObject\Data\Link) {
             return $value->getPath();
@@ -58,4 +60,3 @@ class Link
         return null;
     }
 }
-

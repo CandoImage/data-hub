@@ -5,12 +5,12 @@
  *
  * This source file is available under two different licenses:
  * - GNU General Public License version 3 (GPLv3)
- * - Pimcore Enterprise License (PEL)
+ * - Pimcore Commercial License (PCL)
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PEL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -23,10 +23,8 @@ use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Data\ElementMetadata;
 
-
 class ObjectMetadata
 {
-
     use ServiceTrait;
 
     protected $fieldDefinition;
@@ -38,6 +36,7 @@ class ObjectMetadata
 
     /**
      * ObjectMetadata constructor.
+     *
      * @param ClassDefinition\Data $fieldDefinition
      * @param ClassDefinition $class
      * @param $fieldHelper
@@ -49,16 +48,17 @@ class ObjectMetadata
         $this->fieldHelper = $fieldHelper;
     }
 
-
     /**
      * @param null $value
      * @param array $args
      * @param array $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return array
+     *
      * @throws \Exception
      */
-    public function resolveElement($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolveElement($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         $element = null;
 
@@ -89,10 +89,12 @@ class ObjectMetadata
      * @param array $args
      * @param array $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return array
+     *
      * @throws \Exception
      */
-    public function resolveMetadata($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolveMetadata($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value && $value['element']) {
 
@@ -114,6 +116,4 @@ class ObjectMetadata
 
         return null;
     }
-
 }
-

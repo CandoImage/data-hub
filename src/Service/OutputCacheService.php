@@ -5,12 +5,12 @@
  *
  * This source file is available under two different licenses:
  * - GNU General Public License version 3 (GPLv3)
- * - Pimcore Enterprise License (PEL)
+ * - Pimcore Commercial License (PCL)
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PEL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
@@ -20,11 +20,11 @@ use GraphQL\Language\Parser;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreLoadEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
-use Psr\Container\ContainerInterface;
 use Pimcore\Logger;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Psr\Container\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 
 class OutputCacheService
 {
@@ -77,11 +77,11 @@ class OutputCacheService
      */
     private string $sortValues = '';
 
+
     /**
      * @var EventDispatcherInterface
      */
     public $eventDispatcher;
-
 
     /**
      * @param ContainerInterface $container
@@ -160,7 +160,6 @@ class OutputCacheService
         return $this->loadFromCache($cacheKey);
     }
 
-
     public function save(Request $request, JsonResponse $response, $extraTags = []): void
     {
         if ($this->useCache($request)) {
@@ -172,7 +171,7 @@ class OutputCacheService
             // Original Code
 //            $cacheKey = $this->computeKey($request);
             $clientname = $request->get('clientname');
-            $extraTags = array_merge(["output", "datahub", $clientname], $extraTags);
+            $extraTags = array_merge(['output', 'datahub', $clientname], $extraTags);
 
             $extraTags = array_merge(CacheHelper::getTenantTags(), $extraTags);
             $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues, $this->sortValues]);
@@ -183,9 +182,8 @@ class OutputCacheService
             $this->saveToCache($cacheKey, $event->getResponse(), $extraTags);
         }
     }
-
-    protected function loadFromCache($key)
-    {
+    
+    protected function loadFromCache($key) {
         return \Pimcore\Cache::load($key);
     }
 
@@ -201,22 +199,24 @@ class OutputCacheService
         $input = json_decode($request->getContent(), true);
         $input = print_r($input, true);
 
-        return md5("output_" . $clientname . $input);
+        return md5('output_' . $clientname . $input);
     }
 
     private function useCache(Request $request): bool
     {
         if (!$this->cacheEnabled) {
-            Logger::debug("Output cache is disabled");
+            Logger::debug('Output cache is disabled');
+
             return false;
         }
 
-        if (\Pimcore::getDebugMode()) {
+        if (\Pimcore::inDebugMode()) {
             $disableCacheForSingleRequest = filter_var($request->query->get('pimcore_nocache', 'false'), FILTER_VALIDATE_BOOLEAN)
-                || filter_var($request->query->get('pimcore_outputfilters_disabled', 'false'), FILTER_VALIDATE_BOOLEAN);
+            || filter_var($request->query->get('pimcore_outputfilters_disabled', 'false'), FILTER_VALIDATE_BOOLEAN);
 
             if ($disableCacheForSingleRequest) {
-                Logger::debug("Output cache is disabled for this request");
+                Logger::debug('Output cache is disabled for this request');
+
                 return false;
             }
         }
