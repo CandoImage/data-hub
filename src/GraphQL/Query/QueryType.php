@@ -266,18 +266,7 @@ class QueryType extends ObjectType
             ];
 
             // LISTING DEFINITION
-            $edgeType = new ObjectType(
-                [
-                    'name' => $ucFirstClassName . 'Edge',
-                    'fields' => [
-                        'cursor' => Type::string(),
-                        'node' => [
-                            'type' => ClassTypeDefinitions::get($class),
-                            'resolve' => [$resolver, 'resolveEdge']
-                        ],
-                    ],
-                ]
-            );
+            $edgeType = $this->getEdgeTypeDefinition($class, $context);
 
             $listingType = new ObjectType(
                 [
