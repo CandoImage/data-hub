@@ -257,7 +257,7 @@ class QueryType extends ObjectType
             $defGet = [
                 'name' => 'get' . $ucFirstClassName,
                 'args' => [
-                    'id' => ['type' => Type::int()],
+                    'id' => ['type' => Type::id()],
                     'fullpath' => ['type' => Type::string()],
                     'defaultLanguage' => ['type' => Type::string()],
                 ],
