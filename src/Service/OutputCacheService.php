@@ -77,7 +77,6 @@ class OutputCacheService
      */
     private string $sortValues = '';
 
-
     /**
      * @var EventDispatcherInterface
      */
@@ -116,10 +115,8 @@ class OutputCacheService
         $this->excludedQueries[] = 'performUpdateToCartMutation';
     }
 
-
     public function load(Request $request)
     {
-
         if (!$this->useCache($request)) {
             return null;
         }
@@ -182,8 +179,9 @@ class OutputCacheService
             $this->saveToCache($cacheKey, $event->getResponse(), $extraTags);
         }
     }
-    
-    protected function loadFromCache($key) {
+
+    protected function loadFromCache($key)
+    {
         return \Pimcore\Cache::load($key);
     }
 
@@ -241,6 +239,7 @@ class OutputCacheService
                 }
             }
         }
+
         return false;
     }
 
@@ -259,6 +258,7 @@ class OutputCacheService
                 $filterValues[] = $filter['field'] . '-' . implode('-', $filter['values']);
             }
         }
+
         return implode(',', $filterValues);
     }
 }

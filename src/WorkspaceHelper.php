@@ -224,10 +224,11 @@ class WorkspaceHelper
      *
      * @throws NotAllowedException
      */
-    public static function checkPermission($element, $type, string $elementType = '') {
-        $context = Runtime::get("datahub_context");
-        /** @var Configuration  $configuration */
-        $configuration = $context["configuration"];
+    public static function checkPermission($element, $type, string $elementType = '')
+    {
+        $context = Runtime::get('datahub_context');
+        /** @var Configuration $configuration */
+        $configuration = $context['configuration'];
 
         if ($configuration->skipPermisssionCheck()) {
             return true;
@@ -235,10 +236,10 @@ class WorkspaceHelper
 
         $isAllowed = self::isAllowed($element, $configuration, $type, $elementType);
         if (!$isAllowed && PimcoreDataHubBundle::getNotAllowedPolicy() === PimcoreDataHubBundle::NOT_ALLOWED_POLICY_EXCEPTION) {
-            if(!$elementType){
+            if (!$elementType) {
                 $elementType = Service::getElementType($element);
             }
-            throw new ClientSafeException($type . " access for " . $elementType . " " . $element->getFullPath() . " denied");
+            throw new ClientSafeException($type . ' access for ' . $elementType . ' ' . $element->getFullPath() . ' denied');
         }
 
         return $isAllowed;
@@ -258,7 +259,7 @@ class WorkspaceHelper
         if (!$element) {
             return false;
         }
-        if(!$elementType){
+        if (!$elementType) {
             $elementType = Service::getElementType($element);
         }
         // collect properties via parent - ids

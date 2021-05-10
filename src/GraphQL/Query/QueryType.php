@@ -16,7 +16,6 @@
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Query;
 
 use GraphQL\Type\Definition\CustomScalarType;
-use GraphQL\Type\Definition\InputObjectField;
 use GraphQL\Type\Definition\InputObjectType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
@@ -74,8 +73,7 @@ class QueryType extends ObjectType
         EventDispatcherInterface $eventDispatcher,
         $config = [],
         $context = []
-    )
-    {
+    ) {
         if (!isset($config['name'])) {
             $config['name'] = 'Query';
         }
@@ -192,7 +190,8 @@ class QueryType extends ObjectType
      *
      * @return \Pimcore\Bundle\DataHubBundle\GraphQL\Resolver\QueryType
      */
-    protected function getResolver($class = null, $configuration = null) {
+    protected function getResolver($class = null, $configuration = null)
+    {
         $resolver = new \Pimcore\Bundle\DataHubBundle\GraphQL\Resolver\QueryType($this->eventDispatcher, $class, $configuration, $this->omitPermissionCheck);
         $resolver->setGraphQlService($this->getGraphQlService());
 
@@ -204,6 +203,7 @@ class QueryType extends ObjectType
      * @param array $context
      *
      * @return \GraphQL\Type\Definition\ObjectType
+     *
      * @throws \Exception
      */
     protected function getEdgeTypeDefinition(ClassDefinition $class, array $context): ObjectType
@@ -221,12 +221,13 @@ class QueryType extends ObjectType
                         'cursor' => Type::string(),
                         'node' => [
                             'type' => ClassTypeDefinitions::get($class),
-                            'resolve' => [$resolver, "resolveEdge"]
+                            'resolve' => [$resolver, 'resolveEdge']
                         ],
                     ],
                 ]
             );
         }
+
         return $instances[$ucFirstClassName];
     }
 
@@ -331,6 +332,7 @@ class QueryType extends ObjectType
     /**
      * @param array &$config
      * @param array $context
+     *
      * @throws \Exception
      */
     public function buildFilterQueries(&$config = [], $context = []): void
@@ -346,12 +348,12 @@ class QueryType extends ObjectType
         foreach ($entities as $entity) {
             $class = ClassDefinition::getByName($entity);
             if (!$class) {
-                Logger::error("class " . $entity . " not found");
+                Logger::error('class ' . $entity . ' not found');
                 continue;
             }
             if (!is_subclass_of('\\Pimcore\Model\\DataObject\\' . $class->getName(),
                 \Pimcore\Bundle\EcommerceFrameworkBundle\Model\IndexableInterface::class)) {
-                Logger::info("class " . $entity . " is not filterable.");
+                Logger::info('class ' . $entity . ' is not filterable.');
                 continue;
             }
 
@@ -363,7 +365,6 @@ class QueryType extends ObjectType
             //Create ObjectTypes for each configured filter Type in "ecommerce-config.yml"
             $filterFields = [];
             foreach ($filterTypes as $filterType) {
-
                 $entry = new ObjectType([
                     'name' => $ucFirstClassName . $filterType,
                     'fields' => [
@@ -378,7 +379,7 @@ class QueryType extends ObjectType
                                     'label' => ['type' => Type::string()],
                                     'count' => ['type' => Type::int()],
                                 ],
-                            ]),),
+                            ]), ),
                         ],
                     ]
                 ]);
@@ -391,10 +392,11 @@ class QueryType extends ObjectType
                 'resolveType' => function ($value) use ($resolver, $filterFields) {
                     $type = $value['filter']->getType();
                     if (isset($filterFields[$type])) {
-                        $filterFields[$type]->resolveFieldFn = [$resolver, "resolveFacet"];
+                        $filterFields[$type]->resolveFieldFn = [$resolver, 'resolveFacet'];
+
                         return $filterFields[$type];
                     }
-                    throw new \Exception("No Filter Type found, only types allowed which are defined in ecommerce-config.yml");
+                    throw new \Exception('No Filter Type found, only types allowed which are defined in ecommerce-config.yml');
                 }
             ]);
 
@@ -404,15 +406,15 @@ class QueryType extends ObjectType
                     'fields' => [
                         'edges' => [
                             'type' => Type::listOf($edgeType),
-                            'resolve' => [$resolver, "resolveEdges"]
+                            'resolve' => [$resolver, 'resolveEdges']
                         ],
                         'facets' => [
                             'type' => UnionType::listOf($unionType),
-                            'resolve' => [$resolver, "resolveFacets"]
+                            'resolve' => [$resolver, 'resolveFacets']
                         ],
                         'totalCount' => [
                             'description' => 'The total count of all queryable objects for this schema listing',
-                            'resolve' => [$resolver, "resolveFilterTotalCount"],
+                            'resolve' => [$resolver, 'resolveFilterTotalCount'],
                             'type' => Type::int()
                         ]
                     ]
@@ -441,7 +443,7 @@ class QueryType extends ObjectType
                     'sortBy' => ['type' => Type::listOf(Type::string())],
                     'sortOrder' => [
                         'type' => Type::listOf(Type::string()),
-                        'description' => "Sort by ASC or DESC, use the same position as the sortBy argument for each column to sort by",
+                        'description' => 'Sort by ASC or DESC, use the same position as the sortBy argument for each column to sort by',
                     ],
                     'filter' => ['type' => Type::string()],
                     'filterDefinition' => [
@@ -453,12 +455,12 @@ class QueryType extends ObjectType
                                 'fallbackFilterDefinitionId' => ['type' => Type::id()],
                             ],
                         ]),
-                        'description' => "Define the id of a filterDefinition or from an object and its relationField to the filterDefinition to get the correct filter. Otherwise it uses the fallBackFilterDefinition",
+                        'description' => 'Define the id of a filterDefinition or from an object and its relationField to the filterDefinition to get the correct filter. Otherwise it uses the fallBackFilterDefinition',
                     ],
                     'published' => ['type' => Type::boolean()],
                     'category' => [
                         'type' => Type::id(),
-                        'description' => "ID of the category to filter by.",
+                        'description' => 'ID of the category to filter by.',
                     ],
                     'facets' => [
                         'type' => Type::listOf(new InputObjectType([
@@ -485,7 +487,7 @@ class QueryType extends ObjectType
                     ],
                 ],
                 'type' => $filterType,
-                'resolve' => [$resolver, "resolveFilter"],
+                'resolve' => [$resolver, 'resolveFilter'],
             ];
 
             if (!$config['fields']) {

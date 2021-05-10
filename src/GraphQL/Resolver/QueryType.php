@@ -522,6 +522,7 @@ class QueryType
 
         return 'either id or fullpath expected';
     }
+
     /**
      * Build a filter query.
      *
@@ -531,7 +532,9 @@ class QueryType
      * @param array $args
      * @param $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return array
+     *
      * @throws \Exception
      */
     public function resolveFilter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
@@ -592,7 +595,7 @@ class QueryType
                 $object = AbstractObject::getById($args['filterDefinition']['id']);
                 if ($object instanceof AbstractFilterDefinition) {
                     $filterDefinition = $object;
-                } else if ($object && isset($args['filterDefinition']['relationField'])) {
+                } elseif ($object && isset($args['filterDefinition']['relationField'])) {
                     $getter = 'get' . ucfirst($args['filterDefinition']['relationField']);
                     if (method_exists($object, $getter)) {
                         $filterDefinition = $object->$getter();
@@ -697,7 +700,7 @@ class QueryType
                         // Check if filter is requested from GraphQL Query
                         $hasFilter = false;
                         foreach ($requestFilters as $requestFilter) {
-                            if (strpos($requestFilter, $filter->getType()) !== FALSE) {
+                            if (strpos($requestFilter, $filter->getType()) !== false) {
                                 $hasFilter = true;
                                 break;
                             }
@@ -752,6 +755,7 @@ class QueryType
                     $resultList->getCurrentTenantConfig()->getSearchAttributes(),
                     $args['fulltext']
                 );
+
                 return $resultList->addCondition($args['fulltext'], 'relevance');
             } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
                 /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
@@ -815,12 +819,12 @@ class QueryType
         return $connection;
     }
 
-
     /**
      * @param null $value
      * @param array $args
      * @param $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return mixed
      */
     public function resolveFilterTotalCount($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
@@ -833,6 +837,7 @@ class QueryType
      * @param array $args
      * @param $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return mixed
      */
     public function resolveFacets($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
@@ -872,7 +877,6 @@ class QueryType
             }
         }
 
-
         $facets = [];
         foreach ($value['facets'] as $facet) {
             $filter = $facet['filter'];
@@ -882,11 +886,11 @@ class QueryType
                     $facets[] = $facet;
                 }
             }
-
         }
         if (!empty($facets)) {
             return $facets;
         }
+
         return $value['facets'];
     }
 
@@ -895,6 +899,7 @@ class QueryType
      * @param array $args
      * @param $context
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return mixed
      */
     public function resolveFacet($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)

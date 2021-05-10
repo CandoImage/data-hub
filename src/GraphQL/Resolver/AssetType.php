@@ -205,7 +205,7 @@ class AssetType
         if ($value instanceof ElementDescriptor) {
             $thumbnailName = $args['thumbnail'];
             $asset = $this->getAssetFromValue($value, $context);
-            if(!$asset) {
+            if (!$asset) {
                 return [];
             }
             /** @var Asset\Image\Thumbnail $thumbnail */
