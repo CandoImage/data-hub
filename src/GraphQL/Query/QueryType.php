@@ -111,7 +111,7 @@ class QueryType extends ObjectType
             $defGet = [
                 'name' => 'get' . ucfirst($type) . 'Folder',
                 'args' => [
-                    'id' => ['type' => Type::int()],
+                    'id' => ['type' => Type::id()],
                     'fullpath' => ['type' => Type::string()],
                     'defaultLanguage' => ['type' => Type::string()],
                 ],
@@ -142,7 +142,7 @@ class QueryType extends ObjectType
             $defGet = [
                 'name' => 'getAsset',
                 'args' => [
-                    'id' => ['type' => Type::int()],
+                    'id' => ['type' => Type::id()],
                     'fullpath' => ['type' => Type::string()],
                     'defaultLanguage' => ['type' => Type::string()],
                 ],
@@ -171,7 +171,7 @@ class QueryType extends ObjectType
             $defGet = [
                 'name' => 'getDocument',
                 'args' => [
-                    'id' => ['type' => Type::int()],
+                    'id' => ['type' => Type::id()],
                     'path' => ['type' => Type::string(), 'description' => "Get document by 'path' is deprecated as it is wrongly named. The 'path' argument will be replaced by 'fullpath' for Release 1.0."],
                     'fullpath' => ['type' => Type::string()],
                     'defaultLanguage' => ['type' => Type::string()],
@@ -257,7 +257,7 @@ class QueryType extends ObjectType
             $defGet = [
                 'name' => 'get' . $ucFirstClassName,
                 'args' => [
-                    'id' => ['type' => Type::int()],
+                    'id' => ['type' => Type::id()],
                     'fullpath' => ['type' => Type::string()],
                     'defaultLanguage' => ['type' => Type::string()],
                 ],
