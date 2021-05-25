@@ -878,12 +878,16 @@ class QueryType
         }
 
         $facets = [];
+        $filterFields = [];
         foreach ($value['facets'] as $facet) {
             $filter = $facet['filter'];
             $filterType = $filter->getType();
             foreach ($filterNames as $filterName) {
-                if (strpos($filterName, $filterType) !== false) {
+                $fieldName = $filter->getField();
+                // check filterName string and duplicates e.g. FilterSelect and FilterSelectSortable has the same beginning name
+                if (strpos($filterName, $filterType) !== false && !in_array($fieldName, $filterFields)) {
                     $facets[] = $facet;
+                    $filterFields[] = $fieldName;
                 }
             }
         }
