@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
@@ -252,7 +252,12 @@ class OutputCacheService
             if (count($filter['values']) > 1) {
                 $valueList = [];
                 foreach ($filter['values'] as $filterValue) {
-                    $valueList[] = key($filterValue) . '-' . $filterValue[key($filterValue)];
+                    if (is_array($filterValue)) {
+                        $valueList[] = key($filterValue) . '-' . $filterValue[key($filterValue)];
+                    } else {
+                        $valueList[] = $filter['field'] . '-' . implode('-', $filter['values']);
+                        break;
+                    }
                 }
                 $filterValues[] = implode($valueList);
             } else {
