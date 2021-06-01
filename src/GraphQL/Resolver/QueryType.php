@@ -628,6 +628,12 @@ class QueryType
                                 $orderByList = $orderBy->getAdvancedSort($orderByCollection, $config);
                                 break;
                             } else {
+                                if(method_exists($orderBy, 'getOrderField')){
+                                    if ($orderBy->getOrderField()) {
+                                        $orderByList[] = [$orderBy->getOrderField(), $orderBy->getDirection()];
+                                        continue;
+                                    }
+                                }
                                 if ($orderBy->getField()) {
                                     $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
                                 }
