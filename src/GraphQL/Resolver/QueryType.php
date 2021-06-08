@@ -264,7 +264,8 @@ class QueryType
         $conditionParts = [];
 
         if ($isIdSet) {
-            $conditionParts[] = '(o_id =' . $args['id'] . ')';
+            $tableName = $objectList->getDao()->getTableName();
+            $conditionParts[] = '('. $tableName . '.o_id =' . $args['id'] . ')';
         }
 
         if ($isFullpathSet) {
@@ -628,7 +629,7 @@ class QueryType
                                 $orderByList = $orderBy->getAdvancedSort($orderByCollection, $config);
                                 break;
                             } else {
-                                if(method_exists($orderBy, 'getOrderField')){
+                                if (method_exists($orderBy, 'getOrderField')) {
                                     if ($orderBy->getOrderField()) {
                                         $orderByList[] = [$orderBy->getOrderField(), $orderBy->getDirection()];
                                         continue;
