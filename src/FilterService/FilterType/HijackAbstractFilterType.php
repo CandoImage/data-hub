@@ -33,6 +33,7 @@ class HijackAbstractFilterType extends AbstractFilterType
      * @param AbstractFilterDefinitionType $filterDefinition
      * @param ProductListInterface $productList
      * @param $currentFilter
+     *
      * @return array
      */
     public function getFilterFrontend(
@@ -40,7 +41,7 @@ class HijackAbstractFilterType extends AbstractFilterType
         ProductListInterface $productList,
         $currentFilter
     ) {
-        return $this->getFilterValues($filterDefinition,$productList,$currentFilter);
+        return $this->getFilterValues($filterDefinition, $productList, $currentFilter);
     }
 
     public function getFilterValues(
