@@ -19,6 +19,7 @@ use CandoCX\B2BProductBundle\Helper\CacheHelper;
 use GraphQL\Language\Parser;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreLoadEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
 use Pimcore\Logger;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -152,8 +153,7 @@ class OutputCacheService
         } else {
             $this->sortValues = '';
         }
-
-        $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues, $this->sortValues]);
+        $cacheKey = CacheHelper::generateCacheId([$this->query, json_encode($this->variables), $this->filterValues, $this->sortValues]);
 
         return $this->loadFromCache($cacheKey);
     }
@@ -172,10 +172,10 @@ class OutputCacheService
             $extraTags = array_merge(['output', 'datahub', $clientname], $extraTags);
 
             $extraTags = array_merge(CacheHelper::getTenantTags(), $extraTags);
-            $cacheKey = CacheHelper::generateCacheId([$this->query, implode('-', $this->variables), $this->filterValues, $this->sortValues]);
+            $cacheKey = CacheHelper::generateCacheId([$this->query, json_encode($this->variables), $this->filterValues, $this->sortValues]);
 
             $event = new OutputCachePreSaveEvent($request, $response);
-            $this->eventDispatcher->dispatch($event);
+            $this->eventDispatcher->dispatch(OutputCacheEvents::PRE_SAVE, $event);
 
             $this->saveToCache($cacheKey, $event->getResponse(), $extraTags);
         }
@@ -188,7 +188,7 @@ class OutputCacheService
 
     protected function saveToCache($key, $item, $tags = []): void
     {
-        \Pimcore\Cache::save($item, $key, $tags, $this->lifetime, 0, true);
+        \Pimcore\Cache::save($item, $key, $tags, $this->lifetime);
     }
 
     private function computeKey(Request $request): string
@@ -222,7 +222,7 @@ class OutputCacheService
 
         // So far, cache will be used, unless the listener denies it
         $event = new OutputCachePreLoadEvent($request, true);
-        $this->eventDispatcher->dispatch($event);
+        $this->eventDispatcher->dispatch(OutputCacheEvents::PRE_LOAD, $event);
 
         return $event->isUseCache();
     }
