@@ -29,11 +29,25 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinitionType;
  */
 class HijackAbstractFilterType extends AbstractFilterType
 {
+    /**
+     * @param AbstractFilterDefinitionType $filterDefinition
+     * @param ProductListInterface $productList
+     * @param $currentFilter
+     * @return array
+     */
     public function getFilterFrontend(
         AbstractFilterDefinitionType $filterDefinition,
         ProductListInterface $productList,
         $currentFilter
     ) {
+        return $this->getFilterValues($filterDefinition,$productList,$currentFilter);
+    }
+
+    public function getFilterValues(
+        AbstractFilterDefinitionType $filterDefinition,
+        ProductListInterface $productList,
+        array $currentFilter
+    ): array {
         return [];
     }
 
