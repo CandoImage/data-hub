@@ -129,7 +129,7 @@ abstract class AbstractFieldHelper
         }
 
         $resolveInfoArray = (array)$resolveInfo;
-        $fieldAstList = (array) $resolveInfoArray['fieldNodes'];
+        $fieldAstList = $resolveInfoArray['fieldNodes'] ?? [];
 
         foreach ($fieldAstList as $astNode) {
             if ($astNode instanceof FieldNode) {
