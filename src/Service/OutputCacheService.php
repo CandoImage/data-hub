@@ -175,7 +175,7 @@ class OutputCacheService
             $cacheKey = CacheHelper::generateCacheId([$this->query, json_encode($this->variables), $this->filterValues, $this->sortValues]);
 
             $event = new OutputCachePreSaveEvent($request, $response);
-            $this->eventDispatcher->dispatch(OutputCacheEvents::PRE_SAVE, $event);
+            $this->eventDispatcher->dispatch($event);
 
             $this->saveToCache($cacheKey, $event->getResponse(), $extraTags);
         }
@@ -222,7 +222,7 @@ class OutputCacheService
 
         // So far, cache will be used, unless the listener denies it
         $event = new OutputCachePreLoadEvent($request, true);
-        $this->eventDispatcher->dispatch(OutputCacheEvents::PRE_LOAD, $event);
+        $this->eventDispatcher->dispatch($event);
 
         return $event->isUseCache();
     }
