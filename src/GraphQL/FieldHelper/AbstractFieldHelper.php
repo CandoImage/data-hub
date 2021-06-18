@@ -104,7 +104,7 @@ abstract class AbstractFieldHelper
         for ($i = 0; $i < $count; $i++) {
             /** @var $argumentNode ArgumentNode */
             $argumentNode = $nodeList[$i];
-            $value = $argumentNode->value->value;
+            $value = $argumentNode->value->value ?? null;
             $result[$argumentNode->name->value] = $value;
         }
 
