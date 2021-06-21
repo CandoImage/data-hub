@@ -19,6 +19,7 @@ use CandoCX\B2BProductBundle\Helper\CacheHelper;
 use GraphQL\Language\Parser;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreLoadEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
 use Pimcore\Logger;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -174,7 +175,7 @@ class OutputCacheService
             $cacheKey = CacheHelper::generateCacheId([$this->query, json_encode($this->variables), $this->filterValues, $this->sortValues]);
 
             $event = new OutputCachePreSaveEvent($request, $response);
-            $this->eventDispatcher->dispatch($event);
+            $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_SAVE);
 
             $this->saveToCache($cacheKey, $event->getResponse(), $extraTags);
         }
@@ -221,7 +222,7 @@ class OutputCacheService
 
         // So far, cache will be used, unless the listener denies it
         $event = new OutputCachePreLoadEvent($request, true);
-        $this->eventDispatcher->dispatch($event);
+        $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_LOAD);
 
         return $event->isUseCache();
     }
