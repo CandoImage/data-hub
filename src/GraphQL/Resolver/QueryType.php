@@ -858,7 +858,7 @@ class QueryType
         $requestedFilters = $resolveInfo->operation->selectionSet->selections[0]->selectionSet->selections[0]->selectionSet->selections;
 
         foreach ($requestedFilters as $filter) {
-            if ($filter->alias->value == $facetName) {
+            if (isset($filter->alias) && $filter->alias->value == $facetName) {
                 $filterNodes = $filter->selectionSet->selections;
             }
         }
