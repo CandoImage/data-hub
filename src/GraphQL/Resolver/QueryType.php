@@ -83,6 +83,7 @@ class QueryType
      * @param array $args
      * @param array $context
      * @param ResolveInfo|null $resolveInfo
+     * @param string|null $elementType
      *
      * @return array
      *
