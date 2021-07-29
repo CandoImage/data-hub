@@ -119,6 +119,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'performCartDelete';
         $this->excludedQueries[] = 'getCartDetails';
         $this->excludedQueries[] = 'performPasswordChange';
+        $this->excludedQueries[] = 'getOrderListing';
     }
 
     public function load(Request $request)
