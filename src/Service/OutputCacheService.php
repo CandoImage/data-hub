@@ -115,6 +115,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'getAccountPasswordData';
         $this->excludedQueries[] = 'performPasswordChange';
         $this->excludedQueries[] = 'getFlashMessages';
+        $this->excludedQueries[] = 'setFlashMessages';
         // EcommerceBaseBundle
         $this->excludedQueries[] = 'performAddToCartMutation';
         $this->excludedQueries[] = 'getCalculatedCart';
