@@ -128,6 +128,8 @@ class OutputCacheService
         $this->excludedQueries[] = 'getOrderListing';
         $this->excludedQueries[] = 'performSelectCartMutation';
         $this->excludedQueries[] = 'performUpdateToCartMutation';
+        $this->excludedQueries[] = 'setCartPaymentMethod';
+        $this->excludedQueries[] = 'setCartDeliveryType';
     }
 
     public function load(Request $request)
