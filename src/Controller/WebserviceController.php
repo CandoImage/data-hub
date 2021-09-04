@@ -16,6 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\Controller;
 
 use GraphQL\Error\DebugFlag;
+use GraphQL\Error\FormattedError;
 use GraphQL\Error\Warning;
 use GraphQL\GraphQL;
 use Pimcore\Bundle\DataHubBundle\Configuration;
@@ -216,6 +217,10 @@ class WebserviceController extends FrontendController
                     ],
                 ],
             ];
+            // Add debugging version if debugMode is enabled.
+            if (\Pimcore::inDebugMode()) {
+                $output['errors'] = [FormattedError::createFromException($e, DebugFlag::INCLUDE_DEBUG_MESSAGE | DebugFlag::INCLUDE_TRACE)];
+            }
         }
 
         $origin = '*';
