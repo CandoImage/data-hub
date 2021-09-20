@@ -15,7 +15,6 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\EnvironmentInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 
