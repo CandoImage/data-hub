@@ -107,19 +107,29 @@ class OutputCacheService
         }
         // Cando Special:
         $this->excludedQueries[] = '__schema';
+        // B2BProductBundle
         $this->excludedQueries[] = 'getAvailabilitiesAndPrices';
-        $this->excludedQueries[] = 'getCartListing';
-        $this->excludedQueries[] = 'getCalculatedCart';
+        // CoreBundle
+        $this->excludedQueries[] = 'getAccountAddress';
+        $this->excludedQueries[] = 'getAccountData';
+        $this->excludedQueries[] = 'getAccountPasswordData';
+        $this->excludedQueries[] = 'performPasswordChange';
+        $this->excludedQueries[] = 'getFlashMessages';
+        $this->excludedQueries[] = 'setFlashMessages';
+        // EcommerceBaseBundle
         $this->excludedQueries[] = 'performAddToCartMutation';
-        $this->excludedQueries[] = 'performSelectCartMutation';
-        $this->excludedQueries[] = 'performUpdateToCartMutation';
-        $this->excludedQueries[] = 'performOrderMutation';
-        $this->excludedQueries[] = 'getCheckoutSuccess';
+        $this->excludedQueries[] = 'getCalculatedCart';
+        $this->excludedQueries[] = 'getCartListing';
+        $this->excludedQueries[] = 'getCartDetails';
         $this->excludedQueries[] = 'performCartUpdate';
         $this->excludedQueries[] = 'performCartDelete';
-        $this->excludedQueries[] = 'getCartDetails';
-        $this->excludedQueries[] = 'performPasswordChange';
+        $this->excludedQueries[] = 'performOrderMutation';
+        $this->excludedQueries[] = 'getCheckoutSuccess';
         $this->excludedQueries[] = 'getOrderListing';
+        $this->excludedQueries[] = 'performSelectCartMutation';
+        $this->excludedQueries[] = 'performUpdateToCartMutation';
+        $this->excludedQueries[] = 'setCartPaymentMethod';
+        $this->excludedQueries[] = 'setCartDeliveryType';
     }
 
     public function load(Request $request)
