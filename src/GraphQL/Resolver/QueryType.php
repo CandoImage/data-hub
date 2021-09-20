@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -23,6 +23,8 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ListingEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ListingEvent;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\TenantEvent;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\TenantEvents;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Helper;
@@ -160,8 +162,6 @@ class QueryType
     }
 
     /**
-     * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
-     *
      * @param null $value
      * @param array $args
      * @param array $context
@@ -170,6 +170,8 @@ class QueryType
      * @return array
      *
      * @throws ClientSafeException
+     * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
+     *
      */
     public function resolveDocumentGetter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
@@ -266,7 +268,7 @@ class QueryType
 
         if ($isIdSet) {
             $tableName = $objectList->getDao()->getTableName();
-            $conditionParts[] = '('. $tableName . '.o_id =' . $args['id'] . ')';
+            $conditionParts[] = '(' . $tableName . '.o_id =' . $args['id'] . ')';
         }
 
         if ($isFullpathSet) {
@@ -554,26 +556,13 @@ class QueryType
                 $security = new Security(\Pimcore::getKernel()->getContainer());
                 $user = $security->getUser();
                 $environment = $factory->getEnvironment();
-                if (!$user) {
-                    //get Default Assortment for anonymous user
-                    $defaultAssortmentSetting = \Pimcore\Model\WebsiteSetting::getByName('defaultAssortment');
-                    if ($defaultAssortmentSetting) {
-                        $defaultAssortmentId = $defaultAssortmentSetting->getData();
-                        if ($defaultAssortmentId) {
-                            $defaultTenant = \Pimcore\Model\DataObject\Tenant::getById($defaultAssortmentId);
-                            if ($defaultTenant) {
-                                if (method_exists($environment, 'setMultipleAssortmentTenants')) {
-                                    $environment->setMultipleAssortmentTenants([$defaultTenant]);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    if (method_exists($user, 'getTenants')) {
-                        if (method_exists($environment, 'setMultipleAssortmentTenants')) {
-                            $environment->setMultipleAssortmentTenants($user->getTenants());
-                        }
-                    }
+
+                $tenantEvent = new TenantEvent($environment, $user);
+                $this->eventDispatcher->dispatch($tenantEvent, TenantEvents::LOAD_TENANTS);
+
+                $userTenants = $tenantEvent->getUserTenants();
+                if (method_exists($environment, 'setMultipleAssortmentTenants')) {
+                    $environment->setMultipleAssortmentTenants($userTenants);
                 }
             }
         }
