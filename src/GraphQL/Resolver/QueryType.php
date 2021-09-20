@@ -557,7 +557,7 @@ class QueryType
                 $user = $security->getUser();
                 $environment = $factory->getEnvironment();
 
-                $tenantEvent = new TenantEvent($environment, $user);
+                $tenantEvent = new TenantEvent($user);
                 $this->eventDispatcher->dispatch($tenantEvent, TenantEvents::LOAD_TENANTS);
 
                 $userTenants = $tenantEvent->getUserTenants();

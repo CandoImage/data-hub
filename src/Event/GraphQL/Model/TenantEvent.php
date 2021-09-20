@@ -22,11 +22,6 @@ use Symfony\Contracts\EventDispatcher\Event;
 class TenantEvent extends Event
 {
     /**
-     * @var EnvironmentInterface
-     */
-    protected $environment;
-
-    /**
      * @var ?UserInterface
      */
     protected $user = null;
@@ -39,29 +34,11 @@ class TenantEvent extends Event
     /**
      * TenantEvent constructor.
      *
-     * @param EnvironmentInterface $environment
      * @param null $user
      */
-    public function __construct(EnvironmentInterface $environment, $user = null)
+    public function __construct($user = null)
     {
-        $this->environment = $environment;
         $this->user = $user;
-    }
-
-    /**
-     * @return EnvironmentInterface
-     */
-    public function getEnvironment(): EnvironmentInterface
-    {
-        return $this->environment;
-    }
-
-    /**
-     * @param EnvironmentInterface $environment
-     */
-    public function setEnvironment(EnvironmentInterface $environment): void
-    {
-        $this->environment = $environment;
     }
 
     /**
