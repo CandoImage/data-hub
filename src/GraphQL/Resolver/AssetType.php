@@ -114,7 +114,21 @@ class AssetType
         $asset = $this->getAssetFromValue($value, $context);
 
         if ($asset instanceof Asset\Image || $asset instanceof Asset\Video) {
-            return isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], false) : $asset->getFullPath();
+            $value = isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], false) : $asset->getFullPath();
+
+            if ($asset instanceof Asset\Video) {
+                //TODO temporary workaround for https://github.com/pimcore/data-hub/issues/392
+                // we should add format parameter to the schema
+                if ($value) {
+                    $formats = $value['formats'] ?? [];
+                    $firstFormat = array_values($formats)[0] ?? null;
+                    if ($firstFormat) {
+                        return $firstFormat;
+                    }
+                }
+            } else {
+                return $value;
+            }
         } elseif ($asset instanceof Asset\Document) {
             return isset($args['thumbnail']) ? $asset->getImageThumbnail($args['thumbnail']) : $asset->getFullPath();
         } elseif ($asset instanceof Asset) {
@@ -248,6 +262,51 @@ class AssetType
             }
 
             return $resolutions;
+        }
+
+        return [];
+    }
+
+    /**
+     * @param mixed $value
+     * @param array $args
+     * @param array $context
+     * @param ResolveInfo $resolveInfo
+     *
+     * @return array
+     *
+     * @throws \Exception
+     */
+    public function resolveDimensions($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
+    {
+        if ($value instanceof ElementDescriptor) {
+            $thumbnailName = $args['thumbnail'] ?? null;
+
+            /**
+             * @var Asset\Image $asset
+             */
+            $asset = $this->getAssetFromValue($value, $context);
+
+            if (!$asset instanceof Asset\Image) {
+                return null;
+            }
+
+            if (!$thumbnailName) {
+                return [
+                    'width' => $asset->getWidth(),
+                    'height' => $asset->getHeight(),
+                ];
+            }
+
+            $thumbnail = $asset->getThumbnail($thumbnailName, false);
+
+            $width = $thumbnail->getWidth();
+            $height = $thumbnail->getHeight();
+
+            return [
+                'width' => $width,
+                'height' => $height
+            ];
         }
 
         return [];
