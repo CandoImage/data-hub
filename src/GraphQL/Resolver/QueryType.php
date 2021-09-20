@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PCL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -170,6 +170,7 @@ class QueryType
      * @return array
      *
      * @throws ClientSafeException
+     *
      * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
      *
      */
