@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -21,7 +21,9 @@ use GraphQL\Language\AST\NodeKind;
 use GraphQL\Language\AST\NodeList;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\Configuration;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\EdgeEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ListingEvents;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\EdgeEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ListingEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\TenantEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\TenantEvents;
@@ -347,6 +349,11 @@ class QueryType
     public function resolveEdges($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         $objectList = $value['edges']();
+
+        // create Edge Event with variable values and objectList
+        $event = new EdgeEvent($resolveInfo->variableValues, $objectList);
+        $this->eventDispatcher->dispatch($event, EdgeEvents::POST_LOAD);
+
         $nodes = [];
 
         foreach ($objectList as $object) {
