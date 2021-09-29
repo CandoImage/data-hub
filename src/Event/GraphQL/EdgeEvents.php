@@ -17,7 +17,6 @@ namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL;
 
 final class EdgeEvents
 {
-
     /**
      * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\EdgeEvent")
      *
