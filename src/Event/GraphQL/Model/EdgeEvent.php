@@ -9,39 +9,16 @@ class EdgeEvent extends Event
     /**
      * @var array
      */
-    protected array $requestVariables = [];
-
-    /**
-     * @var array
-     */
     protected array $objects = [];
 
     /**
      * EdgeEvent constructor.
      *
-     * @param array $requestVariables
      * @param array $objects
      */
-    public function __construct(array $requestVariables, array $objects)
+    public function __construct(array $objects)
     {
-        $this->requestVariables = $requestVariables;
         $this->objects = $objects;
-    }
-
-    /**
-     * @return array
-     */
-    public function getRequestVariables(): array
-    {
-        return $this->requestVariables;
-    }
-
-    /**
-     * @param array $requestVariables
-     */
-    public function setRequestVariables(array $requestVariables): void
-    {
-        $this->requestVariables = $requestVariables;
     }
 
     /**

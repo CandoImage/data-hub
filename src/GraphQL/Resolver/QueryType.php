@@ -350,9 +350,20 @@ class QueryType
     {
         $objectList = $value['edges']();
 
-        // create Edge Event with variable values and objectList
-        $event = new EdgeEvent($resolveInfo->variableValues, $objectList);
-        $this->eventDispatcher->dispatch($event, EdgeEvents::POST_LOAD);
+        // create Edge Event with variable values and objectList if a plp request comes in
+        // due default implementation also an object getter calls this method over a listing,
+        // so we have to check here if necessary to really fire the event
+        $mainResolveAction = null;
+        $selections = $resolveInfo->operation->selectionSet->selections;
+        if (count($selections) === 1) {
+            foreach ($selections as $selection) {
+                $mainResolveAction = $selection->name->value;
+            }
+        }
+        if ($mainResolveAction === 'getProductFilter') {
+            $event = new EdgeEvent($objectList);
+            $this->eventDispatcher->dispatch($event, EdgeEvents::POST_LOAD);
+        }
 
         $nodes = [];
 
