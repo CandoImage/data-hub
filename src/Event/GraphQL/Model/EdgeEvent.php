@@ -24,12 +24,16 @@ class EdgeEvent extends Event
      */
     protected array $objects = [];
 
+    /**
+     * @var string|null
+     */
     protected ?string $type;
 
     /**
      * EdgeEvent constructor.
      *
      * @param array $objects
+     * @param string|null $type
      */
     public function __construct(array $objects, ?string $type = null)
     {
