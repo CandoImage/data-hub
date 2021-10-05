@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
@@ -24,14 +24,17 @@ class EdgeEvent extends Event
      */
     protected array $objects = [];
 
+    protected ?string $type;
+
     /**
      * EdgeEvent constructor.
      *
      * @param array $objects
      */
-    public function __construct(array $objects)
+    public function __construct(array $objects, ?string $type = null)
     {
         $this->objects = $objects;
+        $this->type = $type;
     }
 
     /**
@@ -48,5 +51,21 @@ class EdgeEvent extends Event
     public function setObjects(array $objects): void
     {
         $this->objects = $objects;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    /**
+     * @param string|null $type
+     */
+    public function setType(?string $type): void
+    {
+        $this->type = $type;
     }
 }
