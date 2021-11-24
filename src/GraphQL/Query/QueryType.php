@@ -427,6 +427,10 @@ class QueryType extends ObjectType
                         'type' => Type::string(),
                         'description' => 'The keys to use for the fulltext search.'
                     ],
+                    'instantSearch' => [
+                        'type' => Type::boolean(),
+                        'description' => 'Helper flag to differentiate between an instant search and a regular search.'
+                    ],
                     'first' => ['type' => Type::int()],
                     'after' => ['type' => Type::int()],
                     'sortBy' => ['type' => Type::listOf(Type::string())],
