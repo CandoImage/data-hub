@@ -104,8 +104,11 @@ class EdgeEvent extends Event
     /**
      * FIX ME: currently there is no better way to get the original arguments of a GraphQL query from a
      * lower level node. If there is another way this should be refactored
+     *
      * @param string|null $filterNode
+     *
      * @return array|mixed
+     *
      * @throws SyntaxError
      */
     public function getArguments(string $filterNode = null)
@@ -133,6 +136,7 @@ class EdgeEvent extends Event
         if ($filterNode) {
             return $arguments[$filterNode] ?? [];
         }
+
         return $arguments;
     }
 }
