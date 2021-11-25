@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -65,11 +65,6 @@ class QueryType
      * @var null
      */
     protected $configuration;
-
-    /**
-     * @var bool
-     */
-    protected bool $isInstantSearch = false;
 
     /**
      * QueryType constructor.
@@ -355,20 +350,10 @@ class QueryType
     {
         $objectList = $value['edges']();
 
-        // create Edge Event with variable values and objectList if a plp request comes in
-        // due default implementation also an object getter calls this method over a listing,
-        // so we have to check here if necessary to really fire the event
-        $mainResolveAction = null;
-        $selections = $resolveInfo->operation->selectionSet->selections;
-        if (count($selections) === 1) {
-            foreach ($selections as $selection) {
-                $mainResolveAction = $selection->name->value;
-            }
-        }
-        if ($mainResolveAction === 'getProductFilter' && !$this->isInstantSearch) {
-            $event = new EdgeEvent($objectList);
-            $this->eventDispatcher->dispatch($event, EdgeEvents::POST_LOAD);
-        }
+        // fire post edge event
+        $eventOptions = ['value' => $value, 'args' => $args, 'context' => $context];
+        $event = new EdgeEvent($objectList, $resolveInfo, $eventOptions);
+        $this->eventDispatcher->dispatch($event, EdgeEvents::POST_LOAD);
 
         $nodes = [];
 
@@ -828,10 +813,6 @@ class QueryType
         /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory $category */
         if (!empty($args['category']) && ($category = AbstractObject::getById($args['category']))) {
             $resultList->setCategory($category);
-        }
-        // handle instant search flag
-        if (isset($args['instantSearch'])) {
-            $this->isInstantSearch = $args['instantSearch'];
         }
 
         $resultList->getInProductList(!isset($args['published']) || !empty($args['published']));

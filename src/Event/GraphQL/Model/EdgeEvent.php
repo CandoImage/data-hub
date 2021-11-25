@@ -9,12 +9,13 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
+use GraphQL\Type\Definition\ResolveInfo;
 use Symfony\Contracts\EventDispatcher\Event;
 
 class EdgeEvent extends Event
@@ -25,20 +26,27 @@ class EdgeEvent extends Event
     protected array $objects = [];
 
     /**
-     * @var string|null
+     * @var ResolveInfo|null
      */
-    protected ?string $type;
+    protected ?ResolveInfo $resolveInfo;
+
+    /**
+     * @var array
+     */
+    protected array $options = [];
 
     /**
      * EdgeEvent constructor.
      *
      * @param array $objects
-     * @param string|null $type
+     * @param ResolveInfo|null $resolveInfo
+     * @param array $options
      */
-    public function __construct(array $objects, ?string $type = null)
+    public function __construct(array $objects, ?ResolveInfo $resolveInfo, array $options = [])
     {
         $this->objects = $objects;
-        $this->type = $type;
+        $this->resolveInfo = $resolveInfo;
+        $this->options = $options;
     }
 
     /**
@@ -58,18 +66,34 @@ class EdgeEvent extends Event
     }
 
     /**
-     * @return string|null
+     * @return ResolveInfo|null
      */
-    public function getType(): ?string
+    public function getResolveInfo(): ?ResolveInfo
     {
-        return $this->type;
+        return $this->resolveInfo;
     }
 
     /**
-     * @param string|null $type
+     * @param ResolveInfo|null $resolveInfo
      */
-    public function setType(?string $type): void
+    public function setResolveInfo(?ResolveInfo $resolveInfo): void
     {
-        $this->type = $type;
+        $this->resolveInfo = $resolveInfo;
+    }
+
+    /**
+     * @return array
+     */
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
+
+    /**
+     * @param array $options
+     */
+    public function setOptions(array $options): void
+    {
+        $this->options = $options;
     }
 }
