@@ -9,16 +9,16 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
+use Pimcore;
 use GraphQL\Error\SyntaxError;
 use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\ResolveInfo;
-use Pimcore\Tests\Helper\Pimcore;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\Event;
 
