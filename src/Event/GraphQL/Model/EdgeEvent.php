@@ -15,7 +15,11 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
+use GraphQL\Error\SyntaxError;
+use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Tests\Helper\Pimcore;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\Event;
 
 class EdgeEvent extends Event
@@ -95,5 +99,40 @@ class EdgeEvent extends Event
     public function setOptions(array $options): void
     {
         $this->options = $options;
+    }
+
+    /**
+     * FIX ME: currently there is no better way to get the original arguments of a GraphQL query from a
+     * lower level node. If there is another way this should be refactored
+     * @param string|null $filterNode
+     * @return array|mixed
+     * @throws SyntaxError
+     */
+    public function getArguments(string $filterNode = null)
+    {
+        static $arguments;
+        if (is_null($arguments)) {
+            $arguments = [];
+            // we need to parse the arguments from the original request
+            /** @var RequestStack $requestStack */
+            $requestStack = Pimcore::getKernel()->getContainer()->get('request_stack');
+            $request = $requestStack->getCurrentRequest();
+            $input = json_decode($request->getContent(), true);
+            $queryParameter = $input['query'] ?? null;
+            if ($queryParameter) {
+                $query = Parser::parse($queryParameter);
+                foreach ($query->definitions as $node) {
+                    foreach ($node->selectionSet->selections as $subNode) {
+                        foreach ($subNode->arguments as $argument) {
+                            $arguments[$subNode->name->value][$argument->name->value] = $argument->value->value;
+                        }
+                    }
+                }
+            }
+        }
+        if ($filterNode) {
+            return $arguments[$filterNode] ?? [];
+        }
+        return $arguments;
     }
 }
