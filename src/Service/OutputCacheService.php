@@ -113,6 +113,12 @@ class OutputCacheService
         $this->excludedQueries[] = 'getAccountAddress';
         $this->excludedQueries[] = 'getAccountData';
         $this->excludedQueries[] = 'getAccountPasswordData';
+        $this->excludedQueries[] = 'getAccountAddressListing';
+        $this->excludedQueries[] = 'getAddressDetails';
+        $this->excludedQueries[] = 'performAddressMutation';
+        $this->excludedQueries[] = 'performAddressDelete';
+        $this->excludedQueries[] = 'performDefaultAddressMutation';
+        $this->excludedQueries[] = 'performSetAddressOnCartMutation';
         $this->excludedQueries[] = 'performPasswordChange';
         $this->excludedQueries[] = 'getFlashMessages';
         $this->excludedQueries[] = 'setFlashMessages';
