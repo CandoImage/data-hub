@@ -126,6 +126,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'performCustomerNumberMutation';
         $this->excludedQueries[] = 'getCostCenterListing';
         $this->excludedQueries[] = 'performCostCenterMutation';
+        $this->excludedQueries[] = 'performImpersonateMutation';
         // EcommerceBaseBundle
         $this->excludedQueries[] = 'performAddToCartMutation';
         $this->excludedQueries[] = 'getCalculatedCart';
