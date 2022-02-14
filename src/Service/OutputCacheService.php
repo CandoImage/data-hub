@@ -143,7 +143,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'setCartDeliveryType';
         $this->excludedQueries[] = 'performCartItemMutation';
         // Project specific queries
-        $this->excludedQueries[] = 'performDealerPriceToggle';
+        $this->excludedQueries[] = 'performDealerToggleState';
     }
 
     public function load(Request $request)
