@@ -815,7 +815,7 @@ class QueryType
             $resultList->setCategory($category);
         }
 
-        $resultList->getInProductList(!isset($args['published']) || !empty($args['published']));
+        $resultList->setInProductList(!isset($args['published']) || !empty($args['published']));
 
         $connection = [];
         $connection['edges'] = [$resultList, 'load'];
