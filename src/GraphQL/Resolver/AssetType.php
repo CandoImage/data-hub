@@ -121,6 +121,7 @@ class AssetType
             if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
                 $deferredThumbnail = true;
             }
+
             return isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], $deferredThumbnail) : $asset->getFullPath();
         } elseif ($asset instanceof Asset\Video) {
             if (isset($args['format'])) {
