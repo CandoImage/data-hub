@@ -114,7 +114,14 @@ class AssetType
         $asset = $this->getAssetFromValue($value, $context);
 
         if ($asset instanceof Asset\Image) {
-            return isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], false) : $asset->getFullPath();
+            // get thumbnails with the "deferred" option as we don't need the data itself
+            // only the URL and the generation of the thumbnail should happen later
+            // which is done during request the image and could be parallelized from the browser
+            $deferredThumbnail = false;
+            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+                $deferredThumbnail = true;
+            }
+            return isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], $deferredThumbnail) : $asset->getFullPath();
         } elseif ($asset instanceof Asset\Video) {
             if (isset($args['format'])) {
                 if ($args['format'] == 'image') {
@@ -251,7 +258,14 @@ class AssetType
                 return [];
             }
             /** @var Asset\Image\Thumbnail $thumbnail */
-            $thumbnail = $asset->getThumbnail($thumbnailName, false);
+            // get thumbnails with the "deferred" option as we don't need the data itself
+            // only the URL and the generation of the thumbnail should happen later
+            // which is done during request the image and could be parallelized from the browser
+            $deferredThumbnail = false;
+            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+                $deferredThumbnail = true;
+            }
+            $thumbnail = $asset->getThumbnail($thumbnailName, $deferredThumbnail);
             $thumbnailConfig = $thumbnail->getConfig();
             $resolutions = [];
             foreach ($types as $type) {
@@ -259,7 +273,7 @@ class AssetType
                 $thumbConfigRes->setHighResolution($type);
                 $thumbConfigRes->setMedias([]);
                 $resolutions[] = [
-                    'url' => $asset->getThumbnail($thumbConfigRes, false),
+                    'url' => $asset->getThumbnail($thumbConfigRes, $deferredThumbnail),
                     'resolution' => $type,
                 ];
             }
