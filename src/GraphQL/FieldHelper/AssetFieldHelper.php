@@ -52,7 +52,7 @@ class AssetFieldHelper extends AbstractFieldHelper
                 $data[$realName] = function ($source, $args, $context, ResolveInfo $info) use ($container, $thumbnailArgument, $realName
                 ) {
                     if ($realName == 'fullpath') {
-                        return $container->getThumbnail($args['thumbnail'], false);
+                        return $container->getThumbnail($args['thumbnail']);
                     } elseif ($realName == 'data') {
                         $thumb = $container->getThumbnail($args['thumbnail'], false);
 

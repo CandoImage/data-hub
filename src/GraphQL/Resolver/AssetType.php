@@ -197,7 +197,14 @@ class AssetType
 
         if ($asset instanceof Asset\Image) {
             $mediaQueries = [];
-            $thumbnail = $asset->getThumbnail($args['thumbnail'], false);
+            // get thumbnails with the "deferred" option as we don't need the data itself
+            // only the URL and the generation of the thumbnail should happen later
+            // which is done during request the image and could be parallelized from the browser
+            $deferredThumbnail = false;
+            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+                $deferredThumbnail = true;
+            }
+            $thumbnail = $asset->getThumbnail($args['thumbnail'], $deferredThumbnail);
             $thumbnailConfig = $asset->getThumbnailConfig($args['thumbnail']);
             if ($thumbnailConfig) {
                 foreach ($thumbnailConfig->getMedias() as $key => $val) {
@@ -228,6 +235,13 @@ class AssetType
     {
         $types = $args['types'];
         $thumbnail = $value['url'] ?? null;
+        // get thumbnails with the "deferred" option as we don't need the data itself
+        // only the URL and the generation of the thumbnail should happen later
+        // which is done during request the image and could be parallelized from the browser
+        $deferredThumbnail = false;
+        if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+            $deferredThumbnail = true;
+        }
 
         $asset = null;
         if ($thumbnail instanceof Asset\Image\Thumbnail) {
@@ -238,7 +252,7 @@ class AssetType
                 return null;
             }
 
-            $thumbnail = $asset->getThumbnail($thumbnailName, false);
+            $thumbnail = $asset->getThumbnail($thumbnailName, $deferredThumbnail);
             if ($thumbnail->getConfig()->hasMedias()) {
                 foreach ($types as $type) {
                     $key = $value['descriptor'];
@@ -259,13 +273,6 @@ class AssetType
                 return [];
             }
             /** @var Asset\Image\Thumbnail $thumbnail */
-            // get thumbnails with the "deferred" option as we don't need the data itself
-            // only the URL and the generation of the thumbnail should happen later
-            // which is done during request the image and could be parallelized from the browser
-            $deferredThumbnail = false;
-            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
-                $deferredThumbnail = true;
-            }
             $thumbnail = $asset->getThumbnail($thumbnailName, $deferredThumbnail);
             $thumbnailConfig = $thumbnail->getConfig();
             $resolutions = [];
@@ -315,8 +322,14 @@ class AssetType
                     'height' => $asset->getHeight(),
                 ];
             }
-
-            $thumbnail = $asset->getThumbnail($thumbnailName, false);
+            // get thumbnails with the "deferred" option as we don't need the data itself
+            // only the URL and the generation of the thumbnail should happen later
+            // which is done during request the image and could be parallelized from the browser
+            $deferredThumbnail = false;
+            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+                $deferredThumbnail = true;
+            }
+            $thumbnail = $asset->getThumbnail($thumbnailName, $deferredThumbnail);
 
             $width = $thumbnail->getWidth();
             $height = $thumbnail->getHeight();
