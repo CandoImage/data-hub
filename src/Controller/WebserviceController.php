@@ -234,7 +234,8 @@ class WebserviceController extends FrontendController
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token');
 
-        $this->cacheService->save($request, $response);
+        //@TODO: disabled for testing
+//        $this->cacheService->save($request, $response);
 
         return $response;
     }

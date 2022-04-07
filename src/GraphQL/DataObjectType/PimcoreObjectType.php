@@ -287,8 +287,7 @@ class PimcoreObjectType extends ObjectType
 
                         return $lofItems;
                     }
-
-                    return null;
+                    return $value[$fieldname] ?? null;
                 }
 
             ];
