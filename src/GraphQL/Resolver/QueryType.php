@@ -323,6 +323,7 @@ class QueryType
             });
             $deferred->state = SyncPromise::FULFILLED;
             $deferred->result = $uncachedData;
+
             return $deferred;
         }
 
@@ -362,8 +363,10 @@ class QueryType
             });
             $deferred->state = SyncPromise::FULFILLED;
             $deferred->result = $uncachedData;
+
             return $deferred;
         }
+
         return $nodeData;
     }
 

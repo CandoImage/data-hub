@@ -70,7 +70,7 @@ class Href
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if (is_array($value)) {
-            return $value[$resolveInfo->fieldName] ?? null;;
+            return $value[$resolveInfo->fieldName] ?? null;
         }
         $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
 
