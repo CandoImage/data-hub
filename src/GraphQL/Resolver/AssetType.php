@@ -9,12 +9,14 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
+use GraphQL\Deferred;
+use GraphQL\Executor\Promise\Adapter\SyncPromise;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementTagTrait;
@@ -111,6 +113,9 @@ class AssetType
      */
     public function resolvePath($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if (is_array($value)) {
+            return $value['src'] ?? null;
+        }
         $asset = $this->getAssetFromValue($value, $context);
 
         if ($asset instanceof Asset\Image) {
@@ -193,6 +198,9 @@ class AssetType
      */
     public function resolveSrcSet($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if (is_array($value)) {
+            return $value[$resolveInfo->fieldName] ?? null;
+        }
         $asset = $this->getAssetFromValue($value, $context);
 
         if ($asset instanceof Asset\Image) {
@@ -233,6 +241,9 @@ class AssetType
      */
     public function resolveResolutions($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if (is_array($value)) {
+            return $value[$resolveInfo->fieldName] ?? null;
+        }
         $types = $args['types'];
         $thumbnail = $value['url'] ?? null;
         // get thumbnails with the "deferred" option as we don't need the data itself

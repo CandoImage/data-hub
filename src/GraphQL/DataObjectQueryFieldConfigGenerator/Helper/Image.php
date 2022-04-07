@@ -69,6 +69,12 @@ class Image
      */
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if (is_array($value)) {
+            if ($resolveInfo->fieldName === 'image' && isset($value['image'])) {
+                return $value['image'];
+            }
+            return $value[$resolveInfo->fieldName] ?? null;
+        }
         $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
 
         if ($relation instanceof Asset) {

@@ -15,6 +15,9 @@
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
+use CandoCX\B2BProductBundle\Helper\CacheHelper;
+use GraphQL\Deferred;
+use GraphQL\Executor\Promise\Adapter\SyncPromise;
 use GraphQL\Language\AST\FragmentSpreadNode;
 use GraphQL\Language\AST\InlineFragmentNode;
 use GraphQL\Language\AST\NodeKind;
@@ -36,12 +39,14 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
+use Pimcore\Cache;
 use Pimcore\Db;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Listing;
 use Pimcore\Model\DataObject\Service;
+use Pimcore\Tool\Serialize;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
 
@@ -308,6 +313,19 @@ class QueryType
             }
         }
 
+        // check cache entry
+        $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId()]);
+        $cachedData = Cache::load($cid);
+        if ($cachedData) {
+            $uncachedData = Serialize::unserialize($cachedData);
+            $deferred = new Deferred(function () use ($uncachedData) {
+                return $uncachedData;
+            });
+            $deferred->state = SyncPromise::FULFILLED;
+            $deferred->result = $uncachedData;
+            return $deferred;
+        }
+
         $data = new ElementDescriptor($object);
         $data['id'] = $object->getId();
         $this->getGraphQlService()->extractData($data, $object, $args, $context, $resolveInfo);
@@ -335,6 +353,17 @@ class QueryType
             $nodeData = $fieldHelper->extractData($data, $object, $args, $context, $resolveInfo);
         }
 
+        $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId()]);
+        $cachedData = Cache::load($cid);
+        if ($cachedData) {
+            $uncachedData = Serialize::unserialize($cachedData);
+            $deferred = new Deferred(function () use ($uncachedData) {
+                return $uncachedData;
+            });
+            $deferred->state = SyncPromise::FULFILLED;
+            $deferred->result = $uncachedData;
+            return $deferred;
+        }
         return $nodeData;
     }
 
