@@ -23,8 +23,8 @@ declare(strict_types=1);
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PCL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL;
@@ -208,23 +208,22 @@ class Service
      * @param ContainerInterface $csFeatureTypeGeneratorFactories
      */
     public function __construct(
-        AssetFieldHelper       $assetFieldHelper,
-        DocumentFieldHelper    $documentFieldHelper,
-        DataObjectFieldHelper  $objectFieldHelper,
+        AssetFieldHelper $assetFieldHelper,
+        DocumentFieldHelper $documentFieldHelper,
+        DataObjectFieldHelper $objectFieldHelper,
         LocaleServiceInterface $localeService,
-        Factory                $modelFactory,
-        Translator             $translator,
-        ContainerInterface     $dataObjectQueryTypeGeneratorFactories,
-        ContainerInterface     $dataObjectQueryOperatorFactories,
-        ContainerInterface     $dataObjectMutationTypeGeneratorFactories,
-        ContainerInterface     $dataObjectMutationOperatorFactories,
-        ContainerInterface     $documentElementQueryTypeGeneratorFactories,
-        ContainerInterface     $documentElementMutationTypeGeneratorFactories,
-        ContainerInterface     $generalTypeGeneratorFactories,
-        ContainerInterface     $assetTypeGeneratorFactories,
-        ContainerInterface     $csFeatureTypeGeneratorFactories
-    )
-    {
+        Factory $modelFactory,
+        Translator $translator,
+        ContainerInterface $dataObjectQueryTypeGeneratorFactories,
+        ContainerInterface $dataObjectQueryOperatorFactories,
+        ContainerInterface $dataObjectMutationTypeGeneratorFactories,
+        ContainerInterface $dataObjectMutationOperatorFactories,
+        ContainerInterface $documentElementQueryTypeGeneratorFactories,
+        ContainerInterface $documentElementMutationTypeGeneratorFactories,
+        ContainerInterface $generalTypeGeneratorFactories,
+        ContainerInterface $assetTypeGeneratorFactories,
+        ContainerInterface $csFeatureTypeGeneratorFactories
+    ) {
         $this->assetFieldHelper = $assetFieldHelper;
         $this->documentFieldHelper = $documentFieldHelper;
         $this->objectFieldHelper = $objectFieldHelper;
@@ -1099,6 +1098,7 @@ class Service
     /**
      * @param $value
      * @param $resolveInfo
+     *
      * @return mixed|null
      */
     public static function resolveCachedValue($value, $resolveInfo = null): mixed
@@ -1115,8 +1115,10 @@ class Service
             if ($alias) {
                 return $value[$alias->value] ?? null;
             }
+
             return $value[$resolveInfo->fieldName] ?? null;
         }
+
         return null;
     }
 
