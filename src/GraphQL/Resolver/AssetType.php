@@ -15,7 +15,6 @@
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
-use GraphQL\Deferred;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;

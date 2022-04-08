@@ -17,7 +17,6 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerat
 
 use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
-use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
