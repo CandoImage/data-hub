@@ -23,12 +23,13 @@ declare(strict_types=1);
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL;
 
+use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
@@ -207,22 +208,23 @@ class Service
      * @param ContainerInterface $csFeatureTypeGeneratorFactories
      */
     public function __construct(
-        AssetFieldHelper $assetFieldHelper,
-        DocumentFieldHelper $documentFieldHelper,
-        DataObjectFieldHelper $objectFieldHelper,
+        AssetFieldHelper       $assetFieldHelper,
+        DocumentFieldHelper    $documentFieldHelper,
+        DataObjectFieldHelper  $objectFieldHelper,
         LocaleServiceInterface $localeService,
-        Factory $modelFactory,
-        Translator $translator,
-        ContainerInterface $dataObjectQueryTypeGeneratorFactories,
-        ContainerInterface $dataObjectQueryOperatorFactories,
-        ContainerInterface $dataObjectMutationTypeGeneratorFactories,
-        ContainerInterface $dataObjectMutationOperatorFactories,
-        ContainerInterface $documentElementQueryTypeGeneratorFactories,
-        ContainerInterface $documentElementMutationTypeGeneratorFactories,
-        ContainerInterface $generalTypeGeneratorFactories,
-        ContainerInterface $assetTypeGeneratorFactories,
-        ContainerInterface $csFeatureTypeGeneratorFactories
-    ) {
+        Factory                $modelFactory,
+        Translator             $translator,
+        ContainerInterface     $dataObjectQueryTypeGeneratorFactories,
+        ContainerInterface     $dataObjectQueryOperatorFactories,
+        ContainerInterface     $dataObjectMutationTypeGeneratorFactories,
+        ContainerInterface     $dataObjectMutationOperatorFactories,
+        ContainerInterface     $documentElementQueryTypeGeneratorFactories,
+        ContainerInterface     $documentElementMutationTypeGeneratorFactories,
+        ContainerInterface     $generalTypeGeneratorFactories,
+        ContainerInterface     $assetTypeGeneratorFactories,
+        ContainerInterface     $csFeatureTypeGeneratorFactories
+    )
+    {
         $this->assetFieldHelper = $assetFieldHelper;
         $this->documentFieldHelper = $documentFieldHelper;
         $this->objectFieldHelper = $objectFieldHelper;
@@ -1031,7 +1033,7 @@ class Service
                     $blockData = self::getValueForObject($object, $key, $brickType, $brickKey, $def, $context, $brickDescriptor, $args);
                 }
             } else {
-                $blockGetter = 'get'.ucfirst($descriptorData['__blockName']);
+                $blockGetter = 'get' . ucfirst($descriptorData['__blockName']);
                 $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
                 $blockData = $object->$blockGetter($isLocalizedField && isset($descriptorData['args']['language']) ? $descriptorData['args']['language'] : null);
             }
@@ -1092,6 +1094,30 @@ class Service
         }
 
         return $result;
+    }
+
+    /**
+     * @param $value
+     * @param $resolveInfo
+     * @return mixed|null
+     */
+    public static function resolveCachedValue($value, $resolveInfo = null): mixed
+    {
+        if (is_array($value)) {
+            // check for alias
+            $alias = null;
+            $fieldAstList = $resolveInfo->fieldNodes ?? [];
+            foreach ($fieldAstList as $astNode) {
+                if ($astNode instanceof FieldNode) {
+                    $alias = $astNode->alias;
+                }
+            }
+            if ($alias) {
+                return $value[$alias->value] ?? null;
+            }
+            return $value[$resolveInfo->fieldName] ?? null;
+        }
+        return null;
     }
 
     /**

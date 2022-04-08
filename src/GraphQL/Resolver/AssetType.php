@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 use GraphQL\Deferred;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementTagTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
@@ -112,8 +113,9 @@ class AssetType
      */
     public function resolvePath($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        if (is_array($value)) {
-            return $value['src'] ?? null;
+        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
+        if ($cachedValue !== null) {
+            return $cachedValue;
         }
         $asset = $this->getAssetFromValue($value, $context);
 
@@ -197,8 +199,9 @@ class AssetType
      */
     public function resolveSrcSet($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        if (is_array($value)) {
-            return $value[$resolveInfo->fieldName] ?? null;
+        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
+        if ($cachedValue !== null) {
+            return $cachedValue;
         }
         $asset = $this->getAssetFromValue($value, $context);
 
@@ -240,8 +243,9 @@ class AssetType
      */
     public function resolveResolutions($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        if (is_array($value)) {
-            return $value[$resolveInfo->fieldName] ?? null;
+        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
+        if ($cachedValue !== null) {
+            return $cachedValue;
         }
         $types = $args['types'];
         $thumbnail = $value['url'] ?? null;
@@ -314,6 +318,10 @@ class AssetType
      */
     public function resolveDimensions($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
+        if ($cachedValue !== null) {
+            return $cachedValue;
+        }
         if ($value instanceof ElementDescriptor) {
             $thumbnailName = $args['thumbnail'] ?? null;
 

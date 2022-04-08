@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -251,7 +251,7 @@ class QueryType
      * @param array $context
      * @param ResolveInfo|null $resolveInfo
      *
-     * @return array
+     * @return Deferred|ElementDescriptor
      *
      * @throws ClientSafeException
      */
@@ -314,17 +314,9 @@ class QueryType
         }
 
         // check cache entry
-        $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId()]);
-        $cachedData = Cache::load($cid);
-        if ($cachedData) {
-            $uncachedData = Serialize::unserialize($cachedData);
-            $deferred = new Deferred(function () use ($uncachedData) {
-                return $uncachedData;
-            });
-            $deferred->state = SyncPromise::FULFILLED;
-            $deferred->result = $uncachedData;
-
-            return $deferred;
+        $cachedResult = $this->getCacheEntry($object);
+        if ($cachedResult instanceof Deferred) {
+            return $cachedResult;
         }
 
         $data = new ElementDescriptor($object);
@@ -354,6 +346,21 @@ class QueryType
             $nodeData = $fieldHelper->extractData($data, $object, $args, $context, $resolveInfo);
         }
 
+        // check cache entry
+        $cachedResult = $this->getCacheEntry($object);
+        if ($cachedResult instanceof Deferred) {
+            return $cachedResult;
+        }
+
+        return $nodeData;
+    }
+
+    /**
+     * @param $object
+     * @return Deferred|null
+     */
+    private function getCacheEntry($object): ?Deferred
+    {
         $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId()]);
         $cachedData = Cache::load($cid);
         if ($cachedData) {
@@ -366,8 +373,7 @@ class QueryType
 
             return $deferred;
         }
-
-        return $nodeData;
+        return null;
     }
 
     /**
