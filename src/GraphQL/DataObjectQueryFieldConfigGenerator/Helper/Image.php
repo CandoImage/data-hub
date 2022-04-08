@@ -9,13 +9,14 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerator\Helper;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
@@ -70,21 +71,20 @@ class Image
      */
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
-        if ($cachedValue !== null) {
-            return $cachedValue;
-        }
-        $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+        if ($value instanceof BaseDescriptor) {
+            $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
 
-        if ($relation instanceof Asset) {
-            if (!WorkspaceHelper::checkPermission($relation, 'read')) {
-                return null;
+            if ($relation instanceof Asset) {
+                if (!WorkspaceHelper::checkPermission($relation, 'read')) {
+                    return null;
+                }
+
+                $data = new ElementDescriptor($relation);
+                $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
+
+                return $data;
             }
-
-            $data = new ElementDescriptor($relation);
-            $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
-
-            return $data;
         }
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 }

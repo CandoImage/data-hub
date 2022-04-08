@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerator\Helper;
@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerat
 use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
@@ -72,6 +73,25 @@ class Objects
      */
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if ($value instanceof BaseDescriptor) {
+            $relations = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            if ($relations) {
+                $result = [];
+                /** @var $relation AbstractElement */
+                foreach ($relations as $relation) {
+                    if (!WorkspaceHelper::checkPermission($relation, 'read')) {
+                        continue;
+                    }
+
+                    $data = new ElementDescriptor($relation);
+                    $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
+                    $result[] = $data;
+                }
+
+                return $result;
+            }
+
+        }
         $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
         if ($cachedValue !== null) {
             $deferred = new Deferred(function () use ($cachedValue) {
@@ -82,23 +102,6 @@ class Objects
 
             return $deferred;
         }
-        $relations = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
-        if ($relations) {
-            $result = [];
-            /** @var $relation AbstractElement */
-            foreach ($relations as $relation) {
-                if (!WorkspaceHelper::checkPermission($relation, 'read')) {
-                    continue;
-                }
-
-                $data = new ElementDescriptor($relation);
-                $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
-                $result[] = $data;
-            }
-
-            return $result;
-        }
-
         return null;
     }
 }

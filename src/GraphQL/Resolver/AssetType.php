@@ -9,13 +9,14 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementTagTrait;
@@ -112,46 +113,43 @@ class AssetType
      */
     public function resolvePath($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
-        if ($cachedValue !== null) {
-            return $cachedValue;
-        }
-        $asset = $this->getAssetFromValue($value, $context);
+        if ($value instanceof BaseDescriptor) {
+            $asset = $this->getAssetFromValue($value, $context);
 
-        if ($asset instanceof Asset\Image) {
-            // get thumbnails with the "deferred" option as we don't need the data itself
-            // only the URL and the generation of the thumbnail should happen later
-            // which is done during request the image and could be parallelized from the browser
-            $deferredThumbnail = false;
-            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
-                $deferredThumbnail = true;
-            }
+            if ($asset instanceof Asset\Image) {
+                // get thumbnails with the "deferred" option as we don't need the data itself
+                // only the URL and the generation of the thumbnail should happen later
+                // which is done during request the image and could be parallelized from the browser
+                $deferredThumbnail = false;
+                if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+                    $deferredThumbnail = true;
+                }
 
-            return isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], $deferredThumbnail) : $asset->getFullPath();
-        } elseif ($asset instanceof Asset\Video) {
-            if (isset($args['format'])) {
-                if ($args['format'] == 'image') {
-                    return isset($args['thumbnail']) ? $asset->getImageThumbnail($args['thumbnail']) : $asset->getFullPath();
-                } else {
-                    $value = $asset->getThumbnail($args['thumbnail']);
-                    if ($value) {
-                        $formats = $value['formats'] ?? [];
-                        $format = $formats[$args['format']] ?? null;
-                        if ($format) {
-                            return $format;
+                return isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], $deferredThumbnail) : $asset->getFullPath();
+            } elseif ($asset instanceof Asset\Video) {
+                if (isset($args['format'])) {
+                    if ($args['format'] == 'image') {
+                        return isset($args['thumbnail']) ? $asset->getImageThumbnail($args['thumbnail']) : $asset->getFullPath();
+                    } else {
+                        $value = $asset->getThumbnail($args['thumbnail']);
+                        if ($value) {
+                            $formats = $value['formats'] ?? [];
+                            $format = $formats[$args['format']] ?? null;
+                            if ($format) {
+                                return $format;
+                            }
                         }
                     }
+                } else {
+                    return isset($args['thumbnail']) ? $asset->getImageThumbnail($args['thumbnail']) : $asset->getFullPath();
                 }
-            } else {
+            } elseif ($asset instanceof Asset\Document) {
                 return isset($args['thumbnail']) ? $asset->getImageThumbnail($args['thumbnail']) : $asset->getFullPath();
+            } elseif ($asset instanceof Asset) {
+                return $asset->getFullPath();
             }
-        } elseif ($asset instanceof Asset\Document) {
-            return isset($args['thumbnail']) ? $asset->getImageThumbnail($args['thumbnail']) : $asset->getFullPath();
-        } elseif ($asset instanceof Asset) {
-            return $asset->getFullPath();
         }
-
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);;
     }
 
     /**
@@ -198,36 +196,33 @@ class AssetType
      */
     public function resolveSrcSet($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
-        if ($cachedValue !== null) {
-            return $cachedValue;
-        }
-        $asset = $this->getAssetFromValue($value, $context);
+        if ($value instanceof BaseDescriptor) {
+            $asset = $this->getAssetFromValue($value, $context);
 
-        if ($asset instanceof Asset\Image) {
-            $mediaQueries = [];
-            // get thumbnails with the "deferred" option as we don't need the data itself
-            // only the URL and the generation of the thumbnail should happen later
-            // which is done during request the image and could be parallelized from the browser
-            $deferredThumbnail = false;
-            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
-                $deferredThumbnail = true;
-            }
-            $thumbnail = $asset->getThumbnail($args['thumbnail'], $deferredThumbnail);
-            $thumbnailConfig = $asset->getThumbnailConfig($args['thumbnail']);
-            if ($thumbnailConfig) {
-                foreach ($thumbnailConfig->getMedias() as $key => $val) {
-                    $mediaQueries[] = [
-                        'descriptor' => $key,
-                        'url' => $thumbnail->getMedia($key),
-                    ];
+            if ($asset instanceof Asset\Image) {
+                $mediaQueries = [];
+                // get thumbnails with the "deferred" option as we don't need the data itself
+                // only the URL and the generation of the thumbnail should happen later
+                // which is done during request the image and could be parallelized from the browser
+                $deferredThumbnail = false;
+                if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+                    $deferredThumbnail = true;
                 }
+                $thumbnail = $asset->getThumbnail($args['thumbnail'], $deferredThumbnail);
+                $thumbnailConfig = $asset->getThumbnailConfig($args['thumbnail']);
+                if ($thumbnailConfig) {
+                    foreach ($thumbnailConfig->getMedias() as $key => $val) {
+                        $mediaQueries[] = [
+                            'descriptor' => $key,
+                            'url' => $thumbnail->getMedia($key),
+                        ];
+                    }
+                }
+
+                return $mediaQueries;
             }
-
-            return $mediaQueries;
         }
-
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -361,8 +356,8 @@ class AssetType
     }
 
     /**
-     * @param mixed       $value
-     * @param array       $context
+     * @param mixed $value
+     * @param array $context
      *
      * @return Asset|null
      *
