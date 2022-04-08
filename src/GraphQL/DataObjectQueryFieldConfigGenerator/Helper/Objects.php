@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PCL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerator\Helper;
@@ -90,7 +90,6 @@ class Objects
 
                 return $result;
             }
-
         }
         $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
         if ($cachedValue !== null) {
@@ -102,6 +101,7 @@ class Objects
 
             return $deferred;
         }
+
         return null;
     }
 }
