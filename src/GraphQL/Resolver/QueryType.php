@@ -19,9 +19,6 @@ use CandoCX\B2BProductBundle\Helper\CacheHelper;
 use CandoCX\CoreBundle\DataHub\GraphQL\EventListener\CacheListener;
 use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
-use GraphQL\Executor\Promise\Adapter\SyncPromiseAdapter;
-use GraphQL\Executor\Promise\Promise;
-use GraphQL\Executor\ReferenceExecutor;
 use GraphQL\Language\AST\FragmentSpreadNode;
 use GraphQL\Language\AST\InlineFragmentNode;
 use GraphQL\Language\AST\NodeKind;
@@ -54,7 +51,6 @@ use Pimcore\Model\DataObject\Service;
 use Pimcore\Tool\Serialize;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
-use ArrayObject;
 
 class QueryType
 {
