@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -314,9 +314,12 @@ class QueryType
         }
 
         // check cache entry
-        $cachedResult = $this->getCacheEntry($object);
-        if ($cachedResult instanceof Deferred) {
-            return $cachedResult;
+        // Note: we need a language to avoid showing data in wrong language
+        if ($args['defaultLanguage'] ?? false) {
+            $cachedResult = $this->getCacheEntry($object, $args['defaultLanguage']);
+            if ($cachedResult instanceof Deferred) {
+                return $cachedResult;
+            }
         }
 
         $data = new ElementDescriptor($object);
@@ -347,9 +350,11 @@ class QueryType
         }
 
         // check cache entry
-        $cachedResult = $this->getCacheEntry($object);
-        if ($cachedResult instanceof Deferred) {
-            return $cachedResult;
+        if ($resolveInfo && isset($resolveInfo->variableValues['lang'])) {
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo->variableValues['lang']);
+            if ($cachedResult instanceof Deferred) {
+                return $cachedResult;
+            }
         }
 
         return $nodeData;
@@ -357,12 +362,12 @@ class QueryType
 
     /**
      * @param $object
-     *
+     * @param string $language
      * @return Deferred|null
      */
-    private function getCacheEntry($object): ?Deferred
+    private function getCacheEntry($object, string $language): ?Deferred
     {
-        $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId()]);
+        $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId(), $language]);
         $cachedData = Cache::load($cid);
         if ($cachedData) {
             $uncachedData = Serialize::unserialize($cachedData);
