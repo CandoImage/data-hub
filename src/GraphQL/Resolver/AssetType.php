@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PCL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -149,7 +149,8 @@ class AssetType
                 return $asset->getFullPath();
             }
         }
-        return Service::resolveCachedValue($value, $resolveInfo);;
+
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -222,6 +223,7 @@ class AssetType
                 return $mediaQueries;
             }
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 
