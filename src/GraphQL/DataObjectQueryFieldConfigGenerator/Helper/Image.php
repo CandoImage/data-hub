@@ -9,12 +9,13 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerator\Helper;
 
+use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
@@ -70,10 +71,17 @@ class Image
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if (is_array($value)) {
-            if ($resolveInfo->fieldName === 'image' && isset($value['image'])) {
-                return $value['image'];
+            // check for alias
+            $alias = null;
+            $fieldAstList = $resolveInfo->fieldNodes ?? [];
+            foreach ($fieldAstList as $astNode) {
+                if ($astNode instanceof FieldNode) {
+                    $alias = $astNode->alias;
+                }
             }
-
+            if ($alias) {
+                return $value[$alias->value] ?? null;
+            }
             return $value[$resolveInfo->fieldName] ?? null;
         }
         $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);

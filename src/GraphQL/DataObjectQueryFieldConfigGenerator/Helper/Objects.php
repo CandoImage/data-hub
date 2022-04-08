@@ -9,14 +9,15 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerator\Helper;
 
 use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
+use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
@@ -73,6 +74,17 @@ class Objects
     {
         if (is_array($value)) {
             $result = $value[$resolveInfo->fieldName] ?? null;
+            // check for alias
+            $alias = null;
+            $fieldAstList = $resolveInfo->fieldNodes ?? [];
+            foreach ($fieldAstList as $astNode) {
+                if ($astNode instanceof FieldNode) {
+                    $alias = $astNode->alias;
+                }
+            }
+            if ($alias) {
+                $result = $value[$alias->value] ?? null;
+            }
             $deferred = new Deferred(function () use ($result) {
                 return $result;
             });

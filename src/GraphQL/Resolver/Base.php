@@ -17,6 +17,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
 use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
+use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Model\DataObject\AbstractObject;
@@ -54,6 +55,17 @@ class Base
     {
         if (is_array($value)) {
             $result = $value[$resolveInfo->fieldName] ?? null;
+            // check for alias
+            $alias = null;
+            $fieldAstList = $resolveInfo->fieldNodes ?? [];
+            foreach ($fieldAstList as $astNode) {
+                if ($astNode instanceof FieldNode) {
+                    $alias = $astNode->alias;
+                }
+            }
+            if ($alias) {
+                $result = $value[$alias->value] ?? null;
+            }
             $deferred = new Deferred(function () use ($result) {
                 return $result;
             });
