@@ -1101,7 +1101,7 @@ class Service
      *
      * @return mixed|null
      */
-    public static function resolveCachedValue($value, $resolveInfo = null): mixed
+    public static function resolveCachedValue($value, $resolveInfo = null)
     {
         if (is_array($value)) {
             // check for alias
