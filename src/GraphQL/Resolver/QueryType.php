@@ -16,13 +16,18 @@
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
 use CandoCX\B2BProductBundle\Helper\CacheHelper;
+use CandoCX\CoreBundle\DataHub\GraphQL\EventListener\CacheListener;
 use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
+use GraphQL\Executor\Promise\Adapter\SyncPromiseAdapter;
+use GraphQL\Executor\Promise\Promise;
+use GraphQL\Executor\ReferenceExecutor;
 use GraphQL\Language\AST\FragmentSpreadNode;
 use GraphQL\Language\AST\InlineFragmentNode;
 use GraphQL\Language\AST\NodeKind;
 use GraphQL\Language\AST\NodeList;
 use GraphQL\Type\Definition\ResolveInfo;
+use GraphQL\Type\Definition\Type;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\EdgeEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ListingEvents;
@@ -49,6 +54,7 @@ use Pimcore\Model\DataObject\Service;
 use Pimcore\Tool\Serialize;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
+use ArrayObject;
 
 class QueryType
 {
@@ -354,17 +360,17 @@ class QueryType
             $nodeData = $fieldHelper->extractData($data, $object, $args, $context, $resolveInfo);
         }
 
-        $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId()]);
-        $cachedData = Cache::load($cid);
-        if ($cachedData) {
-            $uncachedData = Serialize::unserialize($cachedData);
-            $deferred = new Deferred(function () use ($uncachedData) {
-                return $uncachedData;
+        $cid = CacheHelper::generateCacheId(['datahub-caching', md5((string)$resolveInfo->operation), $object->getClassId(), $object->getId()]);
+        if (($cachedData = Cache::load($cid))) {
+            $deferred = new SyncPromise(function () use ($cachedData) {
+                return $cachedData;
             });
             $deferred->state = SyncPromise::FULFILLED;
-            $deferred->result = $uncachedData;
+            $deferred->result = $cachedData;
 
             return $deferred;
+        } else {
+            CacheListener::addCachingItem($cid, $resolveInfo->path, $object->getCacheTags());
         }
 
         return $nodeData;
