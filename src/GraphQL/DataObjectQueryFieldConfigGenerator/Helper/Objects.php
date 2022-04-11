@@ -101,6 +101,7 @@ class Objects
 
             return $deferred;
         }
+
         return null;
     }
 }

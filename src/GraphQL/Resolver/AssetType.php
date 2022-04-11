@@ -149,6 +149,7 @@ class AssetType
                 return $asset->getFullPath();
             }
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 
@@ -222,6 +223,7 @@ class AssetType
                 return $mediaQueries;
             }
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 

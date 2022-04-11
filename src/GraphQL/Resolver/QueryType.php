@@ -363,6 +363,7 @@ class QueryType
     /**
      * @param $object
      * @param string $language
+     *
      * @return Deferred|null
      */
     private function getCacheEntry($object, string $language): ?Deferred
