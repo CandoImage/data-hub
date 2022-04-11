@@ -48,12 +48,12 @@ class Objects
     /**
      * Objects constructor.
      *
-     * @param \Pimcore\Bundle\DataHubBundle\GraphQL\Service $graphQlService
+     * @param Service $graphQlService
      * @param string $attribute
      * @param Data $fieldDefinition
      * @param $class
      */
-    public function __construct(\Pimcore\Bundle\DataHubBundle\GraphQL\Service $graphQlService, $attribute, $fieldDefinition, $class)
+    public function __construct(Service $graphQlService, $attribute, $fieldDefinition, $class)
     {
         $this->fieldDefinition = $fieldDefinition;
         $this->class = $class;
@@ -74,7 +74,7 @@ class Objects
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof BaseDescriptor) {
-            $relations = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            $relations = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
             if ($relations) {
                 $result = [];
                 /** @var $relation AbstractElement */
@@ -101,7 +101,6 @@ class Objects
 
             return $deferred;
         }
-
         return null;
     }
 }
