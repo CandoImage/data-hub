@@ -315,8 +315,8 @@ class QueryType
 
         // check cache entry
         // Note: we need a language to avoid showing data in wrong language
-        if ($args['defaultLanguage'] ?? false) {
-            $cachedResult = $this->getCacheEntry($object, $args['defaultLanguage']);
+        if ($resolveInfo->variableValues['lang'] ?? false) {
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo->variableValues['lang']);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
             }
