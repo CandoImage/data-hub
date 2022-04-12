@@ -37,6 +37,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\PermissionInfoTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
+use Pimcore\Bundle\DataHubBundle\EventListener\CacheListener;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
 use Pimcore\Cache;
@@ -316,7 +317,7 @@ class QueryType
         // check cache entry
         // Note: we need a language to avoid showing data in wrong language
         if ($resolveInfo->variableValues['lang'] ?? false) {
-            $cachedResult = $this->getCacheEntry($object, $resolveInfo->variableValues['lang']);
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
             }
@@ -351,7 +352,7 @@ class QueryType
 
         // check cache entry
         if ($resolveInfo && isset($resolveInfo->variableValues['lang'])) {
-            $cachedResult = $this->getCacheEntry($object, $resolveInfo->variableValues['lang']);
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
             }
@@ -366,21 +367,35 @@ class QueryType
      *
      * @return Deferred|null
      */
-    private function getCacheEntry($object, string $language): ?Deferred
+    private function getCacheEntry($object, ResolveInfo $resolveInfo = null): ?Deferred
     {
-        $cid = CacheHelper::generateCacheId(['datahub-caching', $object->getClassId(), $object->getId(), $language]);
-        $cachedData = Cache::load($cid);
-        if ($cachedData) {
-            $uncachedData = Serialize::unserialize($cachedData);
-            $deferred = new Deferred(function () use ($uncachedData) {
-                return $uncachedData;
-            });
-            $deferred->state = SyncPromise::FULFILLED;
-            $deferred->result = $uncachedData;
+        $indexKey = null;
+        if ($resolveInfo) {
+            $path = [];
+            // we need to replace the index of a list item with a generic value
+            // as we don't want to cache a specific position of an item only the object itself
+            foreach ($resolveInfo->path as $key => $index) {
+                if (is_numeric($index)) {
+                    $indexKey = $path[$key];
+                    $path[$key] = 'delta';
+                }
+            }
+            $language = $resolveInfo->variableValues['lang'];
+            $cid = CacheHelper::generateCacheId(
+                ['datahub-caching', $object->getClassId(), $object->getId(), $language, md5((string)$resolveInfo->operation)]
+            );
+            if ($cachedData = Cache::load($cid)) {
+                $deferred = new Deferred(function () use ($cachedData) {
+                    return $cachedData;
+                });
+                $deferred->state = SyncPromise::FULFILLED;
+                $deferred->result = $cachedData;
 
-            return $deferred;
+                return $deferred;
+            }
         }
-
+        // add item to event listener
+        CacheListener::addCachingItem($cid, $path, $object->getId(), $indexKey);
         return null;
     }
 

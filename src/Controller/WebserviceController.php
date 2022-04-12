@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Controller;
@@ -20,7 +20,9 @@ use GraphQL\Error\FormattedError;
 use GraphQL\Error\Warning;
 use GraphQL\GraphQL;
 use Pimcore\Bundle\DataHubBundle\Configuration;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\CacheItemEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ExecutorEvents;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorResultEvent;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ClassTypeDefinitions;
@@ -68,11 +70,12 @@ class WebserviceController extends FrontendController
      * @param EventDispatcherInterface $eventDispatcher
      */
     public function __construct(
-        EventDispatcherInterface $eventDispatcher,
+        EventDispatcherInterface        $eventDispatcher,
         CheckConsumerPermissionsService $permissionsService,
-        OutputCacheService $cacheService,
-        FileUploadService $uploadService
-    ) {
+        OutputCacheService              $cacheService,
+        FileUploadService               $uploadService
+    )
+    {
         $this->eventDispatcher = $eventDispatcher;
         $this->permissionsService = $permissionsService;
         $this->cacheService = $cacheService;
@@ -90,11 +93,12 @@ class WebserviceController extends FrontendController
      * @throws \Exception
      */
     public function webonyxAction(
-        Service $service,
+        Service                $service,
         LocaleServiceInterface $localeService,
-        Factory $modelFactory,
-        Request $request
-    ) {
+        Factory                $modelFactory,
+        Request                $request
+    )
+    {
         $clientname = $request->get('clientname');
 
         $configuration = Configuration::getByName($clientname);
@@ -202,6 +206,11 @@ class WebserviceController extends FrontendController
             $exResult = new ExecutorResultEvent($request, $result);
             $this->eventDispatcher->dispatch($exResult, ExecutorEvents::POST_EXECUTE);
             $result = $exResult->getResult();
+
+            // fire cache item event
+            $cacheItemEvent = new CacheItemEvent($request, $result, true);
+            $this->eventDispatcher->dispatch($cacheItemEvent, CacheItemEvents::CACHE_ITEM);
+
 
             if (\Pimcore::inDebugMode()) {
                 $debug = DebugFlag::INCLUDE_DEBUG_MESSAGE | DebugFlag::INCLUDE_TRACE | DebugFlag::RETHROW_INTERNAL_EXCEPTIONS;
