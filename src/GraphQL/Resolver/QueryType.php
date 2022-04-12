@@ -29,6 +29,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\EdgeEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ListingEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\TenantEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\TenantEvents;
+use Pimcore\Bundle\DataHubBundle\EventListener\CacheListener;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Helper;
@@ -37,7 +38,6 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\PermissionInfoTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
-use Pimcore\Bundle\DataHubBundle\EventListener\CacheListener;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
 use Pimcore\Cache;
@@ -47,7 +47,6 @@ use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Listing;
 use Pimcore\Model\DataObject\Service;
-use Pimcore\Tool\Serialize;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
 
@@ -396,6 +395,7 @@ class QueryType
         }
         // add item to event listener
         CacheListener::addCachingItem($cid, $path, $object->getId(), $indexKey);
+
         return null;
     }
 

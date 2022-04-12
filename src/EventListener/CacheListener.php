@@ -1,5 +1,18 @@
 <?php
 
+/**
+ * Pimcore
+ *
+ * This source file is available under two different licenses:
+ * - GNU General Public License version 3 (GPLv3)
+ * - Pimcore Commercial License (PCL)
+ * Full copyright and license information is available in
+ * LICENSE.md which is distributed with this source code.
+ *
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ */
+
 namespace Pimcore\Bundle\DataHubBundle\EventListener;
 
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
@@ -25,18 +38,20 @@ class CacheListener
         }
     }
 
-    public static function arrayGetNestedValue(array &$array, array $parents, &$key_exists = NULL)
+    public static function arrayGetNestedValue(array &$array, array $parents, &$key_exists = null)
     {
-        $ref =& $array;
+        $ref = & $array;
         foreach ($parents as $parent) {
             if (is_array($ref) && (isset($ref[$parent]) || array_key_exists($parent, $ref))) {
-                $ref =& $ref[$parent];
+                $ref = & $ref[$parent];
             } else {
                 $key_exists = false;
+
                 return null;
             }
         }
         $key_exists = true;
+
         return $ref;
     }
 
