@@ -29,6 +29,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\ClassTypeDefinitions;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Mutation\MutationType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\QueryType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
+use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService;
 use Pimcore\Bundle\DataHubBundle\Service\FileUploadService;
@@ -164,6 +165,9 @@ class WebserviceController extends FrontendController
 
         $query = $input['query'];
         $variableValues = isset($input['variables']) ? $input['variables'] : null;
+
+        //add query to Cache Helper
+        CacheHelper::setQuery($query);
 
         try {
             $rootValue = [];

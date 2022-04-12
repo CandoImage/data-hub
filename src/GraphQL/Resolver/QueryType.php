@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -362,36 +362,35 @@ class QueryType
 
     /**
      * @param $object
-     * @param string $language
-     *
+     * @param ResolveInfo $resolveInfo
      * @return Deferred|null
      */
-    private function getCacheEntry($object, ResolveInfo $resolveInfo = null): ?Deferred
+    private function getCacheEntry($object, ResolveInfo $resolveInfo): ?Deferred
     {
         $indexKey = null;
-        if ($resolveInfo) {
-            $path = [];
-            // we need to replace the index of a list item with a generic value
-            // as we don't want to cache a specific position of an item only the object itself
-            foreach ($resolveInfo->path as $key => $index) {
-                if (is_numeric($index)) {
-                    $indexKey = $path[$key];
-                    $path[$key] = 'delta';
-                }
+        $path = $resolveInfo->path;
+        // we need to replace the index of a list item with a generic value
+        // as we don't want to cache a specific position of an item only the object itself
+        foreach ($resolveInfo->path as $key => $index) {
+            if (is_numeric($index)) {
+                $indexKey = $index;
+                $path[$key] = 'delta';
             }
-            $language = $resolveInfo->variableValues['lang'];
-            $cid = CacheHelper::generateCacheId(
-                ['datahub-caching', $object->getClassId(), $object->getId(), $language, md5((string)$resolveInfo->operation)]
-            );
-            if ($cachedData = Cache::load($cid)) {
-                $deferred = new Deferred(function () use ($cachedData) {
-                    return $cachedData;
-                });
-                $deferred->state = SyncPromise::FULFILLED;
-                $deferred->result = $cachedData;
+        }
+        // create a unique cache ID based on initial query, path, language and object properties
+        $query = CacheHelper::getHashedQuery();
+        $language = $resolveInfo->variableValues['lang'];
+        $cid = CacheHelper::generateCacheId(
+            ['datahub-caching', $object->getClassId(), $object->getId(), $language, $query, implode(',', $path)]
+        );
+        if ($cachedData = Cache::load($cid)) {
+            $deferred = new Deferred(function () use ($cachedData) {
+                return $cachedData;
+            });
+            $deferred->state = SyncPromise::FULFILLED;
+            $deferred->result = $cachedData;
 
-                return $deferred;
-            }
+            return $deferred;
         }
         // add item to event listener
         CacheListener::addCachingItem($cid, $path, $object->getId(), $indexKey);

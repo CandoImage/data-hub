@@ -9,14 +9,26 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Helper;
 
 class CacheHelper
 {
+    private static string $query = '';
+
+    public static function setQuery(string $query): void
+    {
+        self::$query = $query;
+    }
+
+    public static function getHashedQuery(): string
+    {
+        return md5(self::$query);
+    }
+
     public static function generateCacheId(array $keyItems = []): string
     {
         $allKeys = '';
