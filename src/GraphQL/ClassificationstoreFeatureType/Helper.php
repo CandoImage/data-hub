@@ -70,6 +70,7 @@ class Helper extends ObjectType
                             if (!$translator) {
                                 return $keyConfig->getName();
                             }
+
                             return $translator->trans($keyConfig->getName(), [], 'admin', $language);
                         }
                     }
