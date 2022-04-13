@@ -15,18 +15,22 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Helper;
 
+use GraphQL\Language\Parser;
+use GraphQL\Language\Source;
+
 class CacheHelper
 {
     private static string $query = '';
 
     public static function setQuery(string $query): void
     {
-        self::$query = $query;
+        $documentNode = Parser::parse(new Source($query ?? '', 'GraphQL'), ['noLocation' => true]);
+        self::$query = md5((string)$documentNode);
     }
 
     public static function getHashedQuery(): string
     {
-        return md5(self::$query);
+        return self::$query;
     }
 
     public static function generateCacheId(array $keyItems = []): string
