@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\ClassificationstoreFeatureType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
+use Pimcore;
 use Pimcore\Bundle\DataHubBundle\GraphQL\FeatureDescriptor;
 use Pimcore\Model\DataObject\Classificationstore\KeyConfig;
 
@@ -44,6 +45,33 @@ class Helper extends ObjectType
                         $keyConfig = KeyConfig::getById($value->getId());
                         if ($keyConfig) {
                             return $keyConfig->getName();
+                        }
+                    }
+                }
+            ],
+            'translatedName' => [
+                'type' => Type::string(),
+                'resolve' => static function ($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null) {
+                    if ($value instanceof FeatureDescriptor) {
+                        $keyConfig = KeyConfig::getById($value->getId());
+                        if ($keyConfig) {
+                            $language = $value['_language'];
+                            if (!$language) {
+                                $graphQLService = Pimcore::getKernel()->getContainer()->get('Pimcore\Bundle\DataHubBundle\GraphQL\Service');
+                                if ($graphQLService) {
+                                    $language = $graphQLService->getLocaleService()->getLocale();
+                                }
+                                // Let's try to "inherit" the language from what's already been parsed from this query
+                                if (!$language) {
+                                    $language = 'default';
+                                }
+                            }
+                            $translator = Pimcore::getKernel()->getContainer()->get('translator');
+                            if (!$translator) {
+                                return $keyConfig->getName();
+                            }
+
+                            return $translator->trans($keyConfig->getName(), [], 'admin', $language);
                         }
                     }
                 }
