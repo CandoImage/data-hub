@@ -15,6 +15,8 @@
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
+use GraphQL\Deferred;
+use GraphQL\Executor\Promise\Adapter\SyncPromise;
 use GraphQL\Language\AST\FragmentSpreadNode;
 use GraphQL\Language\AST\InlineFragmentNode;
 use GraphQL\Language\AST\NodeKind;
@@ -27,15 +29,18 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\EdgeEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ListingEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\TenantEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\TenantEvents;
+use Pimcore\Bundle\DataHubBundle\EventListener\CacheListener;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Helper;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementIdentificationTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\PermissionInfoTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
+use Pimcore\Cache;
 use Pimcore\Db;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\AbstractObject;
@@ -246,7 +251,7 @@ class QueryType
      * @param array $context
      * @param ResolveInfo|null $resolveInfo
      *
-     * @return array
+     * @return Deferred|ElementDescriptor
      *
      * @throws ClientSafeException
      */
@@ -308,6 +313,15 @@ class QueryType
             }
         }
 
+        // check cache entry
+        // Note: we need a language to avoid showing data in wrong language
+        if ($resolveInfo->variableValues['lang'] ?? false) {
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo);
+            if ($cachedResult instanceof Deferred) {
+                return $cachedResult;
+            }
+        }
+
         $data = new ElementDescriptor($object);
         $data['id'] = $object->getId();
         $this->getGraphQlService()->extractData($data, $object, $args, $context, $resolveInfo);
@@ -335,7 +349,54 @@ class QueryType
             $nodeData = $fieldHelper->extractData($data, $object, $args, $context, $resolveInfo);
         }
 
+        // check cache entry
+        if ($resolveInfo && isset($resolveInfo->variableValues['lang'])) {
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo);
+            if ($cachedResult instanceof Deferred) {
+                return $cachedResult;
+            }
+        }
+
         return $nodeData;
+    }
+
+    /**
+     * @param $object
+     * @param ResolveInfo $resolveInfo
+     *
+     * @return Deferred|null
+     */
+    private function getCacheEntry($object, ResolveInfo $resolveInfo): ?Deferred
+    {
+        $indexKey = null;
+        $path = $resolveInfo->path;
+        // we need to replace the index of a list item with a generic value
+        // as we don't want to cache a specific position of an item only the object itself
+        foreach ($resolveInfo->path as $key => $index) {
+            if (is_numeric($index)) {
+                $indexKey = $index;
+                $path[$key] = 'delta';
+            }
+        }
+        // create a unique cache ID based on initial query, path, language and object properties
+        $query = CacheHelper::getHashedQuery();
+        $language = $resolveInfo->variableValues['lang'];
+        $cid = CacheHelper::generateCacheId(
+            ['datahub-caching', $object->getClassId(), $object->getId(), $language, $query, implode(',', $path)]
+        );
+        if ($cachedData = Cache::load($cid)) {
+            $deferred = new Deferred(function () use ($cachedData) {
+                return $cachedData;
+            });
+            $deferred->state = SyncPromise::FULFILLED;
+            $deferred->result = $cachedData;
+
+            return $deferred;
+        }
+        // add item to event listener
+        CacheListener::addCachingItem($cid, $path, $object->getId(), $indexKey);
+
+        return null;
     }
 
     /**

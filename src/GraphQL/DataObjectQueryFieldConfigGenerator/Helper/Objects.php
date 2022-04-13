@@ -15,8 +15,12 @@
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerator\Helper;
 
+use GraphQL\Deferred;
+use GraphQL\Executor\Promise\Adapter\SyncPromise;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
@@ -44,12 +48,12 @@ class Objects
     /**
      * Objects constructor.
      *
-     * @param \Pimcore\Bundle\DataHubBundle\GraphQL\Service $graphQlService
+     * @param Service $graphQlService
      * @param string $attribute
      * @param Data $fieldDefinition
      * @param $class
      */
-    public function __construct(\Pimcore\Bundle\DataHubBundle\GraphQL\Service $graphQlService, $attribute, $fieldDefinition, $class)
+    public function __construct(Service $graphQlService, $attribute, $fieldDefinition, $class)
     {
         $this->fieldDefinition = $fieldDefinition;
         $this->class = $class;
@@ -69,21 +73,33 @@ class Objects
      */
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $relations = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
-        if ($relations) {
-            $result = [];
-            /** @var $relation AbstractElement */
-            foreach ($relations as $relation) {
-                if (!WorkspaceHelper::checkPermission($relation, 'read')) {
-                    continue;
+        if ($value instanceof BaseDescriptor) {
+            $relations = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            if ($relations) {
+                $result = [];
+                /** @var $relation AbstractElement */
+                foreach ($relations as $relation) {
+                    if (!WorkspaceHelper::checkPermission($relation, 'read')) {
+                        continue;
+                    }
+
+                    $data = new ElementDescriptor($relation);
+                    $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
+                    $result[] = $data;
                 }
 
-                $data = new ElementDescriptor($relation);
-                $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
-                $result[] = $data;
+                return $result;
             }
+        }
+        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
+        if ($cachedValue !== null) {
+            $deferred = new Deferred(function () use ($cachedValue) {
+                return $cachedValue;
+            });
+            $deferred->state = SyncPromise::FULFILLED;
+            $deferred->result = $cachedValue;
 
-            return $result;
+            return $deferred;
         }
 
         return null;

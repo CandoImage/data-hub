@@ -29,6 +29,7 @@ declare(strict_types=1);
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL;
 
+use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
@@ -1031,7 +1032,7 @@ class Service
                     $blockData = self::getValueForObject($object, $key, $brickType, $brickKey, $def, $context, $brickDescriptor, $args);
                 }
             } else {
-                $blockGetter = 'get'.ucfirst($descriptorData['__blockName']);
+                $blockGetter = 'get' . ucfirst($descriptorData['__blockName']);
                 $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
                 $blockData = $object->$blockGetter($isLocalizedField && isset($descriptorData['args']['language']) ? $descriptorData['args']['language'] : null);
             }
@@ -1092,6 +1093,33 @@ class Service
         }
 
         return $result;
+    }
+
+    /**
+     * @param $value
+     * @param $resolveInfo
+     *
+     * @return mixed|null
+     */
+    public static function resolveCachedValue($value, $resolveInfo = null)
+    {
+        if (is_array($value)) {
+            // check for alias
+            $alias = null;
+            $fieldAstList = $resolveInfo->fieldNodes ?? [];
+            foreach ($fieldAstList as $astNode) {
+                if ($astNode instanceof FieldNode) {
+                    $alias = $astNode->alias;
+                }
+            }
+            if ($alias) {
+                return $value[$alias->value] ?? null;
+            }
+
+            return $value[$resolveInfo->fieldName] ?? null;
+        }
+
+        return null;
     }
 
     /**

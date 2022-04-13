@@ -20,13 +20,16 @@ use GraphQL\Error\FormattedError;
 use GraphQL\Error\Warning;
 use GraphQL\GraphQL;
 use Pimcore\Bundle\DataHubBundle\Configuration;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\CacheItemEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ExecutorEvents;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorResultEvent;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ClassTypeDefinitions;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Mutation\MutationType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\QueryType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
+use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService;
 use Pimcore\Bundle\DataHubBundle\Service\FileUploadService;
@@ -163,6 +166,9 @@ class WebserviceController extends FrontendController
         $query = $input['query'];
         $variableValues = isset($input['variables']) ? $input['variables'] : null;
 
+        //add query to Cache Helper
+        CacheHelper::setQuery($query);
+
         try {
             $rootValue = [];
 
@@ -202,6 +208,10 @@ class WebserviceController extends FrontendController
             $exResult = new ExecutorResultEvent($request, $result);
             $this->eventDispatcher->dispatch($exResult, ExecutorEvents::POST_EXECUTE);
             $result = $exResult->getResult();
+
+            // fire cache item event
+            $cacheItemEvent = new CacheItemEvent($request, $result, true);
+            $this->eventDispatcher->dispatch($cacheItemEvent, CacheItemEvents::CACHE_ITEM);
 
             if (\Pimcore::inDebugMode()) {
                 $debug = DebugFlag::INCLUDE_DEBUG_MESSAGE | DebugFlag::INCLUDE_TRACE | DebugFlag::RETHROW_INTERNAL_EXCEPTIONS;
