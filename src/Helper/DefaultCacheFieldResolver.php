@@ -1,11 +1,24 @@
 <?php
 
+/**
+ * Pimcore
+ *
+ * This source file is available under two different licenses:
+ * - GNU General Public License version 3 (GPLv3)
+ * - Pimcore Commercial License (PCL)
+ * Full copyright and license information is available in
+ * LICENSE.md which is distributed with this source code.
+ *
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ */
+
 namespace Pimcore\Bundle\DataHubBundle\Helper;
 
+use ArrayAccess;
+use Closure;
 use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
-use Closure;
-use ArrayAccess;
 
 class DefaultCacheFieldResolver
 {
@@ -18,6 +31,7 @@ class DefaultCacheFieldResolver
      * @param $args
      * @param $contextValue
      * @param ResolveInfo $info
+     *
      * @return mixed|null
      */
     public static function defaultFieldResolver($objectValue, $args, $contextValue, ResolveInfo $info)
