@@ -30,6 +30,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Mutation\MutationType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\QueryType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
+use Pimcore\Bundle\DataHubBundle\Helper\DefaultCacheFieldResolver;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService;
 use Pimcore\Bundle\DataHubBundle\Service\FileUploadService;
@@ -168,6 +169,7 @@ class WebserviceController extends FrontendController
 
         //add query to Cache Helper
         CacheHelper::setQuery($query);
+        static $defaultFieldResolver = [DefaultCacheFieldResolver::class, 'defaultFieldResolver'];
 
         try {
             $rootValue = [];
@@ -200,7 +202,7 @@ class WebserviceController extends FrontendController
                 $event->getContext(),
                 $variableValues,
                 null,
-                null,
+                $defaultFieldResolver,
                 $validators
 
             );

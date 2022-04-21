@@ -1104,7 +1104,7 @@ class Service
     public static function resolveCachedValue($value, $resolveInfo = null)
     {
         if (is_array($value)) {
-            // check for alias
+            // check for alias as we cache the properties with aliases
             $alias = null;
             $fieldAstList = $resolveInfo->fieldNodes ?? [];
             foreach ($fieldAstList as $astNode) {
