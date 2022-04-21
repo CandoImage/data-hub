@@ -55,7 +55,7 @@ class Base
     {
         if (is_array($value)) {
             $result = $value[$resolveInfo->fieldName] ?? null;
-            // check for alias
+            // check for alias as we cache the properties with aliases
             $alias = null;
             $fieldAstList = $resolveInfo->fieldNodes ?? [];
             foreach ($fieldAstList as $astNode) {
