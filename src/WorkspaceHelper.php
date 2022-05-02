@@ -250,7 +250,8 @@ class WorkspaceHelper
             if (!$elementType) {
                 $elementType = Service::getElementType($element);
             }
-            throw new ClientSafeException($type . ' access for ' . $elementType . ' ' . $element->getFullPath() . ' denied');
+            $fullPath = $element ? $element->getFullPath() : '';
+            throw new ClientSafeException($type . ' access for ' . $elementType . ' ' . $fullPath . ' denied');
         }
 
         return $isAllowed;
