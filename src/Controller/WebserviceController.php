@@ -207,13 +207,13 @@ class WebserviceController extends FrontendController
 
             );
 
-            $exResult = new ExecutorResultEvent($request, $result);
-            $this->eventDispatcher->dispatch($exResult, ExecutorEvents::POST_EXECUTE);
-            $result = $exResult->getResult();
-
             // fire cache item event
             $cacheItemEvent = new CacheItemEvent($request, $result, true);
             $this->eventDispatcher->dispatch($cacheItemEvent, CacheItemEvents::CACHE_ITEM);
+
+            $exResult = new ExecutorResultEvent($request, $result);
+            $this->eventDispatcher->dispatch($exResult, ExecutorEvents::POST_EXECUTE);
+            $result = $exResult->getResult();
 
             if (\Pimcore::inDebugMode()) {
                 $debug = DebugFlag::INCLUDE_DEBUG_MESSAGE | DebugFlag::INCLUDE_TRACE | DebugFlag::RETHROW_INTERNAL_EXCEPTIONS;
