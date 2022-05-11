@@ -38,6 +38,11 @@ class CacheListener
         }
     }
 
+    public static function clearCachingItems(): void
+    {
+        self::$cachingItems = [];
+    }
+
     public static function arrayGetNestedValue(array &$array, array $parents, &$key_exists = null)
     {
         $ref = & $array;
@@ -79,5 +84,6 @@ class CacheListener
                 true
             );
         }
+        self::clearCachingItems();
     }
 }
