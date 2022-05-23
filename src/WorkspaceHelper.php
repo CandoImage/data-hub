@@ -245,7 +245,7 @@ class WorkspaceHelper
             throw new ClientSafeException('access for '.  $element->getFullPath() . ' denied');
         }
         // we can allow nullable elements e.g. linked Assets where the asset itself was removed
-        if(!$element){
+        if (!$element) {
             return true;
         }
 
