@@ -244,6 +244,10 @@ class WorkspaceHelper
         if (!$event->isGranted() && PimcoreDataHubBundle::getNotAllowedPolicy() === PimcoreDataHubBundle::NOT_ALLOWED_POLICY_EXCEPTION) {
             throw new ClientSafeException('access for '.  $element->getFullPath() . ' denied');
         }
+        // we can allow nullable elements e.g. linked Assets where the asset itself was removed
+        if(!$element){
+            return true;
+        }
 
         $isAllowed = self::isAllowed($element, $configuration, $type, $elementType);
         if (!$isAllowed && PimcoreDataHubBundle::getNotAllowedPolicy() === PimcoreDataHubBundle::NOT_ALLOWED_POLICY_EXCEPTION) {
