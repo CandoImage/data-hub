@@ -17,6 +17,9 @@ namespace Pimcore\Bundle\DataHubBundle\EventListener;
 
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
 use Pimcore\Cache;
+use Pimcore\Model\Asset;
+use Pimcore\Model\DataObject\ClassDefinition\Data\Image;
+use Pimcore\Model\DataObject\ClassDefinition\Data\Relations\AbstractRelations;
 use Pimcore\Model\DataObject\Concrete;
 
 class CacheListener
@@ -28,7 +31,7 @@ class CacheListener
         // load object to get cache tags
         $object = Concrete::getById($objectId);
         if ($object) {
-            $cacheTags = ['datahub-cache'] + ($object->getCacheTags() ?? []);
+            $cacheTags = ['datahub-cache'] + (self::getObjectCacheTags($object) ?? []);
             self::$cachingItems[$cid] = [
                 'path' => $path,
                 'tags' => $cacheTags,
@@ -45,10 +48,10 @@ class CacheListener
 
     public static function arrayGetNestedValue(array &$array, array $parents, &$key_exists = null)
     {
-        $ref = & $array;
+        $ref = &$array;
         foreach ($parents as $parent) {
             if (is_array($ref) && (isset($ref[$parent]) || array_key_exists($parent, $ref))) {
-                $ref = & $ref[$parent];
+                $ref = &$ref[$parent];
             } else {
                 $key_exists = false;
 
@@ -85,5 +88,46 @@ class CacheListener
             );
         }
         self::clearCachingItems();
+    }
+
+    /**
+     * Get recursively all cache tags for relations or images
+     * Must use to invalidate the cache if something related changes, and we're got the correct data
+     * Unfortunately we cannot use raw relation data due inheritance
+     *
+     * @param Concrete $concrete
+     *
+     * @return array
+     */
+    public static function getObjectCacheTags(Concrete $concrete): array
+    {
+        $tags = $concrete->getCacheTags();
+        foreach ($concrete->getClass()->getFieldDefinitions() as $name => $def) {
+            // filter only relations and get raw data to generate the cache tags
+            if ($def instanceof AbstractRelations) {
+                $getter = 'get' . ucfirst($name);
+                $relationData = $concrete->{$getter}();
+                if (is_array($relationData)) {
+                    foreach ($relationData as $relation) {
+                        if ($relation instanceof Concrete) {
+                            $tags = array_merge($tags, $relation->getCacheTags());
+                        }
+                    }
+                }
+                if ($relationData instanceof Concrete) {
+                    $tags = array_merge($tags, $relationData->getCacheTags());
+                    $tags = array_merge($tags, self::getObjectCacheTags($relationData));
+                }
+            }
+            if ($def instanceof Image) {
+                $getter = 'get' . ucfirst($name);
+                $asset = $concrete->{$getter}();
+                if ($asset instanceof Asset) {
+                    $tags = array_merge($tags, $asset->getCacheTags());
+                }
+            }
+        }
+
+        return $tags;
     }
 }
