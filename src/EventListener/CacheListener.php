@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PCL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\EventListener;
@@ -94,7 +94,9 @@ class CacheListener
      * Get recursively all cache tags for relations or images
      * Must use to invalidate the cache if something related changes, and we're got the correct data
      * Unfortunately we cannot use raw relation data due inheritance
+     *
      * @param Concrete $concrete
+     *
      * @return array
      */
     public static function getObjectCacheTags(Concrete $concrete): array
@@ -125,6 +127,7 @@ class CacheListener
                 }
             }
         }
+
         return $tags;
     }
 }
