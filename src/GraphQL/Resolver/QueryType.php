@@ -49,6 +49,7 @@ use Pimcore\Model\DataObject\Fieldcollection\Data\FilterMultiNumberRange;
 use Pimcore\Model\DataObject\Listing;
 use Pimcore\Model\DataObject\QuantityValue\Unit;
 use Pimcore\Model\DataObject\Service;
+use stdClass;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
 
@@ -997,13 +998,10 @@ class QueryType
             }
         }
 
-        $config = new \stdClass();
-        if ($filter instanceof FilterMultiNumberRange && method_exists($filter, 'getBaseUnit')) {
-            $baseUnitId = $filter->getBaseUnit();
-            $baseUnit = Unit::getById($baseUnitId);
-            if ($baseUnit) {
-                $config = $baseUnit->getAbbreviation();
-            }
+        // fill config object
+        $config = new stdClass();
+        if (method_exists($filter, 'getConfig')) {
+            $config = $filter->getConfig();
         }
 
         $value = [
