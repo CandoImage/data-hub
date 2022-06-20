@@ -45,7 +45,9 @@ use Pimcore\Db;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
+use Pimcore\Model\DataObject\Fieldcollection\Data\FilterMultiNumberRange;
 use Pimcore\Model\DataObject\Listing;
+use Pimcore\Model\DataObject\QuantityValue\Unit;
 use Pimcore\Model\DataObject\Service;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
@@ -995,10 +997,24 @@ class QueryType
             }
         }
 
+        // CANDO SPECIAL
+        $config = '';
+        if ($filter instanceof FilterMultiNumberRange && method_exists($filter, 'getBaseUnit')) {
+            $baseUnitId = $filter->getBaseUnit();
+            $baseUnit = Unit::getById($baseUnitId);
+            if ($baseUnit) {
+                $config = $baseUnit->getAbbreviation();
+            }
+        }
+
+
         $value = [
             'filterType' => $filter->getType(),
             'field' => $field,
             'label' => $translator->trans($filter->getLabel()),
+            // CANDO SPECIAL
+            'config' => $config,
+
             'options' => $options,
         ];
 

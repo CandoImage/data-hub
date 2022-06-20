@@ -360,6 +360,18 @@ class QueryType extends ObjectType
                         'filterType' => ['type' => Type::string()],
                         'field' => ['type' => Type::string()],
                         'label' => ['type' => Type::string()],
+                        'config' => [
+                            'description' => 'Special configuration for filters',
+                            'type' => new ObjectType([
+                                'name' => $ucFirstClassName . $filterType . 'Config',
+                                'fields' => [
+                                    'baseUnit' => [
+                                        'description' => 'Used in FilterMultiNumberRange filter to specify the base unit label',
+                                        'type' => Type::string()
+                                    ],
+                                ],
+                            ])
+                        ],
                         'options' => [
                             'type' => Type::listOf(new ObjectType([
                                 'name' => $ucFirstClassName . $filterType . 'Option',
