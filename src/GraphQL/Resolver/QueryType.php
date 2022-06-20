@@ -1011,9 +1011,7 @@ class QueryType
             'filterType' => $filter->getType(),
             'field' => $field,
             'label' => $translator->trans($filter->getLabel()),
-            // CANDO SPECIAL
             'config' => $config,
-
             'options' => $options,
         ];
 
