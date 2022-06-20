@@ -1007,7 +1007,6 @@ class QueryType
             }
         }
 
-
         $value = [
             'filterType' => $filter->getType(),
             'field' => $field,
