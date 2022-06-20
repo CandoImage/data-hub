@@ -997,8 +997,7 @@ class QueryType
             }
         }
 
-        // CANDO SPECIAL
-        $config = '';
+        $config = new \stdClass();
         if ($filter instanceof FilterMultiNumberRange && method_exists($filter, 'getBaseUnit')) {
             $baseUnitId = $filter->getBaseUnit();
             $baseUnit = Unit::getById($baseUnitId);
