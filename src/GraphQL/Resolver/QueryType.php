@@ -47,6 +47,7 @@ use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Listing;
 use Pimcore\Model\DataObject\Service;
+use stdClass;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Security;
 
@@ -995,10 +996,17 @@ class QueryType
             }
         }
 
+        // fill config object
+        $config = new stdClass();
+        if (method_exists($filter, 'getConfig')) {
+            $config = $filter->getConfig();
+        }
+
         $value = [
             'filterType' => $filter->getType(),
             'field' => $field,
             'label' => $translator->trans($filter->getLabel()),
+            'config' => $config,
             'options' => $options,
         ];
 
