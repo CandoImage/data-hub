@@ -143,6 +143,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'setCartPaymentMethod';
         $this->excludedQueries[] = 'setCartDeliveryType';
         $this->excludedQueries[] = 'performCartItemMutation';
+        $this->excludedQueries[] = 'performCancelOrderItem';
         // Project specific queries
         $this->excludedQueries[] = 'performDealerToggleState';
     }
