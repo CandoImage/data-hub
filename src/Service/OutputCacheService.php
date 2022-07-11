@@ -145,7 +145,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'performCartItemMutation';
         $this->excludedQueries[] = 'performCancelOrderItem';
         $this->excludedQueries[] = 'getInvoiceListing';
-        $this->excludedQueries[] = 'getCreditListing';
+        $this->excludedQueries[] = 'getCreditNoteListing';
         $this->excludedQueries[] = 'getPendingDeliveryListing';
         $this->excludedQueries[] = 'performCancelPendingDeliveryItem';
         $this->excludedQueries[] = 'getWishlistListing';
