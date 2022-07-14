@@ -153,6 +153,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'performWishlistUpdate';
         $this->excludedQueries[] = 'performWishlistDelete';
         $this->excludedQueries[] = 'performAddToWishlistMutation';
+        $this->excludedQueries[] = 'performSelectWishlistMutation';
         // Project specific queries
         $this->excludedQueries[] = 'performDealerToggleState';
     }
