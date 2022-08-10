@@ -150,6 +150,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'performCancelPendingDeliveryItem';
         $this->excludedQueries[] = 'getWishlistListing';
         $this->excludedQueries[] = 'getWishlist';
+        $this->excludedQueries[] = 'getWishlistDetails';
         $this->excludedQueries[] = 'performUpdateToWishlistMutation';
         $this->excludedQueries[] = 'performWishlistUpdate';
         $this->excludedQueries[] = 'performWishlistDelete';
