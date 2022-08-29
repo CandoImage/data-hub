@@ -129,6 +129,7 @@ class WebserviceController extends FrontendController
 
         if ($response = $this->cacheService->load($request, $query, $variableValues, $parsedQuery)) {
             Logger::debug('Loading response from cache');
+
             return $response;
         }
 

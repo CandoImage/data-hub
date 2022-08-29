@@ -130,6 +130,7 @@ class ExecutorEvent extends Event
 
     /**
      * @return \GraphQL\Language\AST\DocumentNode
+     *
      * @throws \GraphQL\Error\SyntaxError
      */
     public function getParsedQuery(): DocumentNode
@@ -137,6 +138,7 @@ class ExecutorEvent extends Event
         if (!$this->parsedQuery) {
             $this->parsedQuery = Parser::parse(new Source($query ?? '', 'GraphQL'));
         }
+
         return $this->parsedQuery;
     }
 
