@@ -19,6 +19,8 @@ use GraphQL\Error\DebugFlag;
 use GraphQL\Error\FormattedError;
 use GraphQL\Error\Warning;
 use GraphQL\GraphQL;
+use GraphQL\Language\Parser;
+use GraphQL\Language\Source;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\CacheItemEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ExecutorEvents;
@@ -110,9 +112,23 @@ class WebserviceController extends FrontendController
             throw new AccessDeniedHttpException('Permission denied, apikey not valid');
         }
 
-        if ($response = $this->cacheService->load($request)) {
-            Logger::debug('Loading response from cache');
+        $contentType = $request->headers->get('content-type') ?? '';
 
+        if (mb_stripos($contentType, 'multipart/form-data') !== false) {
+            $input = $this->uploadService->parseUploadedFiles($request);
+        } else {
+            $input = json_decode($request->getContent(), true);
+        }
+
+        $query = $input['query'];
+        //add query to Cache Helper
+        CacheHelper::setQuery($query);
+
+        $variableValues = $input['variables'] ?? null;
+        $parsedQuery = Parser::parse(new Source($query ?? '', 'GraphQL'));
+
+        if ($response = $this->cacheService->load($request, $query, $variableValues, $parsedQuery)) {
+            Logger::debug('Loading response from cache');
             return $response;
         }
 
@@ -155,20 +171,6 @@ class WebserviceController extends FrontendController
             Logger::error($e);
             throw $e;
         }
-
-        $contentType = $request->headers->get('content-type') ?? '';
-
-        if (mb_stripos($contentType, 'multipart/form-data') !== false) {
-            $input = $this->uploadService->parseUploadedFiles($request);
-        } else {
-            $input = json_decode($request->getContent(), true);
-        }
-
-        $query = $input['query'];
-        $variableValues = isset($input['variables']) ? $input['variables'] : null;
-
-        //add query to Cache Helper
-        CacheHelper::setQuery($query);
         static $defaultFieldResolver = [DefaultCacheFieldResolver::class, 'defaultFieldResolver'];
 
         try {
@@ -186,18 +188,23 @@ class WebserviceController extends FrontendController
                 $request,
                 $query,
                 $schema,
-                $context
+                $context,
+                $parsedQuery
             );
 
             $this->eventDispatcher->dispatch($event, ExecutorEvents::PRE_EXECUTE);
 
+            // @TODO why is this not part of the event and why isn't it the same
+            // as $variableValues is set above? This is a consistency break!
+            // Why reverting to the request object when we have curated
+            // everything for the event...
             if ($event->getRequest() instanceof Request) {
                 $variableValues = $event->getRequest()->get('variables', $variableValues);
             }
 
             $result = GraphQL::executeQuery(
                 $event->getSchema(),
-                $event->getQuery(),
+                $event->getParsedQuery(),
                 $rootValue,
                 $event->getContext(),
                 $variableValues,

@@ -15,6 +15,9 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
+use GraphQL\Language\AST\DocumentNode;
+use GraphQL\Language\Parser;
+use GraphQL\Language\Source;
 use GraphQL\Type\Schema;
 use Pimcore\Event\Traits\RequestAwareTrait;
 use Pimcore\Event\Traits\ResponseAwareTrait;
@@ -35,6 +38,16 @@ class ExecutorEvent extends Event
      * @var string
      */
     protected $query;
+
+    /**
+     * @var string
+     */
+    protected $queryHash;
+
+    /**
+     * @var \GraphQL\Language\AST\DocumentNode|null
+     */
+    protected ?DocumentNode $parsedQuery;
 
     /**
      * @var Schema
@@ -108,20 +121,46 @@ class ExecutorEvent extends Event
      */
     public function setQuery($query)
     {
-        $this->query = $query;
+        if ($this->queryHash != ($queryHash = md5($query))) {
+            $this->query = $query;
+            $this->queryHash = $queryHash;
+            $this->parsedQuery = null;
+        }
+    }
+
+    /**
+     * @return \GraphQL\Language\AST\DocumentNode
+     * @throws \GraphQL\Error\SyntaxError
+     */
+    public function getParsedQuery(): DocumentNode
+    {
+        if (!$this->parsedQuery) {
+            $this->parsedQuery = Parser::parse(new Source($query ?? '', 'GraphQL'));
+        }
+        return $this->parsedQuery;
+    }
+
+    /**
+     * @param \GraphQL\Language\AST\DocumentNode|null $parsedQuery
+     */
+    public function setParsedQuery(?DocumentNode $parsedQuery): void
+    {
+        $this->parsedQuery = $parsedQuery;
     }
 
     /**
      * @param Request $request
-     * @param array $query
+     * @param string $query
      * @param Schema $schema
      * @param array $context
      */
-    public function __construct(Request $request, $query, Schema $schema, $context)
+    public function __construct(Request $request, $query, Schema $schema, $context, DocumentNode $parsedQuery = null)
     {
         $this->request = $request;
         $this->query = $query;
+        $this->queryHash = md5($query);
         $this->schema = $schema;
         $this->context = $context;
+        $this->parsedQuery = $parsedQuery;
     }
 }

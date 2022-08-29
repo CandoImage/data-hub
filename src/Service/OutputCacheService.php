@@ -16,7 +16,9 @@
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
 use CandoCX\B2BProductBundle\Helper\CacheHelper;
+use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
+use GraphQL\Language\Source;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreLoadEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
@@ -53,6 +55,11 @@ class OutputCacheService
      * @var string
      */
     private string $query = '';
+
+    /**
+     * @var \GraphQL\Language\AST\DocumentNode
+     */
+    private ?DocumentNode $parsedQuery;
 
     /**
      * The Input GraphQL Variables
@@ -160,19 +167,17 @@ class OutputCacheService
         $this->excludedQueries[] = 'performDealerToggleState';
     }
 
-    public function load(Request $request)
+    public function load(Request $request, $query, $variables, DocumentNode $parsedQuery)
     {
         if (!$this->useCache($request)) {
             return null;
         }
-
-        // Parse Input for more specific cache key generation
-        $input = json_decode($request->getContent(), true);
-        $this->query = $input['query'];
-        $this->variables = isset($input['variables']) ? $input['variables'] : null;
+        $this->query = $query;
+        $this->variables = $variables;
+        $this->parsedQuery = $parsedQuery;
 
         // check if we have an excluded query here
-        if ($this->isExcludedQuery($this->query)) {
+        if ($this->isExcludedQuery($this->parsedQuery)) {
             return null;
         }
 
@@ -234,6 +239,11 @@ class OutputCacheService
         \Pimcore\Cache::save($item, $key, $tags, $this->lifetime);
     }
 
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return string
+     */
     private function computeKey(Request $request): string
     {
         $clientname = $request->get('clientname');
@@ -270,10 +280,20 @@ class OutputCacheService
         return $event->isUseCache();
     }
 
-    // Cando Special
-    private function isExcludedQuery($query): bool
+    /**
+     * Checks if a GraphQL Query contains a non-cacheable Query.
+     *
+     * @param string|DocumentNode $query
+     *
+     * @return bool
+     *
+     * @CandoSpecific
+     */
+    public function isExcludedQuery($query): bool
     {
-        $query = Parser::parse($query);
+        if (!($query instanceof DocumentNode)) {
+            $query = Parser::parse(new Source($query ?? '', 'GraphQL'), ['noLocation' => true]);
+        }
         foreach ($query->definitions as $definition) {
             foreach ($definition->selectionSet->selections as $selection) {
                 foreach ($this->excludedQueries as $excludedQuery) {
