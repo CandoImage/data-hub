@@ -82,6 +82,9 @@ class Hotspotimage
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         $result = [];
+        if (is_array($value)) {
+            return Service::resolveCachedValue($value, $resolveInfo);
+        }
         /** @var $container Hotspotimage */
         $container = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
         if ($container instanceof \Pimcore\Model\DataObject\Data\Hotspotimage) {
