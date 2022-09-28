@@ -163,6 +163,14 @@ class OutputCacheService
         $this->excludedQueries[] = 'performWishlistDelete';
         $this->excludedQueries[] = 'performAddToWishlistMutation';
         $this->excludedQueries[] = 'performSelectWishlistMutation';
+        $this->excludedQueries[] = 'getReturnsListListing';
+        $this->excludedQueries[] = 'getReturnsRegistrationListing';
+        $this->excludedQueries[] = 'getReturnsListing';
+        $this->excludedQueries[] = 'getReturnSuccess';
+        $this->excludedQueries[] = 'getReturnDetail';
+        $this->excludedQueries[] = 'performAddToReturnsListMutation';
+        $this->excludedQueries[] = 'performUpdateReturnsListMutation';
+        $this->excludedQueries[] = 'performRegisterReturnsList';
         // Project specific queries
         $this->excludedQueries[] = 'performDealerToggleState';
     }
