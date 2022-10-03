@@ -54,6 +54,7 @@ class ClassTypeDefinitions
             // Can't use __METHOD__ as tag because of invalid chars.
             Cache::save($listing, $cid, ['ClassTypeDefinitions', 'data-hub']);
         }
+
         return $listing;
     }
 
