@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectType\PimcoreObjectType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
+use Pimcore\Cache;
 use Pimcore\Cache\Runtime;
 use Pimcore\Db;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -30,15 +31,39 @@ class ClassTypeDefinitions
     public static $definitions = [];
 
     /**
+     * Returns list of currently defined classes.
+     *
+     * This is executed very often while having very rarely changes.
+     * Avoid triggering a full DB query every time and use cache instead.
+     *
+     * @see DataChangeListener::onClassDefinitionAdded()
+     * @see DataChangeListener::onClassDefinitionUpdated()
+     * @see DataChangeListener::onClassDefinitionDeleted()
+     *
+     * @param bool $skipCache
+     *
+     * @return array
+     */
+    public static function getClasses(bool $skipCache = false): array
+    {
+        // __METHOD__ has characters the caching handler doesn't like in an ID.
+        $cid = md5(__METHOD__);
+        if ($skipCache || !is_array(($listing = Cache::load($cid)))) {
+            $db = Db::get();
+            $listing = $db->fetchAll('select id, name from classes');
+            // Can't use __METHOD__ as tag because of invalid chars.
+            Cache::save($listing, $cid, ['ClassTypeDefinitions', 'data-hub']);
+        }
+        return $listing;
+    }
+
+    /**
      * @param Service $graphQlService
      * @param array $context
      */
     public static function build(Service $graphQlService, $context = [])
     {
-        $db = Db::get();
-        $listing = $db->fetchAll('select id, name from classes');
-
-        foreach ($listing as $class) {
+        foreach (self::getClasses() as $class) {
             $id = $class['id'];
             $name = $class['name'];
             $objectType = new PimcoreObjectType($graphQlService, $name, $id, [], $context);
