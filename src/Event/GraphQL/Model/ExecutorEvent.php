@@ -136,7 +136,7 @@ class ExecutorEvent extends Event
     public function getParsedQuery(): DocumentNode
     {
         if (!$this->parsedQuery) {
-            $this->parsedQuery = Parser::parse(new Source($query ?? '', 'GraphQL'));
+            $this->parsedQuery = Parser::parse(new Source($this->getQuery() ?? '', 'GraphQL'));
         }
 
         return $this->parsedQuery;
