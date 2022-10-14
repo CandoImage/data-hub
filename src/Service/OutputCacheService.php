@@ -230,10 +230,10 @@ class OutputCacheService
             $extraTags = array_merge(CacheHelper::getTenantTags(), $extraTags);
             $cacheKey = CacheHelper::generateCacheId([$this->query, json_encode($this->variables), $this->filterValues, $this->sortValues]);
 
-            $event = new OutputCachePreSaveEvent($request, $response);
+            $event = new OutputCachePreSaveEvent($request, $response, $extraTags);
             $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_SAVE);
 
-            $this->saveToCache($cacheKey, $event->getResponse(), $extraTags);
+            $this->saveToCache($cacheKey, $event->getResponse(), $event->getTags());
         }
     }
 

@@ -36,6 +36,8 @@ class OutputCachePreSaveEvent extends Event
      */
     protected $response;
 
+    protected array $tags = [];
+
     /**
      * @return Request
      */
@@ -61,12 +63,30 @@ class OutputCachePreSaveEvent extends Event
     }
 
     /**
+     * @return array
+     */
+    public function getTags(): array
+    {
+        return $this->tags;
+    }
+
+    /**
+     * @param array $tags
+     */
+    public function setTags(array $tags): void
+    {
+        $this->tags = $tags;
+    }
+
+    /**
      * @param Request $request
      * @param Response $response
+     * @param array $tags
      */
-    public function __construct(Request $request, Response $response)
+    public function __construct(Request $request, Response $response, array $tags)
     {
         $this->request = $request;
         $this->response = $response;
+        $this->tags = $tags;
     }
 }
