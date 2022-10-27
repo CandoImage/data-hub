@@ -218,7 +218,8 @@ class OutputCacheService
     {
         if ($this->useCache($request)) {
             // check if we have an excluded query here
-            if ($this->query && $this->isExcludedQuery($this->query)) {
+            $query = $this->parsedQuery ?? $this->query;
+            if ($query && $this->isExcludedQuery($query)) {
                 return;
             }
 
