@@ -417,6 +417,9 @@ class QueryType
         $event = new EdgeEvent($objectList, $resolveInfo, $eventOptions);
         $this->eventDispatcher->dispatch($event, EdgeEvents::POST_LOAD);
 
+        // get back object list from event
+        $objectList = $event->getObjects();
+
         $nodes = [];
 
         foreach ($objectList as $object) {
