@@ -27,6 +27,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ExecutorEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorResultEvent;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorExceptionEvent;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ClassTypeDefinitions;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Mutation\MutationType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\QueryType;
@@ -230,6 +231,10 @@ class WebserviceController extends FrontendController
                 $output = $result->toArray(false);
             }
         } catch (\Exception $e) {
+            $exException = new ExecutorExceptionEvent($request, $e);
+            $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
+            $e = $exException->getException();
+
             $output = [
                 'errors' => [
                     [
