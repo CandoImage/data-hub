@@ -30,4 +30,11 @@ final class ExecutorEvents
      * @var string
      */
     const POST_EXECUTE = 'pimcore.datahub.graphql.executor.postExecute';
+
+    /**
+     * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorExceptionEvent")
+     *
+     * @var string
+     */
+    const EXCEPTION = 'pimcore.datahub.graphql.executor.exception';
 }
