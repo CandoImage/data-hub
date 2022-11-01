@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
+use GraphQL\Server\OperationParams;
 use GraphQL\Type\Schema;
 use Pimcore\Event\Traits\RequestAwareTrait;
 use Pimcore\Event\Traits\ResponseAwareTrait;
@@ -35,9 +36,9 @@ class ExecutorEvent extends Event
     protected $request;
 
     /**
-     * @var string
+     * @var OperationParams
      */
-    protected $query;
+    protected $operation;
 
     /**
      * @var string
@@ -77,6 +78,14 @@ class ExecutorEvent extends Event
     }
 
     /**
+     * @return \GraphQL\Server\OperationParams
+     */
+    public function getOperation(): OperationParams
+    {
+        return $this->operation;
+    }
+
+    /**
      * @return Schema
      */
     public function getSchema()
@@ -113,7 +122,7 @@ class ExecutorEvent extends Event
      */
     public function getQuery()
     {
-        return $this->query;
+        return $this->operation->query;
     }
 
     /**
@@ -122,7 +131,7 @@ class ExecutorEvent extends Event
     public function setQuery($query)
     {
         if ($this->queryHash != ($queryHash = md5($query))) {
-            $this->query = $query;
+            $this->operation->query = $query;
             $this->queryHash = $queryHash;
             $this->parsedQuery = null;
         }
@@ -152,17 +161,23 @@ class ExecutorEvent extends Event
 
     /**
      * @param Request $request
-     * @param string $query
+     * @param \GraphQL\Server\OperationParams $operation
      * @param Schema $schema
      * @param array $context
+     * @param \GraphQL\Language\AST\DocumentNode|null $parsedQuery
      */
-    public function __construct(Request $request, $query, Schema $schema, $context, DocumentNode $parsedQuery = null)
-    {
+    public function __construct(
+        Request $request,
+        OperationParams $operation,
+        Schema $schema,
+        $context,
+        DocumentNode $parsedQuery = null
+    ) {
         $this->request = $request;
-        $this->query = $query;
-        $this->queryHash = md5($query);
+        $this->operation = $operation;
         $this->schema = $schema;
         $this->context = $context;
+        $this->queryHash = md5($this->operation->query);
         $this->parsedQuery = $parsedQuery;
     }
 }

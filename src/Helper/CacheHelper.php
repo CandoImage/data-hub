@@ -15,6 +15,7 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Helper;
 
+use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
 
@@ -22,10 +23,19 @@ class CacheHelper
 {
     private static string $query = '';
 
-    public static function setQuery(string $query): void
+    /**
+     * @param string|DocumentNode $query
+     *
+     * @return void
+     *
+     * @throws \GraphQL\Error\SyntaxError
+     */
+    public static function setQuery($query): void
     {
-        $documentNode = Parser::parse(new Source($query ?? '', 'GraphQL'), ['noLocation' => true]);
-        self::$query = md5((string)$documentNode);
+        if (!($query instanceof DocumentNode)) {
+            $query = Parser::parse(new Source($query ?? '', 'GraphQL'), ['noLocation' => true]);
+        }
+        self::$query = md5((string)$query);
     }
 
     public static function getHashedQuery(): string

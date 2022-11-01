@@ -16,7 +16,9 @@
   },
   "require": {
     "pimcore/pimcore": "^6.9 || ^10.0",
-    "webonyx/graphql-php": "^14.6"
+    "webonyx/graphql-php": "^14.6",
+    "symfony/psr-http-message-bridge": "^2.1",
+    "nyholm/psr7": "^1.5"
   },
   "extra": {
     "pimcore": {

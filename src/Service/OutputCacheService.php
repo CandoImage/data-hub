@@ -19,14 +19,16 @@ use CandoCX\B2BProductBundle\Helper\CacheHelper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
+use GraphQL\Server\OperationParams;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCacheGenerateCidEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreLoadEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
 use Pimcore\Logger;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class OutputCacheService
 {
@@ -40,54 +42,26 @@ class OutputCacheService
      *
      * @var int
      */
-    private $lifetime = 30;
+    private int $lifetime = 30;
 
     /**
-     * Specific exclude quries
+     * Specific exclude queries
      *
      * @var array
      */
     private array $excludedQueries = [];
 
     /**
-     * The Input GraphQL Query
+     * State collection for an operation.
      *
-     * @var string
+     * @var array<array{sortValue: string, filterValues: string, parsedQuery: \GraphQL\Language\AST\DocumentNode}}>
      */
-    private string $query = '';
-
-    /**
-     * @var \GraphQL\Language\AST\DocumentNode
-     */
-    private ?DocumentNode $parsedQuery;
-
-    /**
-     * The Input GraphQL Variables
-     *
-     * @var array
-     */
-    private $variables = [];
-
-    /**
-     * Specific imploded Filter Values from Input Variables
-     * used for Cache Key generation
-     *
-     * @var string
-     */
-    private string $filterValues = '';
-
-    /**
-     * Specific imploded Sorting Values from Input Variables
-     * used for Cache Key generation
-     *
-     * @var string
-     */
-    private string $sortValues = '';
+    private array $operationData = [];
 
     /**
      * @var EventDispatcherInterface
      */
-    public $eventDispatcher;
+    public EventDispatcherInterface $eventDispatcher;
 
     /**
      * @param ContainerInterface $container
@@ -175,17 +149,73 @@ class OutputCacheService
         $this->excludedQueries[] = 'performDealerToggleState';
     }
 
-    public function load(Request $request, $query, $variables, DocumentNode $parsedQuery)
+    /**
+     * Returns the operations cache id for internal purposes.
+     *
+     * This is used to track operations context data for caching but is only
+     * part of the possible output cache id.
+     *
+     * @param \GraphQL\Server\OperationParams $operation
+     *
+     * @return string
+     */
+    protected function getOperationCid(OperationParams $operation): string
     {
-        if (!$this->useCache($request)) {
+        $originalInputHash = \Closure::bind(function () {
+            $originalInput = $this->originalInput;
+            asort($originalInput);
+            if (is_array($originalInput['variables'])) {
+                asort($originalInput['variables']);
+            }
+            if (is_array($originalInput['extensions'])) {
+                asort($originalInput['extensions']);
+            }
+
+            return md5(serialize($originalInput));
+        }, $operation, $operation);
+
+        return $originalInputHash();
+    }
+
+    /**
+     * Fetches the caching ID for the output cache.
+     *
+     * Fires an event to allow for modified caching IDs.
+     * This allows scenarios like caches for logged-in users or target groups.
+     *
+     * BEWARE: Keep listeners as slim as possible to avoid unnecessary overhead.
+     *
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
+     *
+     * @return string
+     */
+    public function getOperationOutputCid(OperationParams $operation, DocumentNode $parsedQuery): string
+    {
+        $cid = $operationCid = $this->getOperationCid($operation);
+        $cid .= '-' . ($this->operationData[$operationCid]['filterValues'] ?? '') .
+            '-' . ($this->operationData[$operationCid]['sortValues'] ?? '');
+
+        $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
+        $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
+        return $event->getCid();
+    }
+
+    public function load(Request $request, OperationParams $operation, DocumentNode $parsedQuery)
+    {
+        if (!$this->useCache($request, $operation, $parsedQuery)) {
             return null;
         }
-        $this->query = $query;
-        $this->variables = $variables;
-        $this->parsedQuery = $parsedQuery;
+        $operationCid = $this->getOperationCid($operation);
+
+        $this->operationData[$operationCid] = [
+            'parsedQuery' => $parsedQuery,
+            'filterValues' => '',
+            'sortValues' => '',
+        ];
 
         // check if we have an excluded query here
-        if ($this->isExcludedQuery($this->parsedQuery)) {
+        if ($this->isExcludedQuery($this->operationData[$operationCid]['parsedQuery'])) {
             return null;
         }
 
@@ -193,62 +223,62 @@ class OutputCacheService
         //$cacheKey = $this->computeKey($request);
 
         // Check the filter values separate
-        if (isset($this->variables['filters'])) {
-            $this->filterValues = $this->getImplodedFilterValues($this->variables);
-        } else {
-            $this->filterValues = '';
+        if (isset($operation->variables['filters'])) {
+            $this->operationData[$operationCid]['filterValues'] = $this->getImplodedFilterValues($operation->variables);
         }
         // Check the sort values separate
-        if (isset($this->variables['sortBy'])) {
-            if (isset($this->variables['sortOrder'])) {
-                $this->sortValues = implode('-', $this->variables['sortBy']);
-                $this->sortValues .= '-' . implode('-', $this->variables['sortOrder']);
+        if (isset($operation->variables['sortBy'])) {
+            if (isset($operation->variables['sortOrder'])) {
+                $this->operationData[$operationCid]['sortValues'] = implode('-', $operation->variables['sortBy']) .
+                    '-' . implode('-', $operation->variables['sortOrder']);
             } else {
-                $this->sortValues = implode('-', $this->variables['sortBy']);
+                $this->operationData[$operationCid]['sortValues'] = implode('-', $operation->variables['sortBy']);
             }
-        } else {
-            $this->sortValues = '';
         }
-        $cacheKey = CacheHelper::generateCacheId([$this->query, json_encode($this->variables), $this->filterValues, $this->sortValues]);
-
-        return $this->loadFromCache($cacheKey);
+        return $this->loadFromCache($operation, $parsedQuery);
     }
 
-    public function save(Request $request, JsonResponse $response, $extraTags = []): void
+    public function save(Request $request, Response $response, OperationParams $operation, $extraTags = []): void
     {
-        if ($this->useCache($request)) {
+        $operationCid = $this->getOperationCid($operation);
+        if (
+            isset($this->operationData[$operationCid])
+            && $this->useCache($request, $operation, $this->operationData[$operationCid]['parsedQuery'])
+        ) {
+            $operationData = $this->operationData[$operationCid];
             // check if we have an excluded query here
-            $query = $this->parsedQuery ?? $this->query;
+            $query = $operationData['parsedQuery'] ?? $operation->query;
             if ($query && $this->isExcludedQuery($query)) {
                 return;
             }
 
-            // Original Code
-//            $cacheKey = $this->computeKey($request);
             $clientname = $request->get('clientname');
             $extraTags = array_merge(['output', 'datahub', $clientname], $extraTags);
-
             $extraTags = array_merge(CacheHelper::getTenantTags(), $extraTags);
-            $cacheKey = CacheHelper::generateCacheId([$this->query, json_encode($this->variables), $this->filterValues, $this->sortValues]);
 
             $event = new OutputCachePreSaveEvent($request, $response, $extraTags);
             $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_SAVE);
 
-            $this->saveToCache($cacheKey, $event->getResponse(), $event->getTags());
+            $this->saveToCache($operation, $operationData['parsedQuery'], $event->getResponse(), $event->getTags());
         }
     }
 
-    protected function loadFromCache($key)
+    protected function loadFromCache(OperationParams $operation, DocumentNode $parsedQuery)
     {
-        return \Pimcore\Cache::load($key);
+        $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
+        return \Pimcore\Cache::load($cacheKey);
     }
 
-    protected function saveToCache($key, $item, $tags = []): void
+    protected function saveToCache(OperationParams $operation, DocumentNode $parsedQuery, $item, $tags = []): void
     {
-        \Pimcore\Cache::save($item, $key, $tags, $this->lifetime);
+        $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
+        \Pimcore\Cache::save($item, $cacheKey, $tags, $this->lifetime);
     }
 
     /**
+     * @deprecated Use $this->>getOperationOutputCid(). This was request based
+     * which is not really compatible with multi-query support.
+     *
      * @param \Symfony\Component\HttpFoundation\Request $request
      *
      * @return string
@@ -263,7 +293,7 @@ class OutputCacheService
         return md5('output_' . $clientname . $input);
     }
 
-    private function useCache(Request $request): bool
+    private function useCache(Request $request, OperationParams $operation, DocumentNode $parsedQuery): bool
     {
         if (!$this->cacheEnabled) {
             Logger::debug('Output cache is disabled');
@@ -283,7 +313,7 @@ class OutputCacheService
         }
 
         // So far, cache will be used, unless the listener denies it
-        $event = new OutputCachePreLoadEvent($request, true);
+        $event = new OutputCachePreLoadEvent($request, true, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_LOAD);
 
         return $event->isUseCache();
