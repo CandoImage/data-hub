@@ -37,6 +37,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementIdentificationTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\PermissionInfoTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
+use Pimcore\Bundle\DataHubBundle\Service\OutputCacheService;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
@@ -80,8 +81,12 @@ class QueryType
      * @param $configuration
      * @param bool $omitPermissionCheck
      */
-    public function __construct(EventDispatcherInterface $eventDispatcher, $class = null, $configuration = null, $omitPermissionCheck = false)
-    {
+    public function __construct(
+        EventDispatcherInterface $eventDispatcher,
+        $class = null,
+        $configuration = null,
+        $omitPermissionCheck = false
+    ) {
         $this->eventDispatcher = $eventDispatcher;
         $this->class = $class;
         $this->configuration = $configuration;
@@ -352,7 +357,7 @@ class QueryType
 
         // check cache entry
         if ($resolveInfo && isset($resolveInfo->variableValues['lang'])) {
-            $cachedResult = $this->getCacheEntry($object, $resolveInfo);
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo, $context);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
             }
@@ -364,10 +369,11 @@ class QueryType
     /**
      * @param $object
      * @param ResolveInfo $resolveInfo
+     * @param array $context
      *
      * @return Deferred|null
      */
-    private function getCacheEntry($object, ResolveInfo $resolveInfo): ?Deferred
+    private function getCacheEntry($object, ResolveInfo $resolveInfo, array $context): ?Deferred
     {
         $indexKey = null;
         $path = $resolveInfo->path;
@@ -379,8 +385,9 @@ class QueryType
                 $path[$key] = 'delta';
             }
         }
-        // create a unique cache ID based on initial query, path, language and object properties
-        $query = CacheHelper::getHashedQuery();
+        // Create a unique cache ID based on initial query, path, language and
+        // object properties.
+        $query = CacheHelper::getQueryHash($context['doc']);
         $language = $resolveInfo->variableValues['lang'];
         $cid = CacheHelper::generateCacheId(
             ['datahub-caching', $object->getClassId(), $object->getId(), $language, $query, implode(',', $path)]
@@ -394,8 +401,9 @@ class QueryType
 
             return $deferred;
         }
-        // add item to event listener
-        CacheListener::addCachingItem($cid, $path, $object->getId(), $indexKey);
+        // Register item for cache saving in cache listener. Since we don't have
+        // the full data yet this is postponed after execution.
+        CacheListener::addCachingItem($context['operation'], $cid, $path, $object->getId(), $indexKey);
 
         return null;
     }

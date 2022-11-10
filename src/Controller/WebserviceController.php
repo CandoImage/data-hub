@@ -180,7 +180,11 @@ class WebserviceController extends FrontendController
     public function getOperationContext(OperationParams $params, DocumentNode $doc, string $operationType): array
     {
         // Enrich base context with operations information.
-        return $this->baseOperationContext + ['operation' => $params, 'doc' => $doc, 'operationType' => $operationType];
+        return $this->baseOperationContext + [
+            'operation' => $params,
+            'doc' => $doc,
+            'operationType' => $operationType
+        ];
     }
 
     protected function getGraphQlSchema(
@@ -259,6 +263,43 @@ class WebserviceController extends FrontendController
         return array_map($formatter, $errors);
     }
 
+    public function getGraphQlServerConfig(
+        Service $service,
+        LocaleServiceInterface $localeService,
+        Factory $modelFactory,
+        $validators = null
+    ): ServerConfig {
+        static $defaultFieldResolver = [DefaultCacheFieldResolver::class, 'defaultFieldResolver'];
+
+        $schema = $this->getGraphQlSchema(
+            $this->baseOperationContext,
+            $service,
+            $localeService,
+            $modelFactory,
+        );
+
+        $debugFlags = DebugFlag::NONE;
+        if (\Pimcore::inDebugMode()) {
+            $debugFlags = DebugFlag::INCLUDE_DEBUG_MESSAGE |
+                DebugFlag::INCLUDE_TRACE |
+                DebugFlag::RETHROW_INTERNAL_EXCEPTIONS |
+                DebugFlag::RETHROW_UNSAFE_EXCEPTIONS;
+        }
+
+        return ServerConfig::create()
+            ->setSchema($schema)
+            ->setFieldResolver($defaultFieldResolver)
+            ->setErrorsHandler([$this, 'graphQLErrorHandler'])
+            ->setErrorFormatter([$this, 'graphQLErrorFormatter'])
+            ->setQueryBatching(true)
+            ->setContext([$this, 'getOperationContext'])
+            ->setPersistentQueryLoader([$this, 'queryLoader'])
+            ->setValidationRules($validators)
+            ->setRootValue([])
+            ->setDebugFlag($debugFlags)
+        ;
+    }
+
     /**
      * @param Service $service
      * @param LocaleServiceInterface $localeService
@@ -277,12 +318,12 @@ class WebserviceController extends FrontendController
     ) {
         $clientname = $request->get('clientname');
 
-        $configuration = Configuration::getByName($clientname);
-        if (!$configuration || !$configuration->isActive()) {
+        $clientConfiguration = Configuration::getByName($clientname);
+        if (!$clientConfiguration || !$clientConfiguration->isActive()) {
             throw new NotFoundHttpException('No active configuration found for ' . $clientname);
         }
 
-        if (!$this->permissionsService->performSecurityCheck($request, $configuration)) {
+        if (!$this->permissionsService->performSecurityCheck($request, $clientConfiguration)) {
             throw new AccessDeniedHttpException('Permission denied, apikey not valid');
         }
 
@@ -293,22 +334,14 @@ class WebserviceController extends FrontendController
         }
 
         // context info, will be passed on to all resolver function
-        $this->baseOperationContext = ['clientname' => $clientname, 'configuration' => $configuration];
-        $config = $this->getParameter('pimcore_data_hub');
+        $this->baseOperationContext = ['clientname' => $clientname, 'configuration' => $clientConfiguration];
+        $datahubConfig = $this->getParameter('pimcore_data_hub');
 
-        if (isset($config['graphql']) && isset($config['graphql']['not_allowed_policy'])) {
-            PimcoreDataHubBundle::setNotAllowedPolicy($config['graphql']['not_allowed_policy']);
+        if (isset($datahubConfig['graphql']) && isset($datahubConfig['graphql']['not_allowed_policy'])) {
+            PimcoreDataHubBundle::setNotAllowedPolicy($datahubConfig['graphql']['not_allowed_policy']);
         }
         Runtime::set('datahub_context', $this->baseOperationContext);
         ClassTypeDefinitions::build($service, $this->baseOperationContext);
-
-        $schema = $this->getGraphQlSchema(
-            $this->baseOperationContext,
-            $service,
-            $localeService,
-            $modelFactory,
-        );
-        static $defaultFieldResolver = [DefaultCacheFieldResolver::class, 'defaultFieldResolver'];
 
         $validators = null;
         if ($request->get('novalidate')) {
@@ -318,38 +351,24 @@ class WebserviceController extends FrontendController
             ];
         }
 
-        $debugFlags = DebugFlag::NONE;
-        if (\Pimcore::inDebugMode()) {
-            $debugFlags = DebugFlag::INCLUDE_DEBUG_MESSAGE |
-                            DebugFlag::INCLUDE_TRACE |
-                            DebugFlag::RETHROW_INTERNAL_EXCEPTIONS |
-                            DebugFlag::RETHROW_UNSAFE_EXCEPTIONS;
-        }
         // Setup GraphQl config which is used later in all the helpers.
-        $config = ServerConfig::create()
-            ->setSchema($schema)
-            ->setFieldResolver($defaultFieldResolver)
-            ->setErrorsHandler([$this, 'graphQLErrorHandler'])
-            ->setErrorFormatter([$this, 'graphQLErrorFormatter'])
-            ->setQueryBatching(true)
-            ->setContext([$this, 'getOperationContext'])
-            ->setPersistentQueryLoader([$this, 'queryLoader'])
-            ->setValidationRules($validators)
-            ->setRootValue([])
-            ->setDebugFlag($debugFlags)
-        ;
+        $graphQlConfig = $this->getGraphQlServerConfig(
+            $service,
+            $localeService,
+            $modelFactory,
+            $validators
+        );
 
         // Prepare all operations for execution.
         $responses = [];
         foreach ($operations as $i => $operation) {
             if (!$operation->query && $operation->queryId) {
-                $operation->query = $this->loadPersistedQuery($config, $operation);
+                $operation->query = $this->loadPersistedQuery($graphQlConfig, $operation);
             }
             $parsedQuery = Parser::parse(new Source($operation->query ?? '', 'GraphQL'));
 
             // Add query to Cache Helper
-            CacheHelper::setQuery($parsedQuery);
-            if ($response = $this->cacheService->load($request, $operation, $parsedQuery)) {
+            if ($response = $this->cacheService->load($request, $operation, $parsedQuery) && false) {
                 Logger::debug('Loading response from cache');
                 $responses[] = $response;
                 // Remove related operation from being processed.
@@ -363,7 +382,7 @@ class WebserviceController extends FrontendController
                 $event = new ExecutorEvent(
                     $request,
                     $operation,
-                    $schema,
+                    $graphQlConfig->getSchema(),
                     $this->baseOperationContext,
                     $parsedQuery
                 );
@@ -381,8 +400,8 @@ class WebserviceController extends FrontendController
                 $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
                 $e = $exException->getException();
                 $errorFormatter = FormattedError::prepareFormatter(
-                    $config->getErrorFormatter(),
-                    $config->getDebugFlag()
+                    $graphQlConfig->getErrorFormatter(),
+                    $graphQlConfig->getDebugFlag()
                 );
                 $responses[] = new JsonResponse([
                      'errors' => [
@@ -395,14 +414,14 @@ class WebserviceController extends FrontendController
         }
 
         // Now execute all open operations at once.
-        foreach ($this->graphQlRequestHelper->executeBatch($config, $operations) as $i => $executionResult) {
+        foreach ($this->graphQlRequestHelper->executeBatch($graphQlConfig, $operations) as $i => $executionResult) {
             $operation = $operations[$i];
             if ($executionResult instanceof Promise) {
-                $response = $executionResult->then(function ($result) use ($config, $operation, $request) {
-                    return $this->processExecutionResult($config, $result, $operation, $request);
+                $response = $executionResult->then(function ($result) use ($graphQlConfig, $operation, $request) {
+                    return $this->processExecutionResult($graphQlConfig, $result, $operation, $request);
                 });
             } else {
-                $response = $this->processExecutionResult($config, $executionResult, $operation, $request);
+                $response = $this->processExecutionResult($graphQlConfig, $executionResult, $operation, $request);
             }
             $responses[] = $response;
         }

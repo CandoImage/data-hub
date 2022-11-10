@@ -79,6 +79,14 @@ class OutputCachePreSaveEvent extends Event
     }
 
     /**
+     * @param array $tags
+     */
+    public function addTags(array $tags): void
+    {
+        $this->tags = array_merge($this->tags, $tags);
+    }
+
+    /**
      * @param Request $request
      * @param Response $response
      * @param array $tags

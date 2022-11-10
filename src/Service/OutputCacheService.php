@@ -15,7 +15,6 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
-use CandoCX\B2BProductBundle\Helper\CacheHelper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -53,10 +52,8 @@ class OutputCacheService
 
     /**
      * State collection for an operation.
-     *
-     * @var array<array{sortValue: string, filterValues: string, parsedQuery: \GraphQL\Language\AST\DocumentNode}}>
      */
-    private array $operationData = [];
+    private \SplObjectStorage $operationData;
 
     /**
      * @var EventDispatcherInterface
@@ -69,6 +66,7 @@ class OutputCacheService
      */
     public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher)
     {
+        $this->operationData = new \SplObjectStorage();
         $this->eventDispatcher = $eventDispatcher;
 
         $config = $container->getParameter('pimcore_data_hub');
@@ -159,8 +157,12 @@ class OutputCacheService
      *
      * @return string
      */
-    protected function getOperationCid(OperationParams $operation): string
+    public function getOperationCid(OperationParams $operation): string
     {
+        if (isset($this->operationData[$operation]['operationCid'])) {
+            return $this->operationData[$operation]['operationCid'];
+        }
+
         $originalInputHash = \Closure::bind(function () {
             $originalInput = $this->originalInput;
             asort($originalInput);
@@ -174,7 +176,7 @@ class OutputCacheService
             return md5(serialize($originalInput));
         }, $operation, $operation);
 
-        return $originalInputHash();
+        return $this->operationData[$operation]['operationCid'] = $originalInputHash();
     }
 
     /**
@@ -192,9 +194,9 @@ class OutputCacheService
      */
     public function getOperationOutputCid(OperationParams $operation, DocumentNode $parsedQuery): string
     {
-        $cid = $operationCid = $this->getOperationCid($operation);
-        $cid .= '-' . ($this->operationData[$operationCid]['filterValues'] ?? '') .
-            '-' . ($this->operationData[$operationCid]['sortValues'] ?? '');
+        $cid = $this->getOperationCid($operation);
+        $cid .= '-' . ($this->operationData[$operation]['filterValues'] ?? '') .
+            '-' . ($this->operationData[$operation]['sortValues'] ?? '');
 
         $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
@@ -207,16 +209,15 @@ class OutputCacheService
         if (!$this->useCache($request, $operation, $parsedQuery)) {
             return null;
         }
-        $operationCid = $this->getOperationCid($operation);
-
-        $this->operationData[$operationCid] = [
+        $this->operationData->attach($operation, [
             'parsedQuery' => $parsedQuery,
             'filterValues' => '',
             'sortValues' => '',
-        ];
+        ]);
+        $operationCid = $this->getOperationCid($operation);
 
         // check if we have an excluded query here
-        if ($this->isExcludedQuery($this->operationData[$operationCid]['parsedQuery'])) {
+        if ($this->isExcludedQuery($this->operationData[$operation]['parsedQuery'])) {
             return null;
         }
 
@@ -225,15 +226,15 @@ class OutputCacheService
 
         // Check the filter values separate
         if (isset($operation->variables['filters'])) {
-            $this->operationData[$operationCid]['filterValues'] = $this->getImplodedFilterValues($operation->variables);
+            $this->operationData[$operation]['filterValues'] = $this->getImplodedFilterValues($operation->variables);
         }
         // Check the sort values separate
         if (isset($operation->variables['sortBy'])) {
             if (isset($operation->variables['sortOrder'])) {
-                $this->operationData[$operationCid]['sortValues'] = implode('-', $operation->variables['sortBy']) .
+                $this->operationData[$operation]['sortValues'] = implode('-', $operation->variables['sortBy']) .
                     '-' . implode('-', $operation->variables['sortOrder']);
             } else {
-                $this->operationData[$operationCid]['sortValues'] = implode('-', $operation->variables['sortBy']);
+                $this->operationData[$operation]['sortValues'] = implode('-', $operation->variables['sortBy']);
             }
         }
 
@@ -242,12 +243,11 @@ class OutputCacheService
 
     public function save(Request $request, Response $response, OperationParams $operation, $extraTags = []): void
     {
-        $operationCid = $this->getOperationCid($operation);
         if (
-            isset($this->operationData[$operationCid])
-            && $this->useCache($request, $operation, $this->operationData[$operationCid]['parsedQuery'])
+            isset($this->operationData[$operation])
+            && $this->useCache($request, $operation, $this->operationData[$operation]['parsedQuery'])
         ) {
-            $operationData = $this->operationData[$operationCid];
+            $operationData = $this->operationData[$operation];
             // check if we have an excluded query here
             $query = $operationData['parsedQuery'] ?? $operation->query;
             if ($query && $this->isExcludedQuery($query)) {
@@ -256,7 +256,6 @@ class OutputCacheService
 
             $clientname = $request->get('clientname');
             $extraTags = array_merge(['output', 'datahub', $clientname], $extraTags);
-            $extraTags = array_merge(CacheHelper::getTenantTags(), $extraTags);
 
             $event = new OutputCachePreSaveEvent($request, $response, $extraTags);
             $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_SAVE);

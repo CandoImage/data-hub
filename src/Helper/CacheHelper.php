@@ -18,12 +18,18 @@ namespace Pimcore\Bundle\DataHubBundle\Helper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
+use GraphQL\Server\OperationParams;
+use Pimcore\Bundle\DataHubBundle\Service\OutputCacheService;
 
 class CacheHelper
 {
-    private static string $query = '';
+    private static \SplObjectStorage $queryHashes;
+
+    private static string $queryHash = '';
 
     /**
+     * @deprecated Use CacheHelper::getQueryHash() instead.
+     *
      * @param string|DocumentNode $query
      *
      * @return void
@@ -35,12 +41,28 @@ class CacheHelper
         if (!($query instanceof DocumentNode)) {
             $query = Parser::parse(new Source($query ?? '', 'GraphQL'), ['noLocation' => true]);
         }
-        self::$query = md5((string)$query);
+        self::$queryHash = self::getQueryHash($query);
     }
 
+    public static function getQueryHash(DocumentNode $query): string
+    {
+        if (isset(self::$queryHashes[$query])) {
+            return self::$queryHashes[$query];
+        }
+        if (!isset(self::$queryHashes)) {
+            self::$queryHashes = new \SplObjectStorage();
+        }
+        return self::$queryHashes[$query] = md5((string)$query);
+    }
+
+    /**
+     * @deprecated Use CacheHelper::getQueryHash() instead.
+     *
+     * @return string
+     */
     public static function getHashedQuery(): string
     {
-        return self::$query;
+        return self::$queryHash;
     }
 
     public static function generateCacheId(array $keyItems = []): string

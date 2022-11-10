@@ -15,6 +15,7 @@
 
 namespace Pimcore\Bundle\DataHubBundle\EventListener;
 
+use GraphQL\Server\OperationParams;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
 use Pimcore\Cache;
 use Pimcore\Model\Asset;
@@ -24,26 +25,61 @@ use Pimcore\Model\DataObject\Concrete;
 
 class CacheListener
 {
-    public static array $cachingItems = [];
+    public static ?\SplObjectStorage $cachingItems = null;
 
-    public static function addCachingItem($cid, $path, $objectId = null, $indexKey = null, $lifetime = null): void
-    {
-        // load object to get cache tags
+    /**
+     * Registers cache items _per_ operation for cache saving.
+     *
+     * Per operation is important to ensure separation of results in a multi
+     * query scenario. The later processing in
+     * CacheListener::onCacheItemEvent() will also process items per operation
+     * and keep the isolation to avoid cache poisoning.
+     *
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param $cid
+     * @param $path
+     * @param $objectId
+     * @param $indexKey
+     * @param $lifetime
+     *
+     * @return void
+     */
+    public static function addCachingItem(
+        OperationParams $operation,
+        $cid,
+        $path,
+        $objectId = null,
+        $indexKey = null,
+        $lifetime = null
+    ): void {
+        // Initialize cache item storage if necessary.
+        if (!isset(self::$cachingItems)) {
+            self::$cachingItems = new \SplObjectStorage();
+        }
+
+        // Load object to get cache tags.
         $object = Concrete::getById($objectId);
         if ($object) {
+            self::$cachingItems[$operation] = self::$cachingItems[$operation] ?? [];
             $cacheTags = ['datahub-cache'] + (self::getObjectCacheTags($object) ?? []);
-            self::$cachingItems[$cid] = [
+            self::$cachingItems[$operation] += [$cid => [
                 'path' => $path,
                 'tags' => $cacheTags,
                 'indexKey' => $indexKey,
                 'lifetime' => $lifetime,
-            ];
+            ]];
         }
     }
 
-    public static function clearCachingItems(): void
+    public static function clearCachingItems(OperationParams $operation = null): void
     {
-        self::$cachingItems = [];
+        if (isset(self::$cachingItems)) {
+            if ($operation) {
+                self::$cachingItems[$operation] = [];
+            } else {
+                self::$cachingItems = new \SplObjectStorage();
+            }
+        }
     }
 
     public static function arrayGetNestedValue(array &$array, array $parents, &$key_exists = null)
@@ -65,29 +101,33 @@ class CacheListener
 
     public function onCacheItemEvent(CacheItemEvent $event): void
     {
-        $result = $event->getResult();
-        $data = $result->data;
+        $operation = $event->getOperation();
 
-        // Find items declared for caching in result set and store them in cache.
-        foreach (self::$cachingItems as $cid => $item) {
-            // replace the "delta" placeholder with the effective index to extract data
-            $path = $item['path'];
-            if ($index = array_search('delta', $path, true)) {
-                $path[$index] = $item['indexKey'];
+        if (isset(self::$cachingItems[$operation])) {
+            $result = $event->getResult();
+            $data = $result->data;
+
+            // Find items declared for caching in result set and store them in cache.
+            foreach (self::$cachingItems[$operation] as $cid => $item) {
+                // replace the "delta" placeholder with the effective index to extract data
+                $path = $item['path'];
+                if ($index = array_search('delta', $path, true)) {
+                    $path[$index] = $item['indexKey'];
+                }
+                // Extract the cacheable portion from the result.
+                $value = self::arrayGetNestedValue($data, $path);
+                $cacheTags = $item['tags'] ?? [];
+                Cache::save(
+                    $value,
+                    $cid,
+                    $cacheTags,
+                    $item['lifetime'] ?? null,
+                    0,
+                    true
+                );
             }
-            // Extract the cacheable portion from the result.
-            $value = self::arrayGetNestedValue($data, $path);
-            $cacheTags = $item['tags'] ?? [];
-            Cache::save(
-                $value,
-                $cid,
-                $cacheTags,
-                $item['lifetime'] ?? null,
-                0,
-                true
-            );
         }
-        self::clearCachingItems();
+        self::clearCachingItems($operation);
     }
 
     /**
