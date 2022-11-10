@@ -165,6 +165,21 @@ class OutputCacheService
 
         $originalInputHash = \Closure::bind(function () {
             $originalInput = $this->originalInput;
+
+            // Ensure only relevant parts are ingested. And exclude input that
+            // should not have any impact on the result:
+            // - operationname
+            $originalInput = array_intersect_key($originalInput, [
+                'query' => null,
+                'queryid' => null,
+                'documentid' => null, // alias to queryid
+                'id' => null, // alias to queryid
+                // 'operationname' => null,
+                'variables' => null,
+                'extensions' => null,
+            ]);
+            // Sort params to ensure consistent hashing. For the execution only
+            // contents matter, order doesn't.
             asort($originalInput);
             if (is_array($originalInput['variables'])) {
                 asort($originalInput['variables']);
