@@ -16,10 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
 use GraphQL\Error\SyntaxError;
-use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\ResolveInfo;
-use Pimcore;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\Event;
 
 class EdgeEvent extends Event

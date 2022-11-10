@@ -198,6 +198,7 @@ class OutputCacheService
 
         $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
+
         return $event->getCid();
     }
 
@@ -235,6 +236,7 @@ class OutputCacheService
                 $this->operationData[$operationCid]['sortValues'] = implode('-', $operation->variables['sortBy']);
             }
         }
+
         return $this->loadFromCache($operation, $parsedQuery);
     }
 
@@ -266,6 +268,7 @@ class OutputCacheService
     protected function loadFromCache(OperationParams $operation, DocumentNode $parsedQuery)
     {
         $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
+
         return \Pimcore\Cache::load($cacheKey);
     }
 

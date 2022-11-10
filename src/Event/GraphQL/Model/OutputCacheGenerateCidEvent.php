@@ -21,7 +21,6 @@ use Symfony\Contracts\EventDispatcher\Event;
 
 class OutputCacheGenerateCidEvent extends Event
 {
-
     /**
      * @var string
      */
