@@ -307,17 +307,7 @@ class OutputCacheService
     protected function loadFromCache(OperationParams $operation, DocumentNode $parsedQuery)
     {
         $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
-
-        /** @var Response $response */
-        if (($response = \Pimcore\Cache::load($cacheKey)) && $response->isCacheable()) {
-            // Modify caching hader to be sliding window.
-            $age = $response->getAge();
-            $maxAge = $response->getMaxAge();
-            $originalDate = $response->getDate();
-            $response->setDate(new \DateTime());
-        }
-
-        return $response;
+        return \Pimcore\Cache::load($cacheKey);
     }
 
     /**

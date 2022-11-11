@@ -405,6 +405,9 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // follows. Could be optimized...
             if (($response = $this->cacheService->load($request, $operation, $parsedQuery)) && !$disableCache) {
                 Logger::debug('Loading response from cache');
+                if (\Pimcore::inDebugMode()) {
+                    $response->headers->set('X-GQL-OperationCache-Hit', 'true');
+                }
                 $responses[] = $response;
                 continue;
             }
