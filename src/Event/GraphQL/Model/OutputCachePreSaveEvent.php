@@ -72,7 +72,7 @@ class OutputCachePreSaveEvent extends Event
      */
     public function getTags(): array
     {
-        return $this->tags;
+        return array_unique($this->tags);
     }
 
     /**
@@ -88,7 +88,7 @@ class OutputCachePreSaveEvent extends Event
      */
     public function addTags(array $tags): void
     {
-        $this->tags = array_merge($this->tags, $tags);
+        $this->tags = array_unique(array_merge($this->tags, $tags));
     }
 
     /**

@@ -106,7 +106,7 @@ class CacheItemEvent extends Event
      */
     public function getCacheTags(): array
     {
-        return $this->cacheTags;
+        return array_unique($this->cacheTags);
     }
 
     /**
@@ -118,11 +118,19 @@ class CacheItemEvent extends Event
     }
 
     /**
+     * @param array $cacheTags
+     */
+    public function addCacheTags(array $cacheTags): void
+    {
+        $this->cacheTags = array_unique(array_merge($this->cacheTags, $cacheTags));
+    }
+
+    /**
      * @param string $cacheTag
      */
     public function addCacheTag(string $cacheTag): void
     {
-        $this->cacheTags[] = $cacheTag;
+        $this->cacheTags[$cacheTag] = $cacheTag;
     }
 
     /**
