@@ -122,16 +122,8 @@ class WebserviceController extends FrontendController
             throw new AccessDeniedHttpException('Permission denied, apikey not valid');
         }
 
-        $graphQLExecutionService = new GraphQLExecutionService(
-            $this->container,
-            $this->eventDispatcher,
-            $this->permissionsService,
-            $service,
-            $this->cacheService,
-            $localeService,
-            $modelFactory,
-            $this->get('http_kernel')
-        );
+        /** @var GraphQLExecutionService $graphQLExecutionService */
+        $graphQLExecutionService = $this->get(GraphQLExecutionService::class);
 
         $contentType = $request->headers->get('content-type') ?? '';
         if (mb_stripos($contentType, 'multipart/form-data') !== false) {
