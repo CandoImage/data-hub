@@ -307,6 +307,7 @@ class OutputCacheService
     protected function loadFromCache(OperationParams $operation, DocumentNode $parsedQuery)
     {
         $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
+
         return \Pimcore\Cache::load($cacheKey);
     }
 
