@@ -4,7 +4,10 @@
   "type": "pimcore-bundle",
   "description": "Pimcore Datahub",
   "config": {
-    "discard-changes": true
+    "discard-changes": true,
+    "allow-plugins": {
+      "ocramius/package-versions": true
+    }
   },
   "autoload": {
     "psr-4": {

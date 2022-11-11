@@ -461,7 +461,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
      *
      * @return \Symfony\Component\HttpFoundation\Response
      */
-    protected function processExecutionResult(
+    public function processExecutionResult(
         ServerConfig $config,
         ExecutionResult $executionResult,
         OperationParams $operation,

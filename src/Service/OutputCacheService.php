@@ -191,7 +191,11 @@ class OutputCacheService
             return md5(serialize($originalInput));
         }, $operation, $operation);
 
-        return $this->operationData[$operation]['operationCid'] = $originalInputHash();
+        $this->operationData[$operation] = array_merge(
+            $this->operationData[$operation] ?? [],
+            ['operationCid' => $originalInputHash()]
+        );
+        return $this->operationData[$operation]['operationCid'];
     }
 
     /**
@@ -219,25 +223,13 @@ class OutputCacheService
         return $event->getCid();
     }
 
-    public function load(Request $request, OperationParams $operation, DocumentNode $parsedQuery)
+    public function registerOperation(OperationParams $operation, DocumentNode $parsedQuery)
     {
-        if (!$this->useCache($request, $operation, $parsedQuery)) {
-            return null;
-        }
         $this->operationData->attach($operation, [
             'parsedQuery' => $parsedQuery,
             'filterValues' => '',
             'sortValues' => '',
         ]);
-        $operationCid = $this->getOperationCid($operation);
-
-        // check if we have an excluded query here
-        if ($this->isExcludedQuery($this->operationData[$operation]['parsedQuery'])) {
-            return null;
-        }
-
-        // Original Code
-        //$cacheKey = $this->computeKey($request);
 
         // Check the filter values separate
         if (isset($operation->variables['filters'])) {
@@ -252,11 +244,43 @@ class OutputCacheService
                 $this->operationData[$operation]['sortValues'] = implode('-', $operation->variables['sortBy']);
             }
         }
+    }
 
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
+     *
+     * @return Response|null
+     */
+    public function load(Request $request, OperationParams $operation, DocumentNode $parsedQuery)
+    {
+        $this->registerOperation($operation, $parsedQuery);
+        if (!$this->useCache($request, $operation, $parsedQuery)) {
+            return null;
+        }
+        // Check if this is an excluded query.
+        if ($this->isExcludedQuery($this->operationData[$operation]['parsedQuery'])) {
+            return null;
+        }
         return $this->loadFromCache($operation, $parsedQuery);
     }
 
-    public function save(Request $request, Response $response, OperationParams $operation, $extraTags = []): void
+    /**
+     * Saves an operations response to the cache.
+     *
+     * Saving only works if the $operation has been "registered" by either
+     * calling OutputCacheService::load() or
+     * OutputCacheService::registerOperation() first.
+     *
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param \Symfony\Component\HttpFoundation\Response $response
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param array $extraTags
+     *
+     * @return void
+     */
+    public function save(Request $request, Response $response, OperationParams $operation, array $extraTags = []): void
     {
         if (
             isset($this->operationData[$operation])
@@ -286,10 +310,18 @@ class OutputCacheService
         return \Pimcore\Cache::load($cacheKey);
     }
 
-    protected function saveToCache(OperationParams $operation, DocumentNode $parsedQuery, $item, $tags = []): void
+    /**
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
+     * @param \Symfony\Component\HttpFoundation\Response $response
+     * @param array $tags
+     *
+     * @return void
+     */
+    protected function saveToCache(OperationParams $operation, DocumentNode $parsedQuery, Response $response, $tags = []): void
     {
         $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
-        \Pimcore\Cache::save($item, $cacheKey, $tags, $this->lifetime);
+        \Pimcore\Cache::save($response, $cacheKey, $tags, $this->lifetime);
     }
 
     /**
