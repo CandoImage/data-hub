@@ -58,6 +58,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 class GraphQLExecutionService implements ContainerAwareInterface
 {
@@ -104,6 +105,11 @@ class GraphQLExecutionService implements ContainerAwareInterface
     protected array $loadedQueries = [];
 
     /**
+     * @var \Symfony\Component\HttpKernel\HttpKernelInterface
+     */
+    private HttpKernelInterface $httpKernel;
+
+    /**
      * @param EventDispatcherInterface $eventDispatcher
      * @param \Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService $permissionsService
      * @param \Pimcore\Bundle\DataHubBundle\Service\OutputCacheService $cacheService
@@ -117,7 +123,8 @@ class GraphQLExecutionService implements ContainerAwareInterface
         Service $service,
         OutputCacheService $cacheService,
         LocaleServiceInterface $localeService,
-        Factory $modelFactory
+        Factory $modelFactory,
+        HttpKernelInterface $httpKernel
     ) {
         $this->container = $container;
         $this->graphQlRequestHelper = new Helper();
@@ -127,6 +134,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
         $this->service = $service;
         $this->localeService = $localeService;
         $this->modelFactory = $modelFactory;
+        $this->httpKernel = $httpKernel;
     }
 
     /**
@@ -368,6 +376,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
      * @param $operations
      * @param \GraphQL\Server\ServerConfig $graphQlConfig
      * @param bool $disableCache
+     * @param string $subRequestController
      *
      * @return Response[]
      * @throws \GraphQL\Error\SyntaxError
@@ -376,12 +385,13 @@ class GraphQLExecutionService implements ContainerAwareInterface
         Request $request,
         $operations,
         ServerConfig $graphQlConfig,
-        bool $disableCache = false
+        bool $disableCache = false,
+        string $subRequestController = 'Pimcore\Bundle\DataHubBundle\Controller\WebserviceController::webonyxOperationResponseAction'
     ): array {
         // Prepare all operations for execution.
         $responses = [];
         $operationsBatch = [];
-        foreach ($operations as $i => $operation) {
+        foreach ($operations as $operation) {
             if (!$operation->query && $operation->queryId) {
                 $operation->query = $this->loadPersistedQuery($graphQlConfig, $operation);
             }
@@ -389,7 +399,10 @@ class GraphQLExecutionService implements ContainerAwareInterface
 
             // Check if this operation has a cached result - if so remove it
             // from the execution batch.
-            if (!$disableCache && ($response = $this->cacheService->load($request, $operation, $parsedQuery))) {
+            // Order matters here - we need to trigger load in order to build
+            // the operation metadata handling. So the disabled cache check
+            // follows. Could be optimized...
+            if (($response = $this->cacheService->load($request, $operation, $parsedQuery)) && !$disableCache) {
                 Logger::debug('Loading response from cache');
                 $responses[] = $response;
                 continue;
@@ -434,14 +447,29 @@ class GraphQLExecutionService implements ContainerAwareInterface
         }
 
         // Now execute all open operations that are remaining in the batch.
-        foreach ($this->graphQlRequestHelper->executeBatch($graphQlConfig, $operationsBatch) as $i => $executionResult) {
+        $executionResults = $this->graphQlRequestHelper->executeBatch($graphQlConfig, $operationsBatch);
+        foreach ($executionResults as $i => $executionResult) {
             $operation = $operationsBatch[$i];
             if ($executionResult instanceof Promise) {
-                $response = $executionResult->then(function ($result) use ($graphQlConfig, $operation, $request) {
-                    return $this->processExecutionResult($graphQlConfig, $result, $operation, $request);
-                });
+                $response = $executionResult->then(
+                    function ($result) use ($graphQlConfig, $operation, $request, $subRequestController) {
+                        return $this->processExecutionResult(
+                            $graphQlConfig,
+                            $result,
+                            $operation,
+                            $request,
+                            $subRequestController
+                        );
+                    }
+                );
             } else {
-                $response = $this->processExecutionResult($graphQlConfig, $executionResult, $operation, $request);
+                $response = $this->processExecutionResult(
+                    $graphQlConfig,
+                    $executionResult,
+                    $operation,
+                    $request,
+                    $subRequestController
+                );
             }
             $responses[] = $response;
         }
@@ -458,6 +486,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
      * @param \GraphQL\Executor\ExecutionResult $executionResult
      * @param \GraphQL\Server\OperationParams $operation
      * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param string $subRequestController
      *
      * @return \Symfony\Component\HttpFoundation\Response
      */
@@ -465,7 +494,8 @@ class GraphQLExecutionService implements ContainerAwareInterface
         ServerConfig $config,
         ExecutionResult $executionResult,
         OperationParams $operation,
-        Request $request
+        Request $request,
+        string $subRequestController = 'Pimcore\Bundle\DataHubBundle\Controller\WebserviceController::webonyxOperationResponseAction'
     ): Response {
         try {
             // Allow last intervention after execution.
@@ -482,6 +512,24 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // Convert the PSR-Response to a Symfony response.
             $httpFoundationFactory = new HttpFoundationFactory();
             $response = $httpFoundationFactory->createResponse($response);
+
+            // Run every single http response through the http kernel to allow
+            // for response modifications before the response is stored in the
+            // cache.
+            // This enables request based bundles to do their http related
+            // processing which then is store in the cache too.
+            // Without this we might store incomplete http responses that are
+            // later treated as full responses.
+            if ($subRequestController) {
+                $subRequest = $request->duplicate();
+                $subRequest->attributes->set('_controller', $subRequestController);
+                $subRequest->attributes->set('_graphQLServerConfig', $config);
+                $subRequest->attributes->set('_graphQLExecutionResult', $executionResult);
+                $subRequest->attributes->set('_graphQLOperation', $operation);
+                $subRequest->attributes->set('_graphQLResponse', $response);
+                $subRequest->attributes->set('_graphQlOperationMetadata', $this->cacheService->getOperationMetaData($operation));
+                $response = $this->httpKernel->handle($subRequest, HttpKernelInterface::SUB_REQUEST);
+            }
 
             // Allow last interference before this response is cached.
             $cacheItemEvent = new CacheItemEvent($request, $executionResult, $operation, $response);
@@ -530,8 +578,10 @@ class GraphQLExecutionService implements ContainerAwareInterface
         $output = [];
         $httpHeaders = [];
         $statusCode = 200;
-        $cacheable = true;
-        $minMaxAge = true;
+        $minMaxAge = null;
+        $minSMaxAge = null;
+        $private = false;
+        $noStore = false;
         $response = new JsonResponse('', 200, [], true);
         foreach ($responses as $queryResponse) {
             $output[] = $queryResponse->getContent();
@@ -539,9 +589,19 @@ class GraphQLExecutionService implements ContainerAwareInterface
             $statusCode = max($statusCode, $queryResponse->getStatusCode());
             // Check if response is cacheable and figure out the shortest
             // ttl.
-            $cacheable = $cacheable && $queryResponse->isCacheable();
-            if ($cacheable && !is_null($maxAge = $queryResponse->getMaxAge())) {
-                $minMaxAge = min($minMaxAge, $maxAge);
+            $private = $private || $queryResponse->headers->getCacheControlDirective('private');
+            $noStore = $noStore || $queryResponse->headers->hasCacheControlDirective('no-store');
+            if ($queryResponse->headers->hasCacheControlDirective('max-age')) {
+                $minMaxAge = (is_null($minMaxAge)) ?
+                    $queryResponse->headers->getCacheControlDirective('max-age') :
+                    min($minMaxAge, (int) $queryResponse->headers->getCacheControlDirective('max-age'))
+                ;
+            }
+            if ($queryResponse->headers->hasCacheControlDirective('s-maxage')) {
+                $minSMaxAge = (is_null($minSMaxAge)) ?
+                    $queryResponse->headers->getCacheControlDirective('s-maxage') :
+                    min($minSMaxAge, (int) $queryResponse->headers->getCacheControlDirective('s-maxage'))
+                ;
             }
             // Merge certain http headers.
             // @TODO Add the headers we surely forgot...
@@ -566,16 +626,14 @@ class GraphQLExecutionService implements ContainerAwareInterface
         $response->setContent($output);
         // Only pass on server-side caching as the application might can
         // control it - while it surely can't control the browser.
-        $response->setMaxAge(0);
+        $response->setMaxAge((int) $minMaxAge);
         $response->headers->addCacheControlDirective('must-revalidate');
-        if (!$cacheable) {
-            $response->setSharedMaxAge(0);
-            $response->setPrivate();
+        $response->setSharedMaxAge((int) $minSMaxAge);
+        if ($noStore) {
             $response->headers->addCacheControlDirective('no-store');
-        } else {
-            $response->setSharedMaxAge($minMaxAge);
-            $response->setPublic();
-            $response->headers->removeCacheControlDirective('no-store');
+        }
+        if ($private) {
+            $response->setPrivate();
         }
         return $response;
     }

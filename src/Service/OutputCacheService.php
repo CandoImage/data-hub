@@ -15,6 +15,8 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
+use _PHPStan_76800bfb5\Nette\Utils\DateTime;
+use CustomerManagementFrameworkBundle\DataTransformer\Mailchimp\Date;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -229,6 +231,7 @@ class OutputCacheService
             'parsedQuery' => $parsedQuery,
             'filterValues' => '',
             'sortValues' => '',
+            'useCache' => true,
         ]);
 
         // Check the filter values separate
@@ -282,10 +285,7 @@ class OutputCacheService
      */
     public function save(Request $request, Response $response, OperationParams $operation, array $extraTags = []): void
     {
-        if (
-            isset($this->operationData[$operation])
-            && $this->useCache($request, $operation, $this->operationData[$operation]['parsedQuery'])
-        ) {
+        if (!empty($this->operationData[$operation]['useCache'])) {
             $operationData = $this->operationData[$operation];
             // check if we have an excluded query here
             $query = $operationData['parsedQuery'] ?? $operation->query;
@@ -298,8 +298,9 @@ class OutputCacheService
 
             $event = new OutputCachePreSaveEvent($request, $response, $extraTags);
             $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_SAVE);
-
-            $this->saveToCache($operation, $operationData['parsedQuery'], $event->getResponse(), $event->getTags());
+            if (!$event->isSkipSave()) {
+                $this->saveToCache($operation, $operationData['parsedQuery'], $event->getResponse(), $event->getTags());
+            }
         }
     }
 
@@ -307,7 +308,16 @@ class OutputCacheService
     {
         $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
 
-        return \Pimcore\Cache::load($cacheKey);
+        /** @var Response $response */
+        if (($response = \Pimcore\Cache::load($cacheKey)) && $response->isCacheable()) {
+            // Modify caching hader to be sliding window.
+            $age = $response->getAge();
+            $maxAge = $response->getMaxAge();
+            $originalDate = $response->getDate();
+            $response->setDate(new \DateTime());
+        }
+
+        return $response;
     }
 
     /**
@@ -365,7 +375,34 @@ class OutputCacheService
         $event = new OutputCachePreLoadEvent($request, true, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_LOAD);
 
-        return $event->isUseCache();
+        if (!isset($this->operationData[$operation])) {
+            $this->operationData->attach($operation, []);
+        }
+        $this->operationData[$operation]['useCache'] = $event->isUseCache();
+
+        return $this->operationData[$operation]['useCache'];
+    }
+
+    /**
+     * @param \GraphQL\Server\OperationParams $operation
+     *
+     * @return bool
+     */
+    public function isOperationCacheable(OperationParams $operation): bool
+    {
+        return !empty($this->operationData[$operation]['useCache']);
+    }
+
+    /**
+     * Returns the meta data collected for an operation.
+     *
+     * @param \GraphQL\Server\OperationParams $operation
+     *
+     * @return array
+     */
+    public function getOperationMetaData(OperationParams $operation): array
+    {
+        return $this->operationData[$operation];
     }
 
     /**

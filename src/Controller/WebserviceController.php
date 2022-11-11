@@ -105,6 +105,12 @@ class WebserviceController extends FrontendController
         Factory $modelFactory,
         Request $request
     ) {
+        // Check if this is a mere request processing loop. If so simply return
+        // the prepared response.
+        if ($graphQLResponse = $request->attributes->get('_graphQLResponse')) {
+            return $graphQLResponse;
+        }
+
         $clientname = $request->get('clientname');
 
         $clientConfiguration = Configuration::getByName($clientname);
@@ -123,7 +129,8 @@ class WebserviceController extends FrontendController
             $service,
             $this->cacheService,
             $localeService,
-            $modelFactory
+            $modelFactory,
+            $this->get('http_kernel')
         );
 
         $contentType = $request->headers->get('content-type') ?? '';
@@ -179,5 +186,20 @@ class WebserviceController extends FrontendController
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token');
         return $response;
+    }
+
+    /**
+     * Dummy function to allow to handle each operation of a multi query request
+     * like a single request.
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse|Response
+     *
+     * @throws \Exception
+     */
+    public function webonyxOperationResponseAction(Request $request)
+    {
+        return $request->attributes->get('_graphQLResponse');
     }
 }
