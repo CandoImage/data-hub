@@ -15,8 +15,6 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
-use _PHPStan_76800bfb5\Nette\Utils\DateTime;
-use CustomerManagementFrameworkBundle\DataTransformer\Mailchimp\Date;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -197,6 +195,7 @@ class OutputCacheService
             $this->operationData[$operation] ?? [],
             ['operationCid' => $originalInputHash()]
         );
+
         return $this->operationData[$operation]['operationCid'];
     }
 
@@ -266,6 +265,7 @@ class OutputCacheService
         if ($this->isExcludedQuery($this->operationData[$operation]['parsedQuery'])) {
             return null;
         }
+
         return $this->loadFromCache($operation, $parsedQuery);
     }
 

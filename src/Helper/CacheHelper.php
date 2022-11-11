@@ -18,8 +18,6 @@ namespace Pimcore\Bundle\DataHubBundle\Helper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
-use GraphQL\Server\OperationParams;
-use Pimcore\Bundle\DataHubBundle\Service\OutputCacheService;
 
 class CacheHelper
 {
@@ -52,6 +50,7 @@ class CacheHelper
         if (!isset(self::$queryHashes)) {
             self::$queryHashes = new \SplObjectStorage();
         }
+
         return self::$queryHashes[$query] = md5((string)$query);
     }
 

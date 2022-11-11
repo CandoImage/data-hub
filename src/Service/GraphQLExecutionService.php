@@ -238,7 +238,6 @@ class GraphQLExecutionService implements ContainerAwareInterface
         $context,
         $validators = null
     ): ServerConfig {
-
         Runtime::set('datahub_context', $context);
         static $defaultFieldResolver = [DefaultCacheFieldResolver::class, 'defaultFieldResolver'];
 
@@ -251,6 +250,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
         }
 
         $this->baseOperationContext = $context;
+
         return ServerConfig::create()
             ->setSchema($schema)
             ->setFieldResolver($defaultFieldResolver)
@@ -379,6 +379,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
      * @param string $subRequestController
      *
      * @return Response[]
+     *
      * @throws \GraphQL\Error\SyntaxError
      */
     public function executeOperations(
@@ -473,6 +474,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             }
             $responses[] = $response;
         }
+
         return $responses;
     }
 
@@ -559,7 +561,6 @@ class GraphQLExecutionService implements ContainerAwareInterface
         return $response;
     }
 
-
     /**
      * Helper to merge multiple operations responses into a single response.
      *
@@ -635,6 +636,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
         if ($private) {
             $response->setPrivate();
         }
+
         return $response;
     }
 }
