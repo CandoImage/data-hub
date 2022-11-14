@@ -110,6 +110,11 @@ class GraphQLExecutionService implements ContainerAwareInterface
     private HttpKernelInterface $httpKernel;
 
     /**
+     * @var bool
+     */
+    protected bool $triggerSubrequestPerQuery = false;
+
+    /**
      * @param EventDispatcherInterface $eventDispatcher
      * @param \Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService $permissionsService
      * @param \Pimcore\Bundle\DataHubBundle\Service\OutputCacheService $cacheService
@@ -135,6 +140,9 @@ class GraphQLExecutionService implements ContainerAwareInterface
         $this->localeService = $localeService;
         $this->modelFactory = $modelFactory;
         $this->httpKernel = $httpKernel;
+
+        $dataHubConfig = $this->container->getParameter('pimcore_data_hub');
+        $this->triggerSubrequestPerQuery = !empty($dataHubConfig['graphql']['run_subrequest_per_query']);
     }
 
     /**
@@ -525,7 +533,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // processing which then is store in the cache too.
             // Without this we might store incomplete http responses that are
             // later treated as full responses.
-            if ($subRequestController) {
+            if (!empty($this->triggerSubrequestPerQuery) && $subRequestController) {
                 $subRequest = $request->duplicate();
                 $subRequest->attributes->set('_controller', $subRequestController);
                 $subRequest->attributes->set('_graphQLServerConfig', $config);
@@ -580,7 +588,6 @@ class GraphQLExecutionService implements ContainerAwareInterface
     public function mergeWebonyxResponses(array $responses): Response
     {
         $output = [];
-        $httpHeaders = [];
         $statusCode = 200;
         $minMaxAge = null;
         $minSMaxAge = null;
@@ -606,19 +613,6 @@ class GraphQLExecutionService implements ContainerAwareInterface
                     $queryResponse->headers->getCacheControlDirective('s-maxage') :
                     min($minSMaxAge, (int) $queryResponse->headers->getCacheControlDirective('s-maxage'))
                 ;
-            }
-            // Merge certain http headers.
-            // @TODO Add the headers we surely forgot...
-            foreach (['X-Cache-Tags' => 'string'] as $headerKey => $mode) {
-                switch ($mode) {
-                    case 'string':
-                        $httpHeaders[$headerKey] = ($httpHeaders[$headerKey] ?? '') .
-                            $queryResponse->headers->get($headerKey);
-                        break;
-                    case 'multiple':
-                        $response->headers->set($headerKey, $queryResponse->headers->get($headerKey), false);
-                        break;
-                }
             }
             // Collect all cookies.
             foreach ($queryResponse->headers->getCookies() as $cookie) {
