@@ -594,6 +594,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
         $private = false;
         $noStore = false;
         $response = new JsonResponse('', 200, [], true);
+        $operationCacheHits = [];
         foreach ($responses as $queryResponse) {
             $output[] = $queryResponse->getContent();
             // Get the "highest" statusCode as it signifies an error.
@@ -618,6 +619,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             foreach ($queryResponse->headers->getCookies() as $cookie) {
                 $response->headers->setCookie($cookie);
             }
+            $operationCacheHits[] = $queryResponse->headers->has('X-GQL-OperationCache-Hit') ? 'true' : 'false';
         }
         $response->setStatusCode($statusCode);
         $output = '[' . implode(', ', $output) . ']';
@@ -632,6 +634,9 @@ class GraphQLExecutionService implements ContainerAwareInterface
         }
         if ($private) {
             $response->setPrivate();
+        }
+        if (\Pimcore::inDebugMode()) {
+            $response->headers->set('X-GQL-OperationCache-Hit', implode(', ', $operationCacheHits));
         }
 
         return $response;
