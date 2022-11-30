@@ -108,6 +108,7 @@ class WebserviceController extends FrontendController
             $config['resolveEdge'] = !$request->query->has('datahub-cache-disable-resolveEdge');
             $config['resolveObjectGetter'] = !$request->query->has('datahub-cache-disable-resolveObjectGetter');
         }
+
         return $config;
     }
 
