@@ -426,21 +426,30 @@ class OutputCacheService
     private function getImplodedFilterValues(array $variables): string
     {
         $filterValues = [];
-        $filters = $variables['filters'];
+        $filters = $variables['filters'] ?? [];
         foreach ($filters as $filter) {
-            if (count($filter['values']) > 1) {
-                $valueList = [];
-                foreach ($filter['values'] as $filterValue) {
-                    if (is_array($filterValue)) {
-                        $valueList[] = key($filterValue) . '-' . $filterValue[key($filterValue)];
+            if (array_key_exists('values', $filter)) {
+                if (is_array($filter['values'])) {
+                    if (count($filter['values']) > 1) {
+                        $valueList = [];
+                        foreach ($filter['values'] as $filterValue) {
+                            if (is_array($filterValue)) {
+                                $valueList[] = key($filterValue) . '-' . $filterValue[key($filterValue)];
+                            } else {
+                                $valueList[] = ($filter['field'] ?? 'unknown-field') . '-' . implode('-', $filter['values']);
+                                break;
+                            }
+                        }
+                        $filterValues[] = implode($valueList);
                     } else {
-                        $valueList[] = $filter['field'] . '-' . implode('-', $filter['values']);
-                        break;
+                        $filterValues[] = ($filter['field'] ?? 'unknown-field') . '-' . implode('-', $filter['values']);
                     }
+                } else {
+                    $filterValues[] = ($filter['field'] ?? 'unknown-field') . '-' . $filter['values'];
                 }
-                $filterValues[] = implode($valueList);
             } else {
-                $filterValues[] = $filter['field'] . '-' . implode('-', $filter['values']);
+                ksort($filter);
+                $filterValues[] = implode('-', $filter);
             }
         }
 
