@@ -318,9 +318,12 @@ class QueryType
             }
         }
 
-        // check cache entry
-        // Note: we need a language to avoid showing data in wrong language
-        if ($resolveInfo->variableValues['lang'] ?? false) {
+        // Attempt to fetch from cache if not explicitly disabled.
+        if (
+            (!isset($context['caching']['resolveObjectGetter']) || !empty($context['caching']['resolveObjectGetter']))
+            // Note: we need a language to avoid showing data in wrong language.
+            && $resolveInfo && !empty($resolveInfo->variableValues['lang'])
+        ) {
             $cachedResult = $this->getCacheEntry($object, $resolveInfo, $context);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
@@ -354,8 +357,12 @@ class QueryType
             $nodeData = $fieldHelper->extractData($data, $object, $args, $context, $resolveInfo);
         }
 
-        // check cache entry
-        if ($resolveInfo && isset($resolveInfo->variableValues['lang'])) {
+        // Attempt to fetch from cache if not explicitly disabled.
+        if (
+            (!isset($context['caching']['resolveObjectGetter']) || !empty($context['caching']['resolveObjectGetter']))
+            // Note: we need a language to avoid showing data in wrong language.
+            && $resolveInfo && !empty($resolveInfo->variableValues['lang'])
+        ) {
             $cachedResult = $this->getCacheEntry($object, $resolveInfo, $context);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
@@ -470,7 +477,6 @@ class QueryType
         $objectList = $modelFactory->build($listClass);
 
         $conditionParts = [];
-        $db = Db::get();
         if (isset($args['ids'])) {
             // Explode it and then quote it
             if (!is_array($args['ids'])) {

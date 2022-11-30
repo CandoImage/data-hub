@@ -24,6 +24,7 @@ use Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService;
 use Pimcore\Bundle\DataHubBundle\Service\FileUploadService;
 use Pimcore\Bundle\DataHubBundle\Service\GraphQLExecutionService;
 use Pimcore\Bundle\DataHubBundle\Service\OutputCacheService;
+use Pimcore\Config;
 use Pimcore\Controller\FrontendController;
 use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Model\Factory;
@@ -90,6 +91,27 @@ class WebserviceController extends FrontendController
     }
 
     /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return array{operations: bool, resolveEdge: bool, resolveObjectGetter: bool}
+     */
+    protected function getCachingContextConfiguration(Request $request): array
+    {
+        $config = [
+            'operations' => true,
+            'resolveEdge' => true,
+            'resolveObjectGetter' => true,
+        ];
+        $env = Config::getEnvironment();
+        if (!in_array(strtolower($env), ['prod', 'production'])) {
+            $config['operations'] = !$request->query->has('datahub-cache-disable-operations');
+            $config['resolveEdge'] = !$request->query->has('datahub-cache-disable-resolveEdge');
+            $config['resolveObjectGetter'] = !$request->query->has('datahub-cache-disable-resolveObjectGetter');
+        }
+        return $config;
+    }
+
+    /**
      * @param Service $service
      * @param LocaleServiceInterface $localeService
      * @param Factory $modelFactory
@@ -139,7 +161,12 @@ class WebserviceController extends FrontendController
         }
 
         // context info, will be passed on to all resolver function
-        $context = ['clientname' => $clientname, 'configuration' => $clientConfiguration];
+        $cachingConfig = $this->getCachingContextConfiguration($request);
+        $context = [
+            'clientname' => $clientname,
+            'configuration' => $clientConfiguration,
+            'caching' => $cachingConfig,
+        ];
         $datahubConfig = $this->getParameter('pimcore_data_hub');
 
         if (isset($datahubConfig['graphql']) && isset($datahubConfig['graphql']['not_allowed_policy'])) {
@@ -161,7 +188,13 @@ class WebserviceController extends FrontendController
             $context,
             $validators
         );
-        $responses = $graphQLExecutionService->executeOperations($request, $operations, $graphQlConfig);
+
+        $responses = $graphQLExecutionService->executeOperations(
+            $request,
+            $operations,
+            $graphQlConfig,
+            !$cachingConfig['operations']
+        );
 
         if (!$isBatchedQuery) {
             $response = reset($responses);
@@ -177,6 +210,15 @@ class WebserviceController extends FrontendController
         $response->headers->set('Access-Control-Allow-Credentials', 'true');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token');
+        if (!$cachingConfig['operations']) {
+            $response->headers->set('X-DATAHUB-CACHE-OPERATIONS-DISABLED', 'true');
+        }
+        if (!$cachingConfig['resolveEdge']) {
+            $response->headers->set('X-DATAHUB-CACHE-RESOLVE-EDGE-DISABLED', 'true');
+        }
+        if (!$cachingConfig['resolveObjectGetter']) {
+            $response->headers->set('X-DATAHUB-CACHE-RESOLVE-OBJECTGETTER-DISABLED', 'true');
+        }
 
         return $response;
     }

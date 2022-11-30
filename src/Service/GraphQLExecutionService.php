@@ -525,6 +525,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // Convert the PSR-Response to a Symfony response.
             $httpFoundationFactory = new HttpFoundationFactory();
             $response = $httpFoundationFactory->createResponse($response);
+            $response->headers->set('X-GQL-OperationCache-Hit', 'false');
 
             // Run every single http response through the http kernel to allow
             // for response modifications before the response is stored in the
@@ -619,7 +620,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             foreach ($queryResponse->headers->getCookies() as $cookie) {
                 $response->headers->setCookie($cookie);
             }
-            $operationCacheHits[] = $queryResponse->headers->has('X-GQL-OperationCache-Hit') ? 'true' : 'false';
+            $operationCacheHits[] = $queryResponse->headers->get('X-GQL-OperationCache-Hit', 'false');
         }
         $response->setStatusCode($statusCode);
         $output = '[' . implode(', ', $output) . ']';
