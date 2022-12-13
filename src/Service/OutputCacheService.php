@@ -113,6 +113,7 @@ class OutputCacheService
         $this->excludedQueries[] = 'getCartDetails';
         $this->excludedQueries[] = 'performCartUpdate';
         $this->excludedQueries[] = 'performCartDelete';
+        $this->excludedQueries[] = 'performApplyCalculatedCart';
         $this->excludedQueries[] = 'performOrderMutation';
         $this->excludedQueries[] = 'getCheckoutSuccess';
         $this->excludedQueries[] = 'getOrderListing';
