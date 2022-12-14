@@ -415,7 +415,10 @@ class GraphQLExecutionService implements ContainerAwareInterface
                     continue;
                 }
             }
-            $parsedQuery = Parser::parse(new Source($operation->query ?? '', $operation->operation ?? 'GraphQl'));
+            $parsedQuery = $operation->query ?? '';
+            if (!($parsedQuery instanceof DocumentNode)) {
+                $parsedQuery = Parser::parse(new Source($parsedQuery, $operation->operation ?? 'GraphQl'));
+            }
 
             // Check if this operation has a cached result - if so remove it
             // from the execution batch.
