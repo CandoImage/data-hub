@@ -400,9 +400,20 @@ class GraphQLExecutionService implements ContainerAwareInterface
         // Prepare all operations for execution.
         $responses = [];
         $operationsBatch = [];
+        $errorFormatter = FormattedError::prepareFormatter(
+            $graphQlConfig->getErrorFormatter(),
+            $graphQlConfig->getDebugFlag()
+        );
         foreach ($operations as $operation) {
             if (!$operation->query && $operation->queryId) {
-                $operation->query = $this->loadPersistedQuery($graphQlConfig, $operation);
+                try {
+                    $operation->query = $this->loadPersistedQuery($graphQlConfig, $operation);
+                } catch (\Throwable $e) {
+                    $responses[] = new JsonResponse([
+                        'errors' => [$errorFormatter($e)],
+                    ], 200, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
+                    continue;
+                }
             }
             $parsedQuery = Parser::parse(new Source($operation->query ?? '', $operation->operation ?? 'GraphQl'));
 
@@ -440,21 +451,13 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 $operation->query = null;
                 $operation->queryId = $queryId;
                 $operationsBatch[] = $operation;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $exException = new ExecutorExceptionEvent($request, $e);
                 $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
                 $e = $exException->getException();
-                $errorFormatter = FormattedError::prepareFormatter(
-                    $graphQlConfig->getErrorFormatter(),
-                    $graphQlConfig->getDebugFlag()
-                );
                 $responses[] = new JsonResponse([
-                    'errors' => [
-                        [
-                            'message' => $errorFormatter($e),
-                        ],
-                    ],
-                ], 503, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
+                    'errors' => [$errorFormatter($e)],
+                ], 200, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
             }
         }
 
