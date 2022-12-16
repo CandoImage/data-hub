@@ -253,7 +253,6 @@ class GraphQLExecutionService implements ContainerAwareInterface
         if (\Pimcore::inDebugMode()) {
             $debugFlags = DebugFlag::INCLUDE_DEBUG_MESSAGE |
                 DebugFlag::INCLUDE_TRACE |
-                DebugFlag::RETHROW_INTERNAL_EXCEPTIONS |
                 DebugFlag::RETHROW_UNSAFE_EXCEPTIONS;
         }
 
@@ -566,14 +565,9 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 $config->getErrorFormatter(),
                 $config->getDebugFlag()
             );
-
             $response = new JsonResponse([
-                 'errors' => [
-                     [
-                         'message' => $errorFormatter($e),
-                     ],
-                 ],
-            ], 503, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
+                'errors' => [$errorFormatter($e)],
+            ], 200, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
         }
 
         return $response;
