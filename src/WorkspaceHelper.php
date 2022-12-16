@@ -299,6 +299,7 @@ class WorkspaceHelper
             }
         } catch (\Exception $e) {
             Logger::warn('Unable to get permission ' . $type . ' for ' . $elementType . ' ' . $element->getId() . ': ' . $e->getMessage());
+
             return false;
         }
         $parentIds[] = $element->getId();
