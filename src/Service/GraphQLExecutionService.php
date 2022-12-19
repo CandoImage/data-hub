@@ -435,7 +435,8 @@ class GraphQLExecutionService implements ContainerAwareInterface
             }
             Logger::debug('Cache entry not found');
 
-            // prevent XSS attacks on user input fields
+            // prevent XSS attacks on user string input fields
+            // see: https://cando-image.atlassian.net/browse/T2-1449
             $filter = new HTMLPurifier();
             foreach ($operation->variables as $key => $variable) {
                 // null values gets converted to empty string
