@@ -32,6 +32,7 @@ use GraphQL\Type\Definition\Directive;
 use GraphQL\Type\Definition\FieldArgument;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
+use HTMLPurifier;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\CacheItemEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ExecutorEvents;
@@ -433,6 +434,16 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 continue;
             }
             Logger::debug('Cache entry not found');
+
+            // prevent XSS attacks on user input fields
+            $filter = new HTMLPurifier();
+            foreach ($operation->variables as $key => $variable) {
+                // null values gets converted to empty string
+                if (is_string($variable)) {
+                    $filteredVariable = $filter->purify($variable);
+                    $operation->variables[$key] = $filteredVariable;
+                }
+            }
 
             try {
                 $event = new ExecutorEvent(
