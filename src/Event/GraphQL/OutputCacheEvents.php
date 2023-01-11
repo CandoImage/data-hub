@@ -29,6 +29,15 @@ final class OutputCacheEvents
     const PRE_LOAD = 'pimcore.datahub.graphql.cache.preLoad';
 
     /**
+     * Fired to allow listeners to manipulate the caching ID.
+     *
+     * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCacheGenerateCidEvent")
+     *
+     * @var string
+     */
+    const GENERATE_CID = 'pimcore.datahub.graphql.cache.generateCid';
+
+    /**
      * Fired before the response is written to cache. Can be used to set or purge
      * data on the cached response.
      *

@@ -254,7 +254,13 @@ class WorkspaceHelper
             if (!$elementType) {
                 $elementType = Service::getElementType($element);
             }
-            $fullPath = $element ? $element->getFullPath() : '';
+            // Could be dealing with mock objects that can't be loaded due
+            // to stale index so be extra cautions when using.
+            try {
+                $fullPath = $element ? $element->getFullPath() : '';
+            } catch (\Throwable $e) {
+                $fullPath = $element->getId();
+            }
             throw new ClientSafeException($type . ' access for ' . $elementType . ' ' . $fullPath . ' denied');
         }
 
@@ -281,12 +287,20 @@ class WorkspaceHelper
         // collect properties via parent - ids
         $parentIds = [1];
 
-        $parent = $element->getParent();
-        if ($parent) {
-            while ($parent) {
-                $parentIds[] = $parent->getId();
-                $parent = $parent->getParent();
+        // Could be dealing with mock objects that can't be loaded due
+        // to stale index so be extra cautions when using.
+        try {
+            $parent = $element->getParent();
+            if ($parent) {
+                while ($parent) {
+                    $parentIds[] = $parent->getId();
+                    $parent = $parent->getParent();
+                }
             }
+        } catch (\Exception $e) {
+            Logger::warn('Unable to get permission ' . $type . ' for ' . $elementType . ' ' . $element->getId() . ': ' . $e->getMessage());
+
+            return false;
         }
         $parentIds[] = $element->getId();
 

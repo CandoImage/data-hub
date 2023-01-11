@@ -80,8 +80,12 @@ class QueryType
      * @param $configuration
      * @param bool $omitPermissionCheck
      */
-    public function __construct(EventDispatcherInterface $eventDispatcher, $class = null, $configuration = null, $omitPermissionCheck = false)
-    {
+    public function __construct(
+        EventDispatcherInterface $eventDispatcher,
+        $class = null,
+        $configuration = null,
+        $omitPermissionCheck = false
+    ) {
         $this->eventDispatcher = $eventDispatcher;
         $this->class = $class;
         $this->configuration = $configuration;
@@ -314,10 +318,13 @@ class QueryType
             }
         }
 
-        // check cache entry
-        // Note: we need a language to avoid showing data in wrong language
-        if ($resolveInfo->variableValues['lang'] ?? false) {
-            $cachedResult = $this->getCacheEntry($object, $resolveInfo);
+        // Attempt to fetch from cache if not explicitly disabled.
+        if (
+            (!isset($context['caching']['resolveObjectGetter']) || !empty($context['caching']['resolveObjectGetter']))
+            // Note: we need a language to avoid showing data in wrong language.
+            && $resolveInfo && !empty($resolveInfo->variableValues['lang'])
+        ) {
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo, $context);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
             }
@@ -350,9 +357,13 @@ class QueryType
             $nodeData = $fieldHelper->extractData($data, $object, $args, $context, $resolveInfo);
         }
 
-        // check cache entry
-        if ($resolveInfo && isset($resolveInfo->variableValues['lang'])) {
-            $cachedResult = $this->getCacheEntry($object, $resolveInfo);
+        // Attempt to fetch from cache if not explicitly disabled.
+        if (
+            (!isset($context['caching']['resolveObjectGetter']) || !empty($context['caching']['resolveObjectGetter']))
+            // Note: we need a language to avoid showing data in wrong language.
+            && $resolveInfo && !empty($resolveInfo->variableValues['lang'])
+        ) {
+            $cachedResult = $this->getCacheEntry($object, $resolveInfo, $context);
             if ($cachedResult instanceof Deferred) {
                 return $cachedResult;
             }
@@ -364,10 +375,11 @@ class QueryType
     /**
      * @param $object
      * @param ResolveInfo $resolveInfo
+     * @param array $context
      *
      * @return Deferred|null
      */
-    private function getCacheEntry($object, ResolveInfo $resolveInfo): ?Deferred
+    private function getCacheEntry($object, ResolveInfo $resolveInfo, array $context): ?Deferred
     {
         $indexKey = null;
         $path = $resolveInfo->path;
@@ -379,8 +391,9 @@ class QueryType
                 $path[$key] = 'delta';
             }
         }
-        // create a unique cache ID based on initial query, path, language and object properties
-        $query = CacheHelper::getHashedQuery();
+        // Create a unique cache ID based on initial query, path, language and
+        // object properties.
+        $query = CacheHelper::getQueryHash($context['doc']);
         $language = $resolveInfo->variableValues['lang'];
         $cid = CacheHelper::generateCacheId(
             ['datahub-caching', $object->getClassId(), $object->getId(), $language, $query, implode(',', $path)]
@@ -394,8 +407,9 @@ class QueryType
 
             return $deferred;
         }
-        // add item to event listener
-        CacheListener::addCachingItem($cid, $path, $object->getId(), $indexKey);
+        // Register item for cache saving in cache listener. Since we don't have
+        // the full data yet this is postponed after execution.
+        CacheListener::addCachingItem($context['operation'], $cid, $path, $object->getId(), $indexKey);
 
         return null;
     }
@@ -463,7 +477,6 @@ class QueryType
         $objectList = $modelFactory->build($listClass);
 
         $conditionParts = [];
-        $db = Db::get();
         if (isset($args['ids'])) {
             // Explode it and then quote it
             if (!is_array($args['ids'])) {

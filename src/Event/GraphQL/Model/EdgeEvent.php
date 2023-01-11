@@ -16,10 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
 use GraphQL\Error\SyntaxError;
-use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\ResolveInfo;
-use Pimcore;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\Event;
 
 class EdgeEvent extends Event
@@ -113,30 +110,28 @@ class EdgeEvent extends Event
      */
     public function getArguments(string $filterNode = null)
     {
-        static $arguments;
-        if (is_null($arguments)) {
+        if (!isset($this->options['context']['arguments'])) {
             $arguments = [];
-            // we need to parse the arguments from the original request
-            /** @var RequestStack $requestStack */
-            $requestStack = Pimcore::getKernel()->getContainer()->get('request_stack');
-            $request = $requestStack->getCurrentRequest();
-            $input = json_decode($request->getContent(), true);
-            $queryParameter = $input['query'] ?? null;
-            if ($queryParameter) {
-                $query = Parser::parse($queryParameter);
-                foreach ($query->definitions as $node) {
-                    foreach ($node->selectionSet->selections as $subNode) {
-                        foreach ($subNode->arguments as $argument) {
-                            $arguments[$subNode->name->value][$argument->name->value] = $argument->value->value;
-                        }
+            // @TODO Document why we do this here-
+            foreach ($this->getResolveInfo()->operation->selectionSet->selections as $subNode) {
+                foreach ($subNode->arguments as $argument) {
+                    $arguments[$subNode->name->value][$argument->name->value] = $argument->value->value;
+                }
+            }
+            // @TODO Document why we collect global arguments too.
+            foreach ($this->getResolveInfo()->fragments as $fragment) {
+                foreach ($fragment->selectionSet->selections as $subNode) {
+                    foreach ($subNode->arguments as $argument) {
+                        $arguments[$subNode->name->value][$argument->name->value] = $argument->value->value;
                     }
                 }
             }
+            $this->options['context']['arguments'] = $arguments;
         }
         if ($filterNode) {
-            return $arguments[$filterNode] ?? [];
+            return $this->options['context']['arguments'][$filterNode] ?? [];
         }
 
-        return $arguments;
+        return $this->options['context']['arguments'];
     }
 }

@@ -17,23 +17,14 @@ namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Server\OperationParams;
-use Pimcore\Event\Traits\RequestAwareTrait;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\EventDispatcher\Event;
 
-class OutputCachePreLoadEvent extends Event
+class OutputCacheGenerateCidEvent extends Event
 {
-    use RequestAwareTrait;
-
     /**
-     * @var Request
+     * @var string
      */
-    protected $request;
-
-    /**
-     * @var bool
-     */
-    protected $useCache;
+    protected string $cid = '';
 
     /**
      * @var \GraphQL\Server\OperationParams
@@ -46,23 +37,31 @@ class OutputCachePreLoadEvent extends Event
     protected DocumentNode $parsedQuery;
 
     /**
-     * @param Request $request
-     * @param bool $useCache
+     * @param string $cid
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
      */
-    public function __construct(Request $request, bool $useCache, OperationParams $operation, DocumentNode $parsedQuery)
+    public function __construct($cid, OperationParams $operation, DocumentNode $parsedQuery)
     {
-        $this->request = $request;
-        $this->useCache = $useCache;
         $this->operation = $operation;
         $this->parsedQuery = $parsedQuery;
+        $this->cid = $cid;
     }
 
     /**
-     * @return Request
+     * @return string
      */
-    public function getRequest()
+    public function getCid(): string
     {
-        return $this->request;
+        return $this->cid;
+    }
+
+    /**
+     * @param string $cid
+     */
+    public function setCid(string $cid): void
+    {
+        $this->cid = $cid;
     }
 
     /**
@@ -71,22 +70,6 @@ class OutputCachePreLoadEvent extends Event
     public function getOperation(): OperationParams
     {
         return $this->operation;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isUseCache()
-    {
-        return $this->useCache;
-    }
-
-    /**
-     * @param bool $useCache
-     */
-    public function setUseCache(bool $useCache)
-    {
-        $this->useCache = $useCache;
     }
 
     /**
