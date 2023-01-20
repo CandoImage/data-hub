@@ -839,24 +839,31 @@ class QueryType
                 );
 
                 return $resultList->addCondition($args['fulltext'], 'relevance');
+
             } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
                 /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
                 $resultList->addQueryCondition($args['fulltext']);
-            }
 
-            // Update sorting if not manually specified. Use the currently set
-            // default sorting with prefixed scoring.
-            if (empty($args['sortBy'])) {
-                // Currently only Elastic is supported.
-                if ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
+                // Update sorting if not manually specified. Use the currently set
+                // default sorting with prefixed scoring.
+                if (empty($args['sortBy'])) {
                     $sorting = $resultList->getOrderKey();
-                    if (!empty($sorting)) {
+                    if (empty($sorting)) {
+                        $sorting = [['_score', 'DESC']];
+                    } else {
                         if (!is_array($sorting)) {
                             $sorting = [$sorting];
                         }
-                        $sorting = array_merge([['_score', 'DESC']], $sorting);
-                    } else {
-                        $sorting = [['_score', 'DESC']];
+                        if (isset($sorting[$resultList::ADVANCED_SORT])) {
+                            $sorting[$resultList::ADVANCED_SORT] = array_merge(
+                                [(object)[
+                                    '_score' => 'desc',
+                                ]],
+                                $sorting[$resultList::ADVANCED_SORT]
+                            );
+                        } else {
+                            $sorting = array_merge([['_score', 'DESC']], $sorting);
+                        }
                     }
                     $resultList->setOrderKey($sorting);
                 }
