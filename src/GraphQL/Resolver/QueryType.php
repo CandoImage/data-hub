@@ -680,7 +680,8 @@ class QueryType
                     }
                 }
             }
-            if (!($filterDefinition && $filterDefinition instanceof AbstractFilterDefinition)
+            if (
+                !($filterDefinition && $filterDefinition instanceof AbstractFilterDefinition)
                 && isset($args['filterDefinition']['fallbackFilterDefinitionId'])
             ) {
                 $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
@@ -692,35 +693,32 @@ class QueryType
                     $resultList->setLimit($pageLimit);
                 }
 
-                $orderByField = null;
-                $orderByDirection = null;
-
                 // we need to set the default OrderBy only on specific preconditions
-                if (empty($args['fulltext']) && empty($args['facets'])) {
-                    // adds default sort from FilterDefinition "Default OrderBy"
-                    $orderByList = [];
-                    if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
-                        foreach ($orderByCollection as $orderBy) {
-                            if (method_exists($orderBy, 'getAdvancedSort')) {
-                                $config = $factory->getIndexService()->getCurrentTenantConfig();
-                                $orderByList = $orderBy->getAdvancedSort($orderByCollection, $config);
-                                break;
-                            } else {
-                                if (method_exists($orderBy, 'getOrderField')) {
-                                    if ($orderBy->getOrderField()) {
-                                        $orderByList[] = [$orderBy->getOrderField(), $orderBy->getDirection()];
-                                        continue;
-                                    }
+                //if (empty($args['fulltext']) && empty($args['facets'])) {
+                // adds default sort from FilterDefinition "Default OrderBy"
+                $orderByList = [];
+                if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
+                    foreach ($orderByCollection as $orderBy) {
+                        if (method_exists($orderBy, 'getAdvancedSort')) {
+                            $config = $factory->getIndexService()->getCurrentTenantConfig();
+                            $orderByList = $orderBy->getAdvancedSort($orderByCollection, $config);
+                            break;
+                        } else {
+                            if (method_exists($orderBy, 'getOrderField')) {
+                                if ($orderBy->getOrderField()) {
+                                    $orderByList[] = [$orderBy->getOrderField(), $orderBy->getDirection()];
+                                    continue;
                                 }
-                                if ($orderBy->getField()) {
-                                    $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
-                                }
+                            }
+                            if ($orderBy->getField()) {
+                                $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
                             }
                         }
                     }
-                    $resultList->setOrderKey($orderByList);
-                    $resultList->setOrder('ASC');
                 }
+                $resultList->setOrderKey($orderByList);
+                $resultList->setOrder('ASC');
+                //}
 
                 $filterValues = [];
                 if (!empty($args['facets'])) {
@@ -818,7 +816,7 @@ class QueryType
             $resultList->setOffset($args['after']);
         }
 
-        // sorting
+        // Manual sorting
         if (!empty($args['sortBy'])) {
             if (!empty($args['sortOrder'])) {
                 $resultList->setOrderKey(array_map(function ($a, $b) {
@@ -844,6 +842,21 @@ class QueryType
             } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
                 /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
                 $resultList->addQueryCondition($args['fulltext']);
+            }
+
+            // Update sorting if not manually specified. Use the currently set
+            // default sorting and prefix with _score.
+            if (empty($args['sortBy'])) {
+                $sorting = $resultList->getOrderKey();
+                if (!empty($sorting)) {
+                    if (!is_array($sorting)) {
+                        $sorting = [$sorting];
+                    }
+                    $sorting = array_merge([['_score', 'DESC']], $sorting);
+                } else {
+                    $sorting = [['_score' => 'DESC']];
+                }
+                $resultList->setOrderKey($sorting);
             }
         }
 
