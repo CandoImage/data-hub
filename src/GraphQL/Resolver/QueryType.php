@@ -845,18 +845,21 @@ class QueryType
             }
 
             // Update sorting if not manually specified. Use the currently set
-            // default sorting and prefix with _score.
+            // default sorting with prefixed scoring.
             if (empty($args['sortBy'])) {
-                $sorting = $resultList->getOrderKey();
-                if (!empty($sorting)) {
-                    if (!is_array($sorting)) {
-                        $sorting = [$sorting];
+                // Currently only Elastic is supported.
+                if ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
+                    $sorting = $resultList->getOrderKey();
+                    if (!empty($sorting)) {
+                        if (!is_array($sorting)) {
+                            $sorting = [$sorting];
+                        }
+                        $sorting = array_merge([['_score', 'DESC']], $sorting);
+                    } else {
+                        $sorting = [['_score', 'DESC']];
                     }
-                    $sorting = array_merge([['_score', 'DESC']], $sorting);
-                } else {
-                    $sorting = [['_score' => 'DESC']];
+                    $resultList->setOrderKey($sorting);
                 }
-                $resultList->setOrderKey($sorting);
             }
         }
 
