@@ -839,7 +839,6 @@ class QueryType
                 );
 
                 return $resultList->addCondition($args['fulltext'], 'relevance');
-
             } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
                 /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
                 $resultList->addQueryCondition($args['fulltext']);
