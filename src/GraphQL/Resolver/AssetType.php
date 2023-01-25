@@ -120,12 +120,13 @@ class AssetType
             $thumbNailFormat = $args['format'] ?? null;
             $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
 
-
             if (!isset($thumbNailConfig)) {
                 return $asset->getFullPath();
             }
+
             return $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 
@@ -192,10 +193,13 @@ class AssetType
                         ];
                     }
                 }
+
                 return $mediaQueries;
             }
+
             return null;
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 

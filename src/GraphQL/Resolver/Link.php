@@ -38,6 +38,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'text');
     }
 
@@ -56,6 +57,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'path');
     }
 

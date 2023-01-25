@@ -15,11 +15,11 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Controller;
 
+use GraphQL\Server\Helper;
+use GraphQL\Server\OperationParams;
 use GraphQL\Server\RequestError;
 use GraphQL\Validator\DocumentValidator;
 use GraphQL\Validator\Rules\DisableIntrospection;
-use GraphQL\Server\Helper;
-use GraphQL\Server\OperationParams;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
@@ -27,7 +27,6 @@ use Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService;
 use Pimcore\Bundle\DataHubBundle\Service\FileUploadService;
 use Pimcore\Bundle\DataHubBundle\Service\GraphQLExecutionService;
 use Pimcore\Bundle\DataHubBundle\Service\OutputCacheService;
-use Pimcore\Cache\RuntimeCache;
 use Pimcore\Config;
 use Pimcore\Controller\FrontendController;
 use Pimcore\Helper\LongRunningHelper;

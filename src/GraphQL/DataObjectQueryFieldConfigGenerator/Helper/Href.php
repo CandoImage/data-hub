@@ -85,6 +85,7 @@ class Href
                 return $data;
             }
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 }
