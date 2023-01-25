@@ -44,7 +44,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Mutation\MutationType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\QueryType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\Helper\DefaultCacheFieldResolver;
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Config;
 use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Logger;
@@ -170,10 +170,13 @@ class GraphQLExecutionService implements ContainerAwareInterface
     }
 
     public function getGraphQlSchema(
-        array $context
+        array $context,
+        LongRunningHelper $longRunningHelper
     ): Schema {
         // Set global execution context.
-        Runtime::set('datahub_context', $context);
+        $longRunningHelper->addPimcoreRuntimeCacheProtectedItems(['datahub_context']);
+        RuntimeCache::set('datahub_context', $context);
+
         ClassTypeDefinitions::build($this->service, $context);
 
         $queryType = new QueryType(
@@ -246,7 +249,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
         $context,
         $validators = null
     ): ServerConfig {
-        Runtime::set('datahub_context', $context);
+        RuntimeCache::set('datahub_context', $context);
         static $defaultFieldResolver = [DefaultCacheFieldResolver::class, 'defaultFieldResolver'];
 
         $debugFlags = DebugFlag::NONE;

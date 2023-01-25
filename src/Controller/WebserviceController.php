@@ -15,16 +15,11 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Controller;
 
-use GraphQL\Error\DebugFlag;
-use GraphQL\Error\Warning;
-use GraphQL\GraphQL;
 use GraphQL\Server\RequestError;
 use GraphQL\Validator\DocumentValidator;
 use GraphQL\Validator\Rules\DisableIntrospection;
 use GraphQL\Server\Helper;
 use GraphQL\Server\OperationParams;
-use GraphQL\Validator\DocumentValidator;
-use GraphQL\Validator\Rules\DisableIntrospection;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
@@ -198,7 +193,7 @@ class WebserviceController extends FrontendController
             DocumentValidator::addRule(new DisableIntrospection());
         }
 
-        $schema = $graphQLExecutionService->getGraphQlSchema($context);
+        $schema = $graphQLExecutionService->getGraphQlSchema($context, $longRunningHelper);
         // Setup GraphQl config which is used later in all the helpers.
         $graphQlConfig = $graphQLExecutionService->getGraphQlServerConfig(
             $schema,
