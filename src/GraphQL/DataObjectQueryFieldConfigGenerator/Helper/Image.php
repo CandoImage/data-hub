@@ -84,8 +84,10 @@ class Image
 
                 return $data;
             }
+
             return null;
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 }
