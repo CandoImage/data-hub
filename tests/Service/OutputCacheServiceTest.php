@@ -15,6 +15,11 @@
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
 use PHPUnit_Framework_TestCase;
+use GraphQL\Language\AST\DocumentNode;
+use GraphQL\Language\Parser;
+use GraphQL\Language\Source;
+use GraphQL\Server\OperationParams;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,7 +30,9 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
 
     protected $container;
     protected $eventDispatcher;
-    protected $request;
+    protected Request $request;
+    protected OperationParams $operation;
+    protected DocumentNode $parsedQuery;
     protected $sut;
 
     protected function setUp(): void
@@ -52,6 +59,10 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
         $this->request = Request::create('/api', 'POST', array("apikey" => "super_secret_api_key"), [], [], [], $payload);
         $this->request->headers->set("Content-Type", "application/json");
         $this->request->request->set('clientname', 'test-datahub-config');
+
+        $params = \json_decode($payload, JSON_OBJECT_AS_ARRAY);
+        $this->operation = new OperationParams($params);
+        $this->parsedQuery = Parser::parse(new Source($params['query'], 'GraphQL'));
     }
 
 
@@ -61,7 +72,7 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
         $this->sut->method('loadFromCache')->willReturn(null);
 
         // Act
-        $cacheItem = $this->sut->load($this->request);
+        $cacheItem = $this->sut->load($this->request, $this->operation, $this->parsedQuery);
 
         // Assert
         $this->assertEquals(null, $cacheItem);
@@ -75,7 +86,7 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
         $this->sut->method('loadFromCache')->willReturn($response);
 
         // Act
-        $cacheItem = $this->sut->load($this->request);
+        $cacheItem = $this->sut->load($this->request, $this->operation, $this->parsedQuery);
 
         // Assert
         $this->assertEquals($response, $cacheItem);
@@ -92,7 +103,8 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
         $response = new JsonResponse(['data' => 123]);
 
         // Act
-        $this->sut->save($this->request, $response);
+        $this->sut->registerOperation($this->operation, $this->parsedQuery);
+        $this->sut->save($this->request, $response, $this->operation);
     }
 
 
@@ -119,7 +131,7 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
         $response = new JsonResponse(['data' => 123]);
 
         // Act
-        $this->sut->save($this->request, $response);
+        $this->sut->save($this->request, $response, $this->operation);
     }
 
 
@@ -146,7 +158,7 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
         $response = new JsonResponse(['data' => 123]);
 
         // Act
-        $this->sut->save($this->request, $response);
+        $this->sut->save($this->request, $response, $this->operation);
     }
 
 
@@ -157,11 +169,15 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
         $this->sut->method('loadFromCache')->willReturn($response);
         $this->request->query->set('pimcore_nocache', 'true');
         \Pimcore::inDebugMode(true);
+        // Legacy wrapper.
+        if (method_exists(\Pimcore::class, 'setDebugMode')) {
+            \Pimcore::setDebugMode(true);
+        }
 
         // Act
-        $cacheItem = $this->sut->load($this->request);
+        $cachedResponse = $this->sut->load($this->request, $this->operation, $this->parsedQuery);
 
         // Assert
-        $this->assertEquals(null, $cacheItem);
+        $this->assertEquals(null, $cachedResponse);
     }
 }

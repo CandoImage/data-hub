@@ -17,23 +17,14 @@ namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Server\OperationParams;
-use Pimcore\Event\Traits\RequestAwareTrait;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\EventDispatcher\Event;
 
-class OutputCachePreLoadEvent extends Event
+class OutputCacheGenerateCidEvent extends Event
 {
-    use RequestAwareTrait;
-
     /**
-     * @var Request
+     * @var string
      */
-    protected $request;
-
-    /**
-     * @var bool
-     */
-    protected $useCache;
+    protected string $cid = '';
 
     /**
      * @var \GraphQL\Server\OperationParams
@@ -46,11 +37,31 @@ class OutputCachePreLoadEvent extends Event
     protected DocumentNode $parsedQuery;
 
     /**
-     * @return Request
+     * @param string $cid
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
      */
-    public function getRequest()
+    public function __construct($cid, OperationParams $operation, DocumentNode $parsedQuery)
     {
-        return $this->request;
+        $this->operation = $operation;
+        $this->parsedQuery = $parsedQuery;
+        $this->cid = $cid;
+    }
+
+    /**
+     * @return string
+     */
+    public function getCid(): string
+    {
+        return $this->cid;
+    }
+
+    /**
+     * @param string $cid
+     */
+    public function setCid(string $cid): void
+    {
+        $this->cid = $cid;
     }
 
     /**
@@ -62,31 +73,10 @@ class OutputCachePreLoadEvent extends Event
     }
 
     /**
-     * @return bool
-     */
-    public function isUseCache()
-    {
-        return $this->useCache;
-    }
-
-    public function setUseCache(bool $useCache)
-    {
-        $this->useCache = $useCache;
-    }
-
-    /**
      * @return \GraphQL\Language\AST\DocumentNode
      */
     public function getParsedQuery(): DocumentNode
     {
         return $this->parsedQuery;
-    }
-
-    public function __construct(Request $request, bool $useCache, OperationParams $operation, DocumentNode $parsedQuery)
-    {
-        $this->request = $request;
-        $this->useCache = $useCache;
-        $this->operation = $operation;
-        $this->parsedQuery = $parsedQuery;
     }
 }

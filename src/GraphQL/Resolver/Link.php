@@ -16,6 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 
 class Link
@@ -34,6 +35,9 @@ class Link
      */
     public function resolveText($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if (is_array($value)) {
+            return Service::resolveCachedValue($value, $resolveInfo);
+        }
         if ($value instanceof \Pimcore\Model\DataObject\Data\Link) {
             return $value->getText();
         }
@@ -53,6 +57,9 @@ class Link
      */
     public function resolvePath($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if (is_array($value)) {
+            return Service::resolveCachedValue($value, $resolveInfo);
+        }
         if ($value instanceof \Pimcore\Model\DataObject\Data\Link) {
             return $value->getPath();
         }

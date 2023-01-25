@@ -96,7 +96,7 @@ class AssetFieldHelper extends AbstractFieldHelper
                 // defer it
                 $data[$realName] = function ($source, $args, $context, ResolveInfo $info) use ($container, $realName) {
                     if ($realName === 'fullpath') {
-                        return $container->getThumbnail($args['thumbnail'], false);
+                        return $container->getThumbnail($args['thumbnail']);
                     }
                     if ($realName === 'data') {
                         $thumb = $container->getThumbnail($args['thumbnail'], false);
@@ -111,6 +111,8 @@ class AssetFieldHelper extends AbstractFieldHelper
                 if ($realName == 'fullpath') {
                     $data[$realName] = $container->getThumbnail($thumbnailArgument);
                 } elseif ($realName == 'data') {
+                    //@TODO: check if we can defer the also the asset thumbnail
+                    // before we had: $thumb = $container->getThumbnail($thumbnailArgument, false);
                     $thumb = $this->getAssetThumbnail($container, $thumbnailArgument, $thumbnailFormat);
                     if ($thumb) {
                         $data[$realName] = stream_get_contents($thumb->getStream());

@@ -125,7 +125,7 @@ abstract class AbstractFieldHelper
         }
 
         $resolveInfoArray = (array)$resolveInfo;
-        $fieldAstList = (array) $resolveInfoArray['fieldNodes'];
+        $fieldAstList = $resolveInfoArray['fieldNodes'] ?? [];
 
         foreach ($fieldAstList as $astNode) {
             if ($astNode instanceof FieldNode) {
@@ -167,6 +167,12 @@ abstract class AbstractFieldHelper
                     $inlineNode = $inlineSelections[$i];
                     if ($inlineNode instanceof FieldNode) {
                         $this->doExtractData($inlineNode, $data, $container, $args, $context, $resolveInfo);
+                    }
+                    // CANDO-SPECIAL: do a recursive call for HotspotMarkerItems which could have a related object
+                    // I don't know why Datahub doesn't handle these nested InlineFragmentNodes
+                    if ($inlineNode instanceof InlineFragmentNode) {
+                        $inlineSelections = $inlineNode->selectionSet->selections;
+                        $this->processSelections($data, $inlineSelections, $container, $args, $context, $resolveInfo);
                     }
                 }
             } elseif ($selectionNode instanceof FragmentSpreadNode) {

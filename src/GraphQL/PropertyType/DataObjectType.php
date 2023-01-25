@@ -73,6 +73,9 @@ class DataObjectType extends ObjectType
                                 return $data;
                             }
                         }
+                        if (is_array($value)) {
+                            return Service::resolveCachedValue($value, $resolveInfo);
+                        }
 
                         return null;
                     }

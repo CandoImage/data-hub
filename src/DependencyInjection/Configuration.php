@@ -38,6 +38,7 @@ class Configuration implements ConfigurationInterface
                         ->scalarNode('not_allowed_policy')->info('throw exception = 1, return null = 2')->defaultValue(2)->end()
                         ->booleanNode('output_cache_enabled')->info('enables output cache for graphql responses. It is disabled by default')->defaultValue(false)->end()
                         ->integerNode('output_cache_lifetime')->info('output cache in seconds. Default is 30 seconds')->defaultValue(30)->end()
+                        ->booleanNode('run_subrequest_per_query')->info('If enabled a Symfony Sub-Requet is triggered for each query in a multi-query request.')->defaultValue(false)->end()
                     ->end()
                 ->end()
             ->end()

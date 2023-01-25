@@ -225,7 +225,7 @@ class WorkspaceHelper
      *
      * @throws NotAllowedException
      */
-    public static function checkPermission($element, $type)
+    public static function checkPermission($element, $type, string $elementType = '')
     {
         $context = RuntimeCache::get('datahub_context');
         /** @var Configuration $configuration */
@@ -242,11 +242,24 @@ class WorkspaceHelper
         if (!$event->isGranted() && PimcoreDataHubBundle::getNotAllowedPolicy() === PimcoreDataHubBundle::NOT_ALLOWED_POLICY_EXCEPTION) {
             throw new ClientSafeException('access for '.  $element->getFullPath() . ' denied');
         }
+        // we can allow nullable elements e.g. linked Assets where the asset itself was removed
+        if (!$element) {
+            return true;
+        }
 
-        $isAllowed = self::isAllowed($element, $configuration, $type);
+        $isAllowed = self::isAllowed($element, $configuration, $type, $elementType);
         if (!$isAllowed && PimcoreDataHubBundle::getNotAllowedPolicy() === PimcoreDataHubBundle::NOT_ALLOWED_POLICY_EXCEPTION) {
-            $elementType = Service::getElementType($element);
-            throw new ClientSafeException($type . ' access for ' . $elementType . ' ' . $element->getFullPath() . ' denied');
+            if (!$elementType) {
+                $elementType = Service::getElementType($element);
+            }
+            // Could be dealing with mock objects that can't be loaded due
+            // to stale index so be extra cautions when using.
+            try {
+                $fullPath = $element ? $element->getFullPath() : '';
+            } catch (\Throwable $e) {
+                $fullPath = $element->getId();
+            }
+            throw new ClientSafeException($type . ' access for ' . $elementType . ' ' . $fullPath . ' denied');
         }
 
         return $isAllowed;
@@ -261,22 +274,31 @@ class WorkspaceHelper
      *
      * @return bool
      */
-    public static function isAllowed($element, Configuration $configuration, string $type)
+    public static function isAllowed($element, Configuration $configuration, string $type, string $elementType = '')
     {
         if (!$element) {
             return false;
         }
-
-        $elementType = Service::getElementType($element);
+        if (!$elementType) {
+            $elementType = Service::getElementType($element);
+        }
         // collect properties via parent - ids
         $parentIds = [1];
 
-        $parent = $element->getParent();
-        if ($parent) {
-            while ($parent) {
-                $parentIds[] = $parent->getId();
-                $parent = $parent->getParent();
+        // Could be dealing with mock objects that can't be loaded due
+        // to stale index so be extra cautions when using.
+        try {
+            $parent = $element->getParent();
+            if ($parent) {
+                while ($parent) {
+                    $parentIds[] = $parent->getId();
+                    $parent = $parent->getParent();
+                }
             }
+        } catch (\Exception $e) {
+            Logger::warn('Unable to get permission ' . $type . ' for ' . $elementType . ' ' . $element->getId() . ': ' . $e->getMessage());
+
+            return false;
         }
         if ($element->getId()) {
             $parentIds[] = $element->getId();

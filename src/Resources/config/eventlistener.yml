@@ -9,6 +9,10 @@ services:
         tags:
             - { name: kernel.event_subscriber }
 
+    Pimcore\Bundle\DataHubBundle\EventListener\CacheListener:
+        tags:
+            - { name: kernel.event_listener, event: pimcore.datahub.graphql.cache.item, method: onCacheItemEvent }
+
     Pimcore\Bundle\DataHubBundle\EventListener\AdminListener:
         tags:
             - { name: kernel.event_listener, event: pimcore.admin.indexAction.settings, method: addIndexSettings }

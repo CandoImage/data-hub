@@ -15,14 +15,19 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
+use GraphQL\Language\AST\DocumentNode;
+use GraphQL\Language\Parser;
+use GraphQL\Language\Source;
+use GraphQL\Server\OperationParams;
+use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCacheGenerateCidEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreLoadEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
 use Pimcore\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class OutputCacheService
 {
@@ -36,15 +41,28 @@ class OutputCacheService
      *
      * @var int
      */
-    private $lifetime = 30;
+    private int $lifetime = 30;
+
+    /**
+     * Specific exclude queries
+     *
+     * @var array
+     */
+    private array $excludedQueries = [];
+
+    /**
+     * State collection for an operation.
+     */
+    private \SplObjectStorage $operationData;
 
     /**
      * @var EventDispatcherInterface
      */
-    public $eventDispatcher;
+    public EventDispatcherInterface $eventDispatcher;
 
     public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher)
     {
+        $this->operationData = new \SplObjectStorage();
         $this->eventDispatcher = $eventDispatcher;
 
         $config = $container->getParameter('pimcore_data_hub');
@@ -57,68 +75,261 @@ class OutputCacheService
             if (isset($config['graphql']['output_cache_lifetime'])) {
                 $this->lifetime = intval($config['graphql']['output_cache_lifetime']);
             }
+
+            if (isset($config['graphql']['output_cache_exclude_pattern'])) {
+                $this->exclude_pattern = $config['graphql']['output_cache_exclude_pattern'];
+            }
+        }
+        // Cando Special:
+        $this->excludedQueries[] = '__schema';
+        // B2BProductBundle
+        $this->excludedQueries[] = 'getAvailabilitiesAndPrices';
+        // CoreBundle
+        $this->excludedQueries[] = 'getAccountAddress';
+        $this->excludedQueries[] = 'getAccountData';
+        $this->excludedQueries[] = 'getAccountPasswordData';
+        $this->excludedQueries[] = 'getAccountAddressListing';
+        $this->excludedQueries[] = 'getAddressDetails';
+        $this->excludedQueries[] = 'performAddressMutation';
+        $this->excludedQueries[] = 'performAddressDelete';
+        $this->excludedQueries[] = 'performDefaultAddressMutation';
+        $this->excludedQueries[] = 'performSetAddressOnCartMutation';
+        $this->excludedQueries[] = 'performPasswordChange';
+        $this->excludedQueries[] = 'getFlashMessages';
+        $this->excludedQueries[] = 'setFlashMessages';
+        $this->excludedQueries[] = 'getCustomerNumberListing';
+        $this->excludedQueries[] = 'performCustomerNumberMutation';
+        $this->excludedQueries[] = 'getCostCenterListing';
+        $this->excludedQueries[] = 'performCostCenterMutation';
+        $this->excludedQueries[] = 'performImpersonateMutation';
+        // EcommerceBaseBundle
+        $this->excludedQueries[] = 'performAddToCartMutation';
+        $this->excludedQueries[] = 'getCalculatedCart';
+        $this->excludedQueries[] = 'getCartListing';
+        $this->excludedQueries[] = 'getCartDetails';
+        $this->excludedQueries[] = 'performCartUpdate';
+        $this->excludedQueries[] = 'performCartDelete';
+        $this->excludedQueries[] = 'performApplyCalculatedCart';
+        $this->excludedQueries[] = 'performOrderMutation';
+        $this->excludedQueries[] = 'getCheckoutSuccess';
+        $this->excludedQueries[] = 'getOrderListing';
+        $this->excludedQueries[] = 'getOrderDetail';
+        $this->excludedQueries[] = 'performSelectCartMutation';
+        $this->excludedQueries[] = 'performUpdateToCartMutation';
+        $this->excludedQueries[] = 'setCartPaymentMethod';
+        $this->excludedQueries[] = 'setCartDeliveryType';
+        $this->excludedQueries[] = 'performCartItemMutation';
+        $this->excludedQueries[] = 'performCancelOrderItem';
+        $this->excludedQueries[] = 'getInvoiceListing';
+        $this->excludedQueries[] = 'getCreditNoteListing';
+        $this->excludedQueries[] = 'getPendingDeliveryListing';
+        $this->excludedQueries[] = 'performCancelPendingDeliveryItem';
+        $this->excludedQueries[] = 'getWishlistListing';
+        $this->excludedQueries[] = 'getWishlist';
+        $this->excludedQueries[] = 'getWishlistDetails';
+        $this->excludedQueries[] = 'performUpdateToWishlistMutation';
+        $this->excludedQueries[] = 'performWishlistUpdate';
+        $this->excludedQueries[] = 'performWishlistDelete';
+        $this->excludedQueries[] = 'performAddToWishlistMutation';
+        $this->excludedQueries[] = 'performSelectWishlistMutation';
+        $this->excludedQueries[] = 'getReturnsListListing';
+        $this->excludedQueries[] = 'getReturnsRegistrationListing';
+        $this->excludedQueries[] = 'getReturnsListing';
+        $this->excludedQueries[] = 'getReturnSuccess';
+        $this->excludedQueries[] = 'getReturnDetail';
+        $this->excludedQueries[] = 'performAddToReturnsListMutation';
+        $this->excludedQueries[] = 'performUpdateReturnsListMutation';
+        $this->excludedQueries[] = 'performRegisterReturnsList';
+        // Project specific queries
+        $this->excludedQueries[] = 'performDealerToggleState';
+    }
+
+    /**
+     * Returns the operations cache id for internal purposes.
+     *
+     * This is used to track operations context data for caching but is only
+     * part of the possible output cache id.
+     *
+     * @param \GraphQL\Server\OperationParams $operation
+     *
+     * @return string
+     */
+    public function getOperationCid(OperationParams $operation): string
+    {
+        if (isset($this->operationData[$operation]['operationCid'])) {
+            return $this->operationData[$operation]['operationCid'];
+        }
+
+        $originalInputHash = \Closure::bind(function () {
+            $originalInput = $this->originalInput;
+
+            // Ensure only relevant parts are ingested. And exclude input that
+            // should not have any impact on the result:
+            // - operationname
+            $originalInput = array_intersect_key($originalInput, [
+                'query' => null,
+                'queryid' => null,
+                'documentid' => null, // alias to queryid
+                'id' => null, // alias to queryid
+                // 'operationname' => null,
+                'variables' => null,
+                'extensions' => null,
+            ]);
+            // Sort params to ensure consistent hashing. For the execution only
+            // contents matter, order doesn't.
+            asort($originalInput);
+            if (is_array($originalInput['variables'])) {
+                asort($originalInput['variables']);
+            }
+            if (is_array($originalInput['extensions'])) {
+                asort($originalInput['extensions']);
+            }
+
+            return md5(serialize($originalInput));
+        }, $operation, $operation);
+
+        $this->operationData[$operation] = array_merge(
+            $this->operationData[$operation] ?? [],
+            ['operationCid' => $originalInputHash()]
+        );
+
+        return $this->operationData[$operation]['operationCid'];
+    }
+
+    /**
+     * Fetches the caching ID for the output cache.
+     *
+     * Fires an event to allow for modified caching IDs.
+     * This allows scenarios like caches for logged-in users or target groups.
+     *
+     * BEWARE: Keep listeners as slim as possible to avoid unnecessary overhead.
+     *
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
+     *
+     * @return string
+     */
+    public function getOperationOutputCid(OperationParams $operation, DocumentNode $parsedQuery): string
+    {
+        $cid = $this->getOperationCid($operation);
+        $cid .= '-' . ($this->operationData[$operation]['filterValues'] ?? '') .
+            '-' . ($this->operationData[$operation]['sortValues'] ?? '');
+
+        $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
+        $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
+
+        return $event->getCid();
+    }
+
+    public function registerOperation(OperationParams $operation, DocumentNode $parsedQuery)
+    {
+        $this->operationData->attach($operation, [
+            'parsedQuery' => $parsedQuery,
+            'filterValues' => '',
+            'sortValues' => '',
+            'useCache' => true,
+        ]);
+
+        // Check the filter values separate
+        if (isset($operation->variables['filters'])) {
+            $this->operationData[$operation]['filterValues'] = $this->getImplodedFilterValues($operation->variables);
+        }
+        // Check the sort values separate
+        if (isset($operation->variables['sortBy'])) {
+            if (isset($operation->variables['sortOrder'])) {
+                $this->operationData[$operation]['sortValues'] = implode('-', $operation->variables['sortBy']) .
+                    '-' . implode('-', $operation->variables['sortOrder']);
+            } else {
+                $this->operationData[$operation]['sortValues'] = implode('-', $operation->variables['sortBy']);
+            }
         }
     }
 
     /**
-     * @param Request $request
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
      *
-     * @return mixed
+     * @return Response|null
      */
-    public function load(Request $request)
+    public function load(Request $request, OperationParams $operation, DocumentNode $parsedQuery)
     {
-        if (!$this->useCache($request)) {
+        $this->registerOperation($operation, $parsedQuery);
+        if (!$this->useCache($request, $operation, $parsedQuery)) {
+            return null;
+        }
+        // Check if this is an excluded query.
+        if ($this->isExcludedQuery($this->operationData[$operation]['parsedQuery'])) {
             return null;
         }
 
-        $cacheKey = $this->computeKey($request);
-
-        return $this->loadFromCache($cacheKey);
+        return $this->loadFromCache($operation, $parsedQuery);
     }
 
     /**
-     * @param Request $request
-     * @param JsonResponse $response
+     * Saves an operations response to the cache.
+     *
+     * Saving only works if the $operation has been "registered" by either
+     * calling OutputCacheService::load() or
+     * OutputCacheService::registerOperation() first.
+     *
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param \Symfony\Component\HttpFoundation\Response $response
+     * @param \GraphQL\Server\OperationParams $operation
      * @param array $extraTags
      *
      * @return void
      */
-    public function save(Request $request, JsonResponse $response, $extraTags = []): void
+    public function save(Request $request, Response $response, OperationParams $operation, array $extraTags = []): void
     {
-        if ($this->useCache($request)) {
-            $cacheKey = $this->computeKey($request);
+        if (!empty($this->operationData[$operation]['useCache'])) {
+            $operationData = $this->operationData[$operation];
+            // check if we have an excluded query here
+            $query = $operationData['parsedQuery'] ?? $operation->query;
+            if ($query && $this->isExcludedQuery($query)) {
+                return;
+            }
+
             $clientname = $request->get('clientname');
             $extraTags = array_merge(['output', 'datahub', $clientname], $extraTags);
 
-            $event = new OutputCachePreSaveEvent($request, $response);
+            $event = new OutputCachePreSaveEvent($request, $response, $extraTags);
             $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_SAVE);
-
-            $this->saveToCache($cacheKey, $event->getResponse(), $extraTags);
+            if (!$event->isSkipSave()) {
+                $this->saveToCache($operation, $operationData['parsedQuery'], $event->getResponse(), $event->getTags());
+            }
         }
     }
 
-    /**
-     * @param string $key
-     *
-     * @return mixed
-     */
-    protected function loadFromCache($key)
+    protected function loadFromCache(OperationParams $operation, DocumentNode $parsedQuery)
     {
-        return \Pimcore\Cache::load($key);
+        $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
+
+        return \Pimcore\Cache::load($cacheKey);
     }
 
     /**
-     * @param string $key
-     * @param mixed $item
+     * @param \GraphQL\Server\OperationParams $operation
+     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
+     * @param \Symfony\Component\HttpFoundation\Response $response
      * @param array $tags
      *
      * @return void
      */
-    protected function saveToCache($key, $item, $tags = []): void
+    protected function saveToCache(OperationParams $operation, DocumentNode $parsedQuery, Response $response, $tags = []): void
     {
-        \Pimcore\Cache::save($item, $key, $tags, $this->lifetime);
+        $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
+        \Pimcore\Cache::save($response, $cacheKey, $tags, $this->lifetime);
     }
 
+    /**
+     * @deprecated Use $this->>getOperationOutputCid(). This was request based
+     * which is not really compatible with multi-query support.
+     *
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return string
+     */
     private function computeKey(Request $request): string
     {
         $clientname = $request->get('clientname');
@@ -129,7 +340,7 @@ class OutputCacheService
         return md5('output_' . $clientname . $input);
     }
 
-    private function useCache(Request $request): bool
+    private function useCache(Request $request, OperationParams $operation, DocumentNode $parsedQuery): bool
     {
         if (!$this->cacheEnabled) {
             Logger::debug('Output cache is disabled');
@@ -149,9 +360,96 @@ class OutputCacheService
         }
 
         // So far, cache will be used, unless the listener denies it
-        $event = new OutputCachePreLoadEvent($request, true);
+        $event = new OutputCachePreLoadEvent($request, true, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_LOAD);
 
-        return $event->isUseCache();
+        if (!isset($this->operationData[$operation])) {
+            $this->operationData->attach($operation, []);
+        }
+        $this->operationData[$operation]['useCache'] = $event->isUseCache();
+
+        return $this->operationData[$operation]['useCache'];
+    }
+
+    /**
+     * @param \GraphQL\Server\OperationParams $operation
+     *
+     * @return bool
+     */
+    public function isOperationCacheable(OperationParams $operation): bool
+    {
+        return !empty($this->operationData[$operation]['useCache']);
+    }
+
+    /**
+     * Returns the meta data collected for an operation.
+     *
+     * @param \GraphQL\Server\OperationParams $operation
+     *
+     * @return array
+     */
+    public function getOperationMetaData(OperationParams $operation): array
+    {
+        return $this->operationData[$operation];
+    }
+
+    /**
+     * Checks if a GraphQL Query contains a non-cacheable Query.
+     *
+     * @param string|DocumentNode $query
+     *
+     * @return bool
+     *
+     * @CandoSpecific
+     */
+    public function isExcludedQuery($query): bool
+    {
+        if (!($query instanceof DocumentNode)) {
+            $query = Parser::parse(new Source($query ?? '', 'GraphQL'), ['noLocation' => true]);
+        }
+        foreach ($query->definitions as $definition) {
+            foreach ($definition->selectionSet->selections as $selection) {
+                foreach ($this->excludedQueries as $excludedQuery) {
+                    if ($selection->name->value === $excludedQuery) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function getImplodedFilterValues(array $variables): string
+    {
+        $filterValues = [];
+        $filters = $variables['filters'] ?? [];
+        foreach ($filters as $filter) {
+            if (array_key_exists('values', $filter)) {
+                if (is_array($filter['values'])) {
+                    if (count($filter['values']) > 1) {
+                        $valueList = [];
+                        foreach ($filter['values'] as $filterValue) {
+                            if (is_array($filterValue)) {
+                                $valueList[] = key($filterValue) . '-' . $filterValue[key($filterValue)];
+                            } else {
+                                $valueList[] = ($filter['field'] ?? 'unknown-field') . '-' . implode('-', $filter['values']);
+                                break;
+                            }
+                        }
+                        $filterValues[] = implode($valueList);
+                    } else {
+                        $filterValues[] = ($filter['field'] ?? 'unknown-field') . '-' . implode('-', $filter['values']);
+                    }
+                } else {
+                    $filterValues[] = ($filter['field'] ?? 'unknown-field') . '-' . $filter['values'];
+                }
+            } else {
+                ksort($filter);
+                $filterValues[] = implode('-', $filter);
+            }
+        }
+
+        return implode(',', $filterValues);
     }
 }

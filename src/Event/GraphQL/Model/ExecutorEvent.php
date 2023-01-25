@@ -15,6 +15,10 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
+use GraphQL\Language\AST\DocumentNode;
+use GraphQL\Language\Parser;
+use GraphQL\Language\Source;
+use GraphQL\Server\OperationParams;
 use GraphQL\Type\Schema;
 use Pimcore\Event\Traits\RequestAwareTrait;
 use Pimcore\Event\Traits\ResponseAwareTrait;
@@ -32,9 +36,19 @@ class ExecutorEvent extends Event
     protected $request;
 
     /**
+     * @var OperationParams
+     */
+    protected $operation;
+
+    /**
      * @var string
      */
-    protected $query;
+    protected $queryHash;
+
+    /**
+     * @var \GraphQL\Language\AST\DocumentNode|null
+     */
+    protected ?DocumentNode $parsedQuery;
 
     /**
      * @var Schema
@@ -61,6 +75,14 @@ class ExecutorEvent extends Event
     public function setRequest($request, $asString = true)
     {
         $this->request = $asString ? (string)$request : $request;
+    }
+
+    /**
+     * @return \GraphQL\Server\OperationParams
+     */
+    public function getOperation(): OperationParams
+    {
+        return $this->operation;
     }
 
     /**
@@ -94,7 +116,7 @@ class ExecutorEvent extends Event
      */
     public function getQuery()
     {
-        return $this->query;
+        return $this->operation->query;
     }
 
     /**
@@ -102,20 +124,54 @@ class ExecutorEvent extends Event
      */
     public function setQuery($query)
     {
-        $this->query = $query;
+        if ($this->queryHash != ($queryHash = md5($query))) {
+            $this->operation->query = $query;
+            $this->queryHash = $queryHash;
+            $this->parsedQuery = null;
+        }
+    }
+
+    /**
+     * @return \GraphQL\Language\AST\DocumentNode
+     *
+     * @throws \GraphQL\Error\SyntaxError
+     */
+    public function getParsedQuery(): DocumentNode
+    {
+        if (!$this->parsedQuery) {
+            $this->parsedQuery = Parser::parse(new Source($this->getQuery() ?? '', 'GraphQL'));
+        }
+
+        return $this->parsedQuery;
+    }
+
+    /**
+     * @param \GraphQL\Language\AST\DocumentNode|null $parsedQuery
+     */
+    public function setParsedQuery(?DocumentNode $parsedQuery): void
+    {
+        $this->parsedQuery = $parsedQuery;
     }
 
     /**
      * @param Request $request
-     * @param string $query
+     * @param \GraphQL\Server\OperationParams $operation
      * @param Schema $schema
      * @param array $context
+     * @param \GraphQL\Language\AST\DocumentNode|null $parsedQuery
      */
-    public function __construct(Request $request, $query, Schema $schema, $context)
-    {
+    public function __construct(
+        Request $request,
+        OperationParams $operation,
+        Schema $schema,
+        $context,
+        DocumentNode $parsedQuery = null
+    ) {
         $this->request = $request;
-        $this->query = $query;
+        $this->operation = $operation;
         $this->schema = $schema;
         $this->context = $context;
+        $this->queryHash = md5($this->operation->query);
+        $this->parsedQuery = $parsedQuery;
     }
 }

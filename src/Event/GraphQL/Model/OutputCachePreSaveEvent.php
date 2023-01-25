@@ -36,6 +36,13 @@ class OutputCachePreSaveEvent extends Event
      */
     protected $response;
 
+    protected array $tags = [];
+
+    /**
+     * @var false
+     */
+    private bool $skipSave;
+
     /**
      * @return Request
      */
@@ -57,9 +64,57 @@ class OutputCachePreSaveEvent extends Event
         $this->response = $response;
     }
 
-    public function __construct(Request $request, Response $response)
+    /**
+     * @return array
+     */
+    public function getTags(): array
+    {
+        return array_unique($this->tags);
+    }
+
+    /**
+     * @param array $tags
+     */
+    public function setTags(array $tags): void
+    {
+        $this->tags = $tags;
+    }
+
+    /**
+     * @param array $tags
+     */
+    public function addTags(array $tags): void
+    {
+        $this->tags = array_unique(array_merge($this->tags, $tags));
+    }
+
+    /**
+     * @return bool
+     */
+    public function isSkipSave(): bool
+    {
+        return $this->skipSave;
+    }
+
+    /**
+     * @param bool $skipSave
+     */
+    public function setSkipSave(bool $skipSave): void
+    {
+        $this->skipSave = $skipSave;
+    }
+
+    /**
+     * @param Request $request
+     * @param Response $response
+     * @param array $tags
+     * @param bool $skipSave
+     */
+    public function __construct(Request $request, Response $response, array $tags, bool $skipSave = false)
     {
         $this->request = $request;
         $this->response = $response;
+        $this->tags = $tags;
+        $this->skipSave = $skipSave;
     }
 }

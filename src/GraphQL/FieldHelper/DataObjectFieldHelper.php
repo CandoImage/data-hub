@@ -19,6 +19,7 @@ use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\File;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -384,7 +385,6 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                 $isLocalizedField = true;
             }
         }
-
         if (method_exists($container, $getter)) {
             if ($isLocalizedField) {
                 // defer it
@@ -396,6 +396,17 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                 };
             } else {
                 $data[$astName] = $container->$getter();
+            }
+        } else {
+            // we could also have a Mockup objects from Elastic which not supports the "method_exists"
+            // in this case we just try to get the data directly
+            if ($container instanceof DefaultMockup) {
+                try {
+                    // we don't have to take care about localization because this is already handled in elastic
+                    $data[$astName] = $container->$getter();
+                } catch (\Exception $e) {
+                    Logger::info('Could not get data from Datahub/DataObjectFieldHelper with message: ' . $e->getMessage());
+                }
             }
         }
     }
