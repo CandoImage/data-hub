@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset;
@@ -44,6 +45,9 @@ class HotspotType
      */
     public function resolveImage($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        if (is_array($value)) {
+            return Service::resolveCachedValue($value, $resolveInfo);
+        }
         if ($value instanceof ElementDescriptor) {
             $image = Asset::getById($value['id']);
             if (!WorkspaceHelper::checkPermission($image, 'read')) {

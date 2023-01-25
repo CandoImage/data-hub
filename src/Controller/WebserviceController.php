@@ -21,29 +21,30 @@ use GraphQL\GraphQL;
 use GraphQL\Server\RequestError;
 use GraphQL\Validator\DocumentValidator;
 use GraphQL\Validator\Rules\DisableIntrospection;
+use GraphQL\Server\Helper;
+use GraphQL\Server\OperationParams;
+use GraphQL\Validator\DocumentValidator;
+use GraphQL\Validator\Rules\DisableIntrospection;
 use Pimcore\Bundle\DataHubBundle\Configuration;
-use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ExecutorEvents;
-use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorEvent;
-use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ExecutorResultEvent;
-use Pimcore\Bundle\DataHubBundle\GraphQL\ClassTypeDefinitions;
-use Pimcore\Bundle\DataHubBundle\GraphQL\Mutation\MutationType;
-use Pimcore\Bundle\DataHubBundle\GraphQL\Query\QueryType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService;
 use Pimcore\Bundle\DataHubBundle\Service\FileUploadService;
+use Pimcore\Bundle\DataHubBundle\Service\GraphQLExecutionService;
 use Pimcore\Bundle\DataHubBundle\Service\OutputCacheService;
 use Pimcore\Cache\RuntimeCache;
+use Pimcore\Config;
 use Pimcore\Controller\FrontendController;
 use Pimcore\Helper\LongRunningHelper;
 use Pimcore\Localization\LocaleServiceInterface;
-use Pimcore\Logger;
 use Pimcore\Model\Factory;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 class WebserviceController extends FrontendController
 {
@@ -67,16 +68,58 @@ class WebserviceController extends FrontendController
      */
     private $uploadService;
 
+    /**
+     * @var Helper
+     */
+    protected Helper $graphQlRequestHelper;
+
+    /**
+     * @var \Symfony\Component\HttpKernel\HttpKernelInterface
+     */
+    protected HttpKernelInterface $httpKernel;
+
+    /**
+     * @param EventDispatcherInterface $eventDispatcher
+     * @param \Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService $permissionsService
+     * @param \Pimcore\Bundle\DataHubBundle\Service\OutputCacheService $cacheService
+     * @param \Pimcore\Bundle\DataHubBundle\Service\FileUploadService $uploadService
+     * @param \Symfony\Component\HttpKernel\HttpKernelInterface $httpKernel
+     */
     public function __construct(
         EventDispatcherInterface $eventDispatcher,
         CheckConsumerPermissionsService $permissionsService,
         OutputCacheService $cacheService,
-        FileUploadService $uploadService
+        FileUploadService $uploadService,
+        HttpKernelInterface $httpKernel
     ) {
         $this->eventDispatcher = $eventDispatcher;
         $this->permissionsService = $permissionsService;
         $this->cacheService = $cacheService;
         $this->uploadService = $uploadService;
+        $this->httpKernel = $httpKernel;
+        $this->graphQlRequestHelper = new Helper();
+    }
+
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return array{operations: bool, resolveEdge: bool, resolveObjectGetter: bool}
+     */
+    protected function getCachingContextConfiguration(Request $request): array
+    {
+        $config = [
+            'operations' => true,
+            'resolveEdge' => true,
+            'resolveObjectGetter' => true,
+        ];
+        $env = Config::getEnvironment();
+        if (!in_array(strtolower($env), ['prod', 'production'])) {
+            $config['operations'] = !$request->query->has('datahub-cache-disable-operations');
+            $config['resolveEdge'] = !$request->query->has('datahub-cache-disable-resolveEdge');
+            $config['resolveObjectGetter'] = !$request->query->has('datahub-cache-disable-resolveObjectGetter');
+        }
+
+        return $config;
     }
 
     /**
@@ -86,7 +129,7 @@ class WebserviceController extends FrontendController
      * @param Request $request
      * @param LongRunningHelper $longRunningHelper
      *
-     * @return JsonResponse
+     * @return JsonResponse|Response
      *
      * @throws RequestError|\Exception
      */
@@ -97,149 +140,118 @@ class WebserviceController extends FrontendController
         Request $request,
         LongRunningHelper $longRunningHelper
     ) {
+        // Check if this is a mere request processing loop. If so simply return
+        // the prepared response.
+        if ($graphQLResponse = $request->attributes->get('_graphQLResponse')) {
+            return $graphQLResponse;
+        }
+
         $clientname = $request->get('clientname');
 
-        $configuration = Configuration::getByName($clientname);
-        if (!$configuration || !$configuration->isActive()) {
+        $clientConfiguration = Configuration::getByName($clientname);
+        if (!$clientConfiguration || !$clientConfiguration->isActive()) {
             throw new NotFoundHttpException('No active configuration found for ' . $clientname);
         }
 
-        if (!$this->permissionsService->performSecurityCheck($request, $configuration)) {
+        if (!$this->permissionsService->performSecurityCheck($request, $clientConfiguration)) {
             throw new AccessDeniedHttpException('Permission denied, apikey not valid');
         }
 
-        if ($response = $this->cacheService->load($request)) {
-            Logger::debug('Loading response from cache');
-
-            return $response;
-        }
-
-        Logger::debug('Cache entry not found');
-
-        // context info, will be passed on to all resolver function
-        $context = ['clientname' => $clientname, 'configuration' => $configuration];
-
-        $config = $this->getParameter('pimcore_data_hub');
-
-        if (isset($config['graphql']) && isset($config['graphql']['not_allowed_policy'])) {
-            PimcoreDataHubBundle::setNotAllowedPolicy($config['graphql']['not_allowed_policy']);
-        }
-
-        $longRunningHelper->addPimcoreRuntimeCacheProtectedItems(['datahub_context']);
-        RuntimeCache::set('datahub_context', $context);
-
-        ClassTypeDefinitions::build($service, $context);
-
-        $queryType = new QueryType($service, $localeService, $modelFactory, $this->eventDispatcher, [], $context);
-        $mutationType = new MutationType($service, $localeService, $modelFactory, $this->eventDispatcher, [], $context);
-
-        try {
-            $schemaConfig = [
-                'query' => $queryType
-            ];
-            if (!$mutationType->isEmpty()) {
-                $schemaConfig['mutation'] = $mutationType;
-            }
-            $schema = new \GraphQL\Type\Schema(
-                $schemaConfig
-            );
-        } catch (\Exception $e) {
-            Warning::enable(false);
-            $schema = new \GraphQL\Type\Schema(
-                [
-                    'query' => $queryType,
-                    'mutation' => $mutationType
-                ]
-            );
-            $schema->assertValid();
-            Logger::error($e);
-            throw $e;
-        }
+        /** @var GraphQLExecutionService $graphQLExecutionService */
+        $graphQLExecutionService = $this->get(GraphQLExecutionService::class);
 
         $contentType = $request->headers->get('content-type') ?? '';
-
         if (mb_stripos($contentType, 'multipart/form-data') !== false) {
             $input = $this->uploadService->parseUploadedFiles($request);
+            $operations = OperationParams::create($input);
         } else {
-            $input = json_decode($request->getContent(), true);
+            $operations = $graphQLExecutionService->getWebonxyOperations($request);
         }
 
-        $query = $input['query'] ?? null;
-        $variableValues = $input['variables'] ?? null;
+        $isBatchedQuery = is_array($operations);
+        if (!$isBatchedQuery) {
+            $operations = [$operations];
+        }
 
-        try {
-            $rootValue = [];
+        // context info, will be passed on to all resolver function
+        $cachingConfig = $this->getCachingContextConfiguration($request);
+        $context = [
+            'clientname' => $clientname,
+            'configuration' => $clientConfiguration,
+            'caching' => $cachingConfig,
+        ];
+        $datahubConfig = $this->getParameter('pimcore_data_hub');
 
-            $validators = null;
-            if ($request->get('novalidate')) {
-                // disable all validators except the listed ones
-                $validators = [
+        if (isset($datahubConfig['graphql']) && isset($datahubConfig['graphql']['not_allowed_policy'])) {
+            PimcoreDataHubBundle::setNotAllowedPolicy($datahubConfig['graphql']['not_allowed_policy']);
+        }
+
+        $validators = null;
+        if ($request->get('novalidate')) {
+            // disable all validators except the listed ones
+            $validators = [
 //                    new NoUndefinedVariables()
-                ];
-            }
-
-            $event = new ExecutorEvent(
-                $request,
-                $query,
-                $schema,
-                $context
-            );
-
-            $this->eventDispatcher->dispatch($event, ExecutorEvents::PRE_EXECUTE);
-
-            if ($event->getRequest() instanceof Request) {
-                $variableValues = $event->getRequest()->get('variables', $variableValues);
-            }
-
-            $disableIntrospection = $configuration->getSecurityConfig()['disableIntrospection'] ?? false;
-            if ($disableIntrospection === true) {
-                DocumentValidator::addRule(new DisableIntrospection());
-            }
-
-            $result = GraphQL::executeQuery(
-                $event->getSchema(),
-                $event->getQuery(),
-                $rootValue,
-                $event->getContext(),
-                $variableValues,
-                null,
-                null,
-                $validators
-            );
-
-            $exResult = new ExecutorResultEvent($request, $result);
-            $this->eventDispatcher->dispatch($exResult, ExecutorEvents::POST_EXECUTE);
-            $result = $exResult->getResult();
-
-            if (\Pimcore::inDebugMode()) {
-                $debug = DebugFlag::INCLUDE_DEBUG_MESSAGE | DebugFlag::INCLUDE_TRACE;
-                $output = $result->toArray($debug);
-            } else {
-                $output = $result->toArray();
-            }
-        } catch (\Exception $e) {
-            $output = [
-                'errors' => [
-                    [
-                        'message' => $e->getMessage(),
-                    ],
-                ],
             ];
+        }
+        $disableIntrospection = $clientConfiguration->getSecurityConfig()['disableIntrospection'] ?? false;
+        if ($disableIntrospection === true) {
+            DocumentValidator::addRule(new DisableIntrospection());
+        }
+
+        $schema = $graphQLExecutionService->getGraphQlSchema($context);
+        // Setup GraphQl config which is used later in all the helpers.
+        $graphQlConfig = $graphQLExecutionService->getGraphQlServerConfig(
+            $schema,
+            $context,
+            $validators
+        );
+
+        $responses = $graphQLExecutionService->executeOperations(
+            $request,
+            $operations,
+            $graphQlConfig,
+            !$cachingConfig['operations']
+        );
+
+        if (!$isBatchedQuery) {
+            $response = reset($responses);
+        } else {
+            $response = $graphQLExecutionService->mergeWebonyxResponses($responses);
         }
 
         $origin = '*';
         if (!empty($_SERVER['HTTP_ORIGIN'])) {
             $origin = $_SERVER['HTTP_ORIGIN'];
         }
-
-        $response = new JsonResponse($output);
         $response->headers->set('Access-Control-Allow-Origin', $origin);
         $response->headers->set('Access-Control-Allow-Credentials', 'true');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Origin, Content-Type, X-Auth-Token');
-
-        $this->cacheService->save($request, $response);
+        if (!$cachingConfig['operations']) {
+            $response->headers->set('X-DATAHUB-CACHE-OPERATIONS-DISABLED', 'true');
+        }
+        if (!$cachingConfig['resolveEdge']) {
+            $response->headers->set('X-DATAHUB-CACHE-RESOLVE-EDGE-DISABLED', 'true');
+        }
+        if (!$cachingConfig['resolveObjectGetter']) {
+            $response->headers->set('X-DATAHUB-CACHE-RESOLVE-OBJECTGETTER-DISABLED', 'true');
+        }
 
         return $response;
+    }
+
+    /**
+     * Dummy function to allow to handle each operation of a multi query request
+     * like a single request.
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse|Response
+     *
+     * @throws \Exception
+     */
+    public function webonyxOperationResponseAction(Request $request)
+    {
+        return $request->attributes->get('_graphQLResponse');
     }
 }

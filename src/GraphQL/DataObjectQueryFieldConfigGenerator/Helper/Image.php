@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectQueryFieldConfigGenerat
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset;
@@ -70,19 +71,20 @@ class Image
      */
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+        if ($value instanceof BaseDescriptor) {
+            $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
 
-        if ($relation instanceof Asset) {
-            if (!WorkspaceHelper::checkPermission($relation, 'read')) {
-                return null;
+            if ($relation instanceof Asset) {
+                if (!WorkspaceHelper::checkPermission($relation, 'read')) {
+                    return null;
+                }
+
+                $data = new ElementDescriptor($relation);
+                $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
+
+                return $data;
             }
-
-            $data = new ElementDescriptor($relation);
-            $this->getGraphQlService()->extractData($data, $relation, $args, $context, $resolveInfo);
-
-            return $data;
         }
-
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 }

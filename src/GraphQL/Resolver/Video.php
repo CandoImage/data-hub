@@ -17,6 +17,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset\Image;
@@ -39,7 +40,7 @@ class Video
             return $value->getType();
         }
 
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -58,7 +59,7 @@ class Video
             return $value->getTitle();
         }
 
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -75,7 +76,7 @@ class Video
             return $value->getDescription();
         }
 
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -106,7 +107,7 @@ class Video
             }
         }
 
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -142,6 +143,6 @@ class Video
             }
         }
 
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 }

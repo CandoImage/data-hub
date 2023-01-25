@@ -281,6 +281,10 @@ class PimcoreObjectType extends ObjectType
                 'name' => $fieldname,
                 'type' => Type::listOf($union),
                 'resolve' => function ($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null) use ($fieldname) {
+                    if (is_array($value)) {
+                        return Service::resolveCachedValue($value, $resolveInfo);
+                    }
+
                     if ($value[$fieldname] instanceof Fieldcollection) {
                         $lofItems = [];
                         $fcData = $value[$fieldname];
@@ -307,7 +311,7 @@ class PimcoreObjectType extends ObjectType
                         return $lofItems;
                     }
 
-                    return null;
+                    return $value[$fieldname] ?? null;
                 }
 
             ];

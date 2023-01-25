@@ -16,11 +16,14 @@
 namespace Pimcore\Bundle\DataHubBundle\EventListener;
 
 use Pimcore\Bundle\DataHubBundle\Configuration;
+use Pimcore\Bundle\DataHubBundle\GraphQL\ClassTypeDefinitions;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Event\AssetEvents;
+use Pimcore\Event\DataObjectClassDefinitionEvents;
 use Pimcore\Event\DataObjectEvents;
 use Pimcore\Event\DocumentEvents;
 use Pimcore\Event\Model\AssetEvent;
+use Pimcore\Event\Model\DataObject\ClassDefinitionEvent;
 use Pimcore\Event\Model\DataObjectEvent;
 use Pimcore\Event\Model\DocumentEvent;
 use Pimcore\Model\Element\ValidationException;
@@ -40,6 +43,9 @@ class DataChangeListener implements EventSubscriberInterface
             DocumentEvents::POST_DELETE => 'onDocumentDelete',
             AssetEvents::POST_UPDATE => 'onAssetUpdate',
             AssetEvents::POST_DELETE => 'onAssetDelete',
+            DataObjectClassDefinitionEvents::POST_ADD => 'onClassDefinitionAdded',
+            DataObjectClassDefinitionEvents::POST_UPDATE => 'onClassDefinitionUpdated',
+            DataObjectClassDefinitionEvents::POST_DELETE => 'onClassDefinitionDeleted',
         ];
     }
 
@@ -163,5 +169,20 @@ class DataChangeListener implements EventSubscriberInterface
                 throw new ValidationException(sprintf('Could not save configuration: %s', $e->getMessage()), 0, $e);
             }
         }
+    }
+
+    public function onClassDefinitionAdded(ClassDefinitionEvent $event)
+    {
+        ClassTypeDefinitions::getClasses(true);
+    }
+
+    public function onClassDefinitionUpdated(ClassDefinitionEvent $event)
+    {
+        ClassTypeDefinitions::getClasses(true);
+    }
+
+    public function onClassDefinitionDeleted(ClassDefinitionEvent $event)
+    {
+        ClassTypeDefinitions::getClasses(true);
     }
 }

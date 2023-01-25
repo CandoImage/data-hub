@@ -15,6 +15,8 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
+use GraphQL\Language\AST\DocumentNode;
+use GraphQL\Server\OperationParams;
 use Pimcore\Event\Traits\RequestAwareTrait;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\EventDispatcher\Event;
@@ -24,9 +26,24 @@ class OutputCachePreLoadEvent extends Event
     use RequestAwareTrait;
 
     /**
+     * @var Request
+     */
+    protected $request;
+
+    /**
      * @var bool
      */
     protected $useCache;
+
+    /**
+     * @var OperationParams
+     */
+    protected OperationParams $operation;
+
+    /**
+     * @var DocumentNode
+     */
+    protected DocumentNode $parsedQuery;
 
     /**
      * @return Request
@@ -34,6 +51,14 @@ class OutputCachePreLoadEvent extends Event
     public function getRequest()
     {
         return $this->request;
+    }
+
+    /**
+     * @return OperationParams
+     */
+    public function getOperation(): OperationParams
+    {
+        return $this->operation;
     }
 
     /**
@@ -49,9 +74,19 @@ class OutputCachePreLoadEvent extends Event
         $this->useCache = $useCache;
     }
 
-    public function __construct(Request $request, bool $useCache)
+    /**
+     * @return DocumentNode
+     */
+    public function getParsedQuery(): DocumentNode
+    {
+        return $this->parsedQuery;
+    }
+
+    public function __construct(Request $request, bool $useCache, OperationParams $operation, DocumentNode $parsedQuery)
     {
         $this->request = $request;
         $this->useCache = $useCache;
+        $this->operation = $operation;
+        $this->parsedQuery = $parsedQuery;
     }
 }

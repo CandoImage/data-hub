@@ -16,6 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
 use GraphQL\Executor\ExecutionResult;
+use GraphQL\Server\OperationParams;
 use Pimcore\Event\Traits\RequestAwareTrait;
 use Pimcore\Event\Traits\ResponseAwareTrait;
 use Symfony\Component\HttpFoundation\Request;
@@ -32,6 +33,11 @@ class ExecutorResultEvent extends Event
     protected $result;
 
     /**
+     * @var OperationParams
+     */
+    protected $operation;
+
+    /**
      * @return ExecutionResult
      */
     public function getResult()
@@ -44,9 +50,23 @@ class ExecutorResultEvent extends Event
         $this->result = $result;
     }
 
-    public function __construct(Request $request, ExecutionResult $result)
+    /**
+     * @return OperationParams
+     */
+    public function getOperation(): OperationParams
+    {
+        return $this->operation;
+    }
+
+    public function setOperation(OperationParams $operation): void
+    {
+        $this->operation = $operation;
+    }
+
+    public function __construct(Request $request, ExecutionResult $result, OperationParams $operation)
     {
         $this->request = $request;
         $this->result = $result;
+        $this->operation = $operation;
     }
 }

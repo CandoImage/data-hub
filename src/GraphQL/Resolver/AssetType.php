@@ -17,7 +17,9 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementTagTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
@@ -112,16 +114,19 @@ class AssetType
      */
     public function resolvePath($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $asset = $this->getAssetFromValue($value, $context);
-        $thumbNailConfig = $args['thumbnail'] ?? null;
-        $thumbNailFormat = $args['format'] ?? null;
-        $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
+        if ($value instanceof BaseDescriptor) {
+            $asset = $this->getAssetFromValue($value, $context);
+            $thumbNailConfig = $args['thumbnail'] ?? null;
+            $thumbNailFormat = $args['format'] ?? null;
+            $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
 
-        if (!isset($thumbNailConfig)) {
-            return $asset->getFullPath();
+
+            if (!isset($thumbNailConfig)) {
+                return $asset->getFullPath();
+            }
+            return $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
         }
-
-        return $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -161,28 +166,37 @@ class AssetType
      */
     public function resolveSrcSet($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $asset = $this->getAssetFromValue($value, $context);
-        $thumbNailConfig = $args['thumbnail'] ?? null;
-        $thumbNailFormat = $args['format'] ?? null;
-        $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
+        if ($value instanceof BaseDescriptor) {
+            $asset = $this->getAssetFromValue($value, $context);
+            $thumbNailConfig = $args['thumbnail'] ?? null;
+            $thumbNailFormat = $args['format'] ?? null;
+            $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
 
-        if ($asset instanceof Asset\Image) {
-            $mediaQueries = [];
-            $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
-            $thumbnailConfig = $asset->getThumbnailConfig($args['thumbnail']);
-            if ($thumbnailConfig) {
-                foreach ($thumbnailConfig->getMedias() as $key => $val) {
-                    $mediaQueries[] = [
-                        'descriptor' => $key,
-                        'url' => $thumbnail->getMedia($key),
-                    ];
+            if ($asset instanceof Asset\Image) {
+                $mediaQueries = [];
+                // @TODO: need to be checked if that still works
+                // get thumbnails with the "deferred" option as we don't need the data itself
+                // only the URL and the generation of the thumbnail should happen later
+                // which is done during request the image and could be parallelized from the browser
+//                $deferredThumbnail = false;
+//                if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+//                    $deferredThumbnail = true;
+//                }
+                $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
+                $thumbnailConfig = $asset->getThumbnailConfig($args['thumbnail']);
+                if ($thumbnailConfig) {
+                    foreach ($thumbnailConfig->getMedias() as $key => $val) {
+                        $mediaQueries[] = [
+                            'descriptor' => $key,
+                            'url' => $thumbnail->getMedia($key),
+                        ];
+                    }
                 }
+                return $mediaQueries;
             }
-
-            return $mediaQueries;
+            return null;
         }
-
-        return null;
+        return Service::resolveCachedValue($value, $resolveInfo);
     }
 
     /**
@@ -197,8 +211,19 @@ class AssetType
      */
     public function resolveResolutions($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
+        if ($cachedValue !== null) {
+            return $cachedValue;
+        }
         $types = $args['types'];
         $thumbnail = $value['url'] ?? null;
+        // get thumbnails with the "deferred" option as we don't need the data itself
+        // only the URL and the generation of the thumbnail should happen later
+        // which is done during request the image and could be parallelized from the browser
+        $deferredThumbnail = false;
+        if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+            $deferredThumbnail = true;
+        }
 
         if ($thumbnail instanceof Asset\Image\Thumbnail) {
             $resolutions = [];
@@ -209,7 +234,7 @@ class AssetType
                 return null;
             }
 
-            $thumbnail = $asset->getThumbnail($thumbnailName, false);
+            $thumbnail = $asset->getThumbnail($thumbnailName, $deferredThumbnail);
             if ($thumbnail->getConfig()->hasMedias()) {
                 foreach ($types as $type) {
                     $key = $value['descriptor'];
@@ -263,6 +288,10 @@ class AssetType
      */
     public function resolveDimensions($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
+        $cachedValue = Service::resolveCachedValue($value, $resolveInfo);
+        if ($cachedValue !== null) {
+            return $cachedValue;
+        }
         if ($value instanceof ElementDescriptor) {
             $thumbnailName = $args['thumbnail'] ?? null;
             $asset = $this->getAssetFromValue($value, $context);
@@ -293,8 +322,14 @@ class AssetType
                     'height' => $asset->getHeight(),
                 ];
             }
-
-            $thumbnail = $asset->getThumbnail($thumbnailName, false);
+            // get thumbnails with the "deferred" option as we don't need the data itself
+            // only the URL and the generation of the thumbnail should happen later
+            // which is done during request the image and could be parallelized from the browser
+            $deferredThumbnail = false;
+            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
+                $deferredThumbnail = true;
+            }
+            $thumbnail = $asset->getThumbnail($thumbnailName, $deferredThumbnail);
 
             $width = $thumbnail->getWidth();
             $height = $thumbnail->getHeight();

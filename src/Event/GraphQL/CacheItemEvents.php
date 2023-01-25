@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL;
 
-final class OutputCacheEvents
+final class CacheItemEvents
 {
     /**
      * Fired to determine if a response should be cached.
@@ -26,24 +26,5 @@ final class OutputCacheEvents
      *
      * @var string
      */
-    const PRE_LOAD = 'pimcore.datahub.graphql.cache.preLoad';
-
-    /**
-     * Fired to allow listeners to manipulate the caching ID.
-     *
-     * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCacheGenerateCidEvent")
-     *
-     * @var string
-     */
-    const GENERATE_CID = 'pimcore.datahub.graphql.cache.generateCid';
-
-    /**
-     * Fired before the response is written to cache. Can be used to set or purge
-     * data on the cached response.
-     *
-     * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CachePreSaveEvent")
-     *
-     * @var string
-     */
-    const PRE_SAVE = 'pimcore.datahub.graphql.cache.preSave';
+    const CACHE_ITEM = 'pimcore.datahub.graphql.cache.item';
 }
