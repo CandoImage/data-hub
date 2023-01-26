@@ -8,12 +8,17 @@
       "preferred-install": {
         "pimcore/pimcore": "source",
         "*": "dist"
-      }
+      },
+    "allow-plugins": {
+      "ocramius/package-versions": true
+    }
   },
   "require": {
     "php": "~8.0",
     "pimcore/pimcore": "^10.5",
-    "webonyx/graphql-php": "^14.6"
+    "webonyx/graphql-php": "^14.6",
+    "symfony/psr-http-message-bridge": "^2.1",
+    "nyholm/psr7": "^1.5"
   },
   "require-dev": {
     "phpstan/phpstan": "^1.6.0",
