@@ -178,10 +178,10 @@ class OutputCacheService
             // Sort params to ensure consistent hashing. For the execution only
             // contents matter, order doesn't.
             asort($originalInput);
-            if (is_array($originalInput['variables'])) {
+            if (isset($originalInput['variables']) && is_array($originalInput['variables'])) {
                 asort($originalInput['variables']);
             }
-            if (is_array($originalInput['extensions'])) {
+            if (isset($originalInput['extensions']) && is_array($originalInput['extensions'])) {
                 asort($originalInput['extensions']);
             }
 

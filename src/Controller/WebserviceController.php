@@ -15,6 +15,7 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Controller;
 
+use GraphQL\Error\SyntaxError;
 use GraphQL\Server\Helper;
 use GraphQL\Server\OperationParams;
 use GraphQL\Server\RequestError;
@@ -115,17 +116,19 @@ class WebserviceController extends FrontendController
      * @param Factory $modelFactory
      * @param Request $request
      * @param LongRunningHelper $longRunningHelper
-     *
+     * @param GraphQLExecutionService $graphQLExecutionService
      * @return JsonResponse|Response
      *
      * @throws RequestError
+     * @throws SyntaxError
      */
     public function webonyxAction(
         Service $service,
         LocaleServiceInterface $localeService,
         Factory $modelFactory,
         Request $request,
-        LongRunningHelper $longRunningHelper
+        LongRunningHelper $longRunningHelper,
+        GraphQLExecutionService $graphQLExecutionService
     ) {
         // Check if this is a mere request processing loop. If so simply return
         // the prepared response.
@@ -143,9 +146,6 @@ class WebserviceController extends FrontendController
         if (!$this->permissionsService->performSecurityCheck($request, $clientConfiguration)) {
             throw new AccessDeniedHttpException('Permission denied, apikey not valid');
         }
-
-        /** @var GraphQLExecutionService $graphQLExecutionService */
-        $graphQLExecutionService = $this->get(GraphQLExecutionService::class);
 
         $contentType = $request->headers->get('content-type') ?? '';
         if (mb_stripos($contentType, 'multipart/form-data') !== false) {
@@ -185,7 +185,7 @@ class WebserviceController extends FrontendController
             DocumentValidator::addRule(new DisableIntrospection());
         }
 
-        $schema = $graphQLExecutionService->getGraphQlSchema($context);
+        $schema = $graphQLExecutionService->getGraphQlSchema($context, $longRunningHelper);
         // Setup GraphQl config which is used later in all the helpers.
         $graphQlConfig = $graphQLExecutionService->getGraphQlServerConfig(
             $schema,
