@@ -117,6 +117,7 @@ class WebserviceController extends FrontendController
      * @param Request $request
      * @param LongRunningHelper $longRunningHelper
      * @param GraphQLExecutionService $graphQLExecutionService
+     *
      * @return JsonResponse|Response
      *
      * @throws RequestError
