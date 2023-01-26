@@ -18,8 +18,8 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectType\PimcoreObjectType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
-use Pimcore\Cache\RuntimeCache;
 use Pimcore\Cache;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Db;
 use Pimcore\Model\DataObject\ClassDefinition;
 

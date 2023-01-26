@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PCL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -114,7 +114,6 @@ class AssetType
     public function resolvePath($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof BaseDescriptor) {
-
             $asset = $this->getAssetFromValue($value, $context);
             $thumbNailConfig = $args['thumbnail'] ?? null;
             $thumbNailFormat = $args['format'] ?? null;
@@ -141,6 +140,7 @@ class AssetType
 
             return $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
         }
+
         return Service::resolveCachedValue($value, $resolveInfo);
     }
 
@@ -211,6 +211,7 @@ class AssetType
 
                 return $mediaQueries;
             }
+
             return null;
         }
 
