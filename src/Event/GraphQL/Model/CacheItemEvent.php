@@ -70,6 +70,15 @@ class CacheItemEvent extends Event
     }
 
     /**
+     * @param ExecutionResult $result
+     * @return void
+     */
+    public function setResult(ExecutionResult $result)
+    {
+        $this->result = $result;
+    }
+
+    /**
      * @return bool
      */
     public function isUseCache()
@@ -139,6 +148,15 @@ class CacheItemEvent extends Event
     public function getResponse(): Response
     {
         return $this->response;
+    }
+
+    /**
+     * @param Response $response
+     * @return void
+     */
+    public function setResponse(\Symfony\Component\HttpFoundation\Response $response)
+    {
+        $this->response = $response;
     }
 
     /**

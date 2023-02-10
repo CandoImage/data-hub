@@ -22,9 +22,18 @@ final class CacheItemEvents
     /**
      * Fired to determine if a response should be cached.
      *
-     * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CachePreLoadEvent")
+     * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent")
      *
      * @var string
      */
     const CACHE_ITEM = 'pimcore.datahub.graphql.cache.item';
+
+    /**
+     * Fired after the cache save to manipulate the result.
+     *
+     * @Event("Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent")
+     *
+     * @var string
+     */
+    const POST_CACHE_ITEM = 'pimcore.datahub.graphql.postcache.item';
 }
