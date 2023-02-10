@@ -71,6 +71,7 @@ class CacheItemEvent extends Event
 
     /**
      * @param ExecutionResult $result
+     *
      * @return void
      */
     public function setResult(ExecutionResult $result)
@@ -152,6 +153,7 @@ class CacheItemEvent extends Event
 
     /**
      * @param Response $response
+     *
      * @return void
      */
     public function setResponse(\Symfony\Component\HttpFoundation\Response $response)
