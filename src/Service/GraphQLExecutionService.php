@@ -213,10 +213,10 @@ class GraphQLExecutionService implements ContainerAwareInterface
                      ],
                      'args' => [
                          new FieldArgument([
-                             'name' => 'ttl',
-                             'type' => Type::int(),
-                             'description' => 'Set the time to live for this item',
-                             'defaultValue' => 0,
+                           'name' => 'ttl',
+                           'type' => Type::int(),
+                           'description' => 'Set the time to live for this item',
+                           'defaultValue' => 0,
                          ]),
                      ],
                  ]),
@@ -632,13 +632,13 @@ class GraphQLExecutionService implements ContainerAwareInterface
             if ($queryResponse->headers->hasCacheControlDirective('max-age')) {
                 $minMaxAge = (is_null($minMaxAge)) ?
                     $queryResponse->headers->getCacheControlDirective('max-age') :
-                    min($minMaxAge, (int)$queryResponse->headers->getCacheControlDirective('max-age'))
+                    min($minMaxAge, (int) $queryResponse->headers->getCacheControlDirective('max-age'))
                 ;
             }
             if ($queryResponse->headers->hasCacheControlDirective('s-maxage')) {
                 $minSMaxAge = (is_null($minSMaxAge)) ?
                     $queryResponse->headers->getCacheControlDirective('s-maxage') :
-                    min($minSMaxAge, (int)$queryResponse->headers->getCacheControlDirective('s-maxage'))
+                    min($minSMaxAge, (int) $queryResponse->headers->getCacheControlDirective('s-maxage'))
                 ;
             }
             // Collect all cookies.
