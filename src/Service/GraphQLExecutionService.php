@@ -568,7 +568,6 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // Allow last intervention after execution.
             $exResultEvent = new ExecutorResultEvent($request, $executionResult, $operation);
             $this->eventDispatcher->dispatch($exResultEvent, ExecutorEvents::POST_EXECUTE);
-
         } catch (\Throwable $e) {
             $exException = new ExecutorExceptionEvent($request, $e);
             $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
