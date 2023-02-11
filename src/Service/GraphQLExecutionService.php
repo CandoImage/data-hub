@@ -204,22 +204,22 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // @TODO PURE POC - DOESN'T DO ANYTHING YET.
             $schemaConfig['directives'] = array_merge(GraphQL::getStandardDirectives(), [
                 'cacheable' => new Directive([
-                    'name' => 'cacheable',
-                    'description' => 'Marks an element of a GraphQL schema as cacheable',
-                    'locations' => [
-                        DirectiveLocation::OBJECT,
-                        DirectiveLocation::FIELD_DEFINITION,
-                        DirectiveLocation::ENUM_VALUE,
-                    ],
-                    'args' => [
-                        new FieldArgument([
-                            'name' => 'ttl',
-                            'type' => Type::int(),
-                            'description' => 'Set the time to live for this item',
-                            'defaultValue' => 0,
-                        ]),
-                    ],
-                ]),
+                     'name' => 'cacheable',
+                     'description' => 'Marks an element of a GraphQL schema as cacheable',
+                     'locations' => [
+                         DirectiveLocation::OBJECT,
+                         DirectiveLocation::FIELD_DEFINITION,
+                         DirectiveLocation::ENUM_VALUE,
+                     ],
+                     'args' => [
+                         new FieldArgument([
+                             'name' => 'ttl',
+                             'type' => Type::int(),
+                             'description' => 'Set the time to live for this item',
+                             'defaultValue' => 0,
+                         ]),
+                     ],
+                 ]),
             ]);
 
             $schema = new Schema(
@@ -268,7 +268,8 @@ class GraphQLExecutionService implements ContainerAwareInterface
             ->setPersistentQueryLoader([$this, 'queryLoader'])
             ->setValidationRules($validators)
             ->setRootValue([])
-            ->setDebugFlag($debugFlags);
+            ->setDebugFlag($debugFlags)
+            ;
     }
 
     public function graphQLErrorFormatter($e): array
@@ -369,10 +370,10 @@ class GraphQLExecutionService implements ContainerAwareInterface
     {
         // Enrich base context with operations information.
         return $this->baseOperationContext + [
-                'operation' => $params,
-                'doc' => $doc,
-                'operationType' => $operationType
-            ];
+            'operation' => $params,
+            'doc' => $doc,
+            'operationType' => $operationType
+        ];
     }
 
     /**
@@ -631,12 +632,14 @@ class GraphQLExecutionService implements ContainerAwareInterface
             if ($queryResponse->headers->hasCacheControlDirective('max-age')) {
                 $minMaxAge = (is_null($minMaxAge)) ?
                     $queryResponse->headers->getCacheControlDirective('max-age') :
-                    min($minMaxAge, (int)$queryResponse->headers->getCacheControlDirective('max-age'));
+                    min($minMaxAge, (int)$queryResponse->headers->getCacheControlDirective('max-age'))
+                ;
             }
             if ($queryResponse->headers->hasCacheControlDirective('s-maxage')) {
                 $minSMaxAge = (is_null($minSMaxAge)) ?
                     $queryResponse->headers->getCacheControlDirective('s-maxage') :
-                    min($minSMaxAge, (int)$queryResponse->headers->getCacheControlDirective('s-maxage'));
+                    min($minSMaxAge, (int)$queryResponse->headers->getCacheControlDirective('s-maxage'))
+                ;
             }
             // Collect all cookies.
             foreach ($queryResponse->headers->getCookies() as $cookie) {
