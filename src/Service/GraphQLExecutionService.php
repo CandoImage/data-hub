@@ -516,30 +516,6 @@ class GraphQLExecutionService implements ContainerAwareInterface
         string $subRequestController = 'Pimcore\Bundle\DataHubBundle\Controller\WebserviceController::webonyxOperationResponseAction'
     ): Response {
         try {
-            //@TODO: this is currently a quickfix for Fumo, as we had the same issue
-            // before we started with the whole caching stuff
-            // see: https://github.com/CandoImage/data-hub/commit/43e355f185d3b0ed9380725bdd3210bf5c9c0994
-            // we need to cache the result before the POST_EXECUTE event is fired as this is doing some permission checks
-            // and probably strips data dynamically e.g. Specials, see: https://cando-image.atlassian.net/browse/T2-1610
-            // or translate stuff which should be cached too
-            // currently affected CX Listeners which listen to the POST_EXECUTE:
-            // -LabelTranslationListener
-            // -BrandPageListener
-            // -AuthenticationListener
-            // -RemoveEmptyVariantAttributeListener
-            // -PermissionListener (strips specials)
-            // -ExceptionListener
-            // Allow last interference before this response is cached.
-            $cacheItemEvent = new CacheItemEvent($request, $executionResult, $operation, $response);
-            $this->eventDispatcher->dispatch($cacheItemEvent, CacheItemEvents::CACHE_ITEM);
-            if ($cacheItemEvent->isUseCache()) {
-                $this->cacheService->save($request, $response, $operation, $cacheItemEvent->getCacheTags());
-            }
-
-            // Allow last intervention after execution.
-            $exResultEvent = new ExecutorResultEvent($request, $executionResult, $operation);
-            $this->eventDispatcher->dispatch($exResultEvent, ExecutorEvents::POST_EXECUTE);
-
             // Use the native parser to create a response.
             $response = Psr17FactoryDiscovery::findResponseFactory()->createResponse();
             $response = $this->graphQlRequestHelper->toPsrResponse(
@@ -569,6 +545,30 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 $subRequest->attributes->set('_graphQlOperationMetadata', $this->cacheService->getOperationMetaData($operation));
                 $response = $this->httpKernel->handle($subRequest, HttpKernelInterface::SUB_REQUEST);
             }
+
+            // Allow last interference before this response is cached.
+            $cacheItemEvent = new CacheItemEvent($request, $executionResult, $operation, $response);
+            $this->eventDispatcher->dispatch($cacheItemEvent, CacheItemEvents::CACHE_ITEM);
+            if ($cacheItemEvent->isUseCache()) {
+                $this->cacheService->save($request, $response, $operation, $cacheItemEvent->getCacheTags());
+            }
+            //@TODO: this is currently a quickfix for Fumo, as we had the same issue
+            // before we started with the whole caching stuff
+            // see: https://github.com/CandoImage/data-hub/commit/43e355f185d3b0ed9380725bdd3210bf5c9c0994
+            // we need to cache the result before the POST_EXECUTE event is fired as this is doing some permission checks
+            // and probably strips data dynamically e.g. Specials, see: https://cando-image.atlassian.net/browse/T2-1610
+            // or translate stuff which should be cached too
+            // currently affected CX Listeners which listen to the POST_EXECUTE:
+            // -LabelTranslationListener
+            // -BrandPageListener
+            // -AuthenticationListener
+            // -RemoveEmptyVariantAttributeListener
+            // -PermissionListener (strips specials)
+            // -ExceptionListener
+            // Allow last intervention after execution.
+            $exResultEvent = new ExecutorResultEvent($request, $executionResult, $operation);
+            $this->eventDispatcher->dispatch($exResultEvent, ExecutorEvents::POST_EXECUTE);
+
         } catch (\Throwable $e) {
             $exException = new ExecutorExceptionEvent($request, $e);
             $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
