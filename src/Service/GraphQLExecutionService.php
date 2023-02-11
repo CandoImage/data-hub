@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
@@ -204,22 +204,22 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // @TODO PURE POC - DOESN'T DO ANYTHING YET.
             $schemaConfig['directives'] = array_merge(GraphQL::getStandardDirectives(), [
                 'cacheable' => new Directive([
-                     'name' => 'cacheable',
-                     'description' => 'Marks an element of a GraphQL schema as cacheable',
-                     'locations' => [
-                         DirectiveLocation::OBJECT,
-                         DirectiveLocation::FIELD_DEFINITION,
-                         DirectiveLocation::ENUM_VALUE,
-                     ],
-                     'args' => [
-                         new FieldArgument([
-                           'name' => 'ttl',
-                           'type' => Type::int(),
-                           'description' => 'Set the time to live for this item',
-                           'defaultValue' => 0,
-                         ]),
-                     ],
-                 ]),
+                    'name' => 'cacheable',
+                    'description' => 'Marks an element of a GraphQL schema as cacheable',
+                    'locations' => [
+                        DirectiveLocation::OBJECT,
+                        DirectiveLocation::FIELD_DEFINITION,
+                        DirectiveLocation::ENUM_VALUE,
+                    ],
+                    'args' => [
+                        new FieldArgument([
+                            'name' => 'ttl',
+                            'type' => Type::int(),
+                            'description' => 'Set the time to live for this item',
+                            'defaultValue' => 0,
+                        ]),
+                    ],
+                ]),
             ]);
 
             $schema = new Schema(
@@ -268,8 +268,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             ->setPersistentQueryLoader([$this, 'queryLoader'])
             ->setValidationRules($validators)
             ->setRootValue([])
-            ->setDebugFlag($debugFlags)
-            ;
+            ->setDebugFlag($debugFlags);
     }
 
     public function graphQLErrorFormatter($e): array
@@ -370,10 +369,10 @@ class GraphQLExecutionService implements ContainerAwareInterface
     {
         // Enrich base context with operations information.
         return $this->baseOperationContext + [
-            'operation' => $params,
-            'doc' => $doc,
-            'operationType' => $operationType
-        ];
+                'operation' => $params,
+                'doc' => $doc,
+                'operationType' => $operationType
+            ];
     }
 
     /**
@@ -516,17 +515,17 @@ class GraphQLExecutionService implements ContainerAwareInterface
         string $subRequestController = 'Pimcore\Bundle\DataHubBundle\Controller\WebserviceController::webonyxOperationResponseAction'
     ): Response {
         try {
+            // @TODO: workaround to create a repsone for caching!!!
             // Use the native parser to create a response.
             $response = Psr17FactoryDiscovery::findResponseFactory()->createResponse();
             $response = $this->graphQlRequestHelper->toPsrResponse(
-                $exResultEvent->getResult(),
+                $executionResult,
                 Psr17FactoryDiscovery::findResponseFactory()->createResponse(),
                 $response->getBody()
             );
             // Convert the PSR-Response to a Symfony response.
             $httpFoundationFactory = new HttpFoundationFactory();
             $response = $httpFoundationFactory->createResponse($response);
-            $response->headers->set('X-GQL-OperationCache-Hit', 'false');
 
             // Run every single http response through the http kernel to allow
             // for response modifications before the response is stored in the
@@ -565,10 +564,22 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // -RemoveEmptyVariantAttributeListener
             // -PermissionListener (strips specials)
             // -ExceptionListener
+
             // Allow last intervention after execution.
             $exResultEvent = new ExecutorResultEvent($request, $executionResult, $operation);
             $this->eventDispatcher->dispatch($exResultEvent, ExecutorEvents::POST_EXECUTE);
 
+            //@TODO: re set the response after executed the event with the event result
+            $response = Psr17FactoryDiscovery::findResponseFactory()->createResponse();
+            $response = $this->graphQlRequestHelper->toPsrResponse(
+                $exResultEvent->getResult(),
+                Psr17FactoryDiscovery::findResponseFactory()->createResponse(),
+                $response->getBody()
+            );
+            // Convert the PSR-Response to a Symfony response.
+            $httpFoundationFactory = new HttpFoundationFactory();
+            $response = $httpFoundationFactory->createResponse($response);
+            $response->headers->set('X-GQL-OperationCache-Hit', 'false');
         } catch (\Throwable $e) {
             $exException = new ExecutorExceptionEvent($request, $e);
             $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
@@ -620,14 +631,12 @@ class GraphQLExecutionService implements ContainerAwareInterface
             if ($queryResponse->headers->hasCacheControlDirective('max-age')) {
                 $minMaxAge = (is_null($minMaxAge)) ?
                     $queryResponse->headers->getCacheControlDirective('max-age') :
-                    min($minMaxAge, (int) $queryResponse->headers->getCacheControlDirective('max-age'))
-                ;
+                    min($minMaxAge, (int)$queryResponse->headers->getCacheControlDirective('max-age'));
             }
             if ($queryResponse->headers->hasCacheControlDirective('s-maxage')) {
                 $minSMaxAge = (is_null($minSMaxAge)) ?
                     $queryResponse->headers->getCacheControlDirective('s-maxage') :
-                    min($minSMaxAge, (int) $queryResponse->headers->getCacheControlDirective('s-maxage'))
-                ;
+                    min($minSMaxAge, (int)$queryResponse->headers->getCacheControlDirective('s-maxage'));
             }
             // Collect all cookies.
             foreach ($queryResponse->headers->getCookies() as $cookie) {
