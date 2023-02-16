@@ -15,6 +15,7 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
+use ArrayObject;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -188,9 +189,11 @@ class OutputCacheService
             return md5(serialize($originalInput));
         }, $operation, $operation);
 
-        $this->operationData[$operation] = array_merge(
-            $this->operationData[$operation] ?? [],
-            ['operationCid' => $originalInputHash()]
+        $this->operationData[$operation] = new ArrayObject(
+            array_merge(
+                $this->operationData[$operation] ?? [],
+                ['operationCid' => $originalInputHash()]
+            )
         );
 
         return $this->operationData[$operation]['operationCid'];
@@ -223,12 +226,13 @@ class OutputCacheService
 
     public function registerOperation(OperationParams $operation, DocumentNode $parsedQuery)
     {
-        $this->operationData->attach($operation, [
+        $this->operationData->attach(
+            $operation, new ArrayObject([
             'parsedQuery' => $parsedQuery,
             'filterValues' => '',
             'sortValues' => '',
             'useCache' => true,
-        ]);
+        ]));
 
         // Check the filter values separate
         if (isset($operation->variables['filters'])) {
