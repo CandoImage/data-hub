@@ -191,7 +191,7 @@ class OutputCacheService
 
         $this->operationData[$operation] = new ArrayObject(
             array_merge(
-                $this->operationData[$operation] ?? [],
+                $this->operationData[$operation]->getArrayCopy() ?? [],
                 ['operationCid' => $originalInputHash()]
             )
         );
@@ -392,7 +392,7 @@ class OutputCacheService
      *
      * @return array
      */
-    public function getOperationMetaData(OperationParams $operation): array
+    public function getOperationMetaData(OperationParams $operation): ArrayObject
     {
         return $this->operationData[$operation];
     }
