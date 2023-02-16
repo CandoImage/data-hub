@@ -665,7 +665,7 @@ class QueryType
      *
      * @throws \Exception
      */
-    public function resolveFilter($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolveFilter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($args && $args['defaultLanguage']) {
             $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
@@ -970,7 +970,7 @@ class QueryType
      *
      * @return mixed
      */
-    public function resolveFilterTotalCount($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolveFilterTotalCount($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         return $value['totalCount']();
     }
@@ -983,7 +983,7 @@ class QueryType
      *
      * @return mixed
      */
-    public function resolveFacets($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolveFacets($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         //check which values are necessary if multiple facet arguments sent in the request
         //this prevents empty arrays in multiple facet types
@@ -1049,7 +1049,7 @@ class QueryType
      *
      * @return mixed
      */
-    public function resolveFacet($value = null, $args = [], $context, ResolveInfo $resolveInfo = null)
+    public function resolveFacet($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         $translator = $this->getGraphQlService()->getTranslator();
 
