@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\DataObjectType;
@@ -136,14 +136,17 @@ abstract class AbstractRelationsType extends UnionType implements ContainerAware
      */
     public function resolveType($element, $context, ResolveInfo $info)
     {
+        //@TODO: we need to contribute that as a direct access to a non existing array key throws an error on PHP >8.0
+        // original code: $element['__elementType'] == 'object'
         if ($element) {
-            if ($element['__elementType'] == 'object') {
+            $elementType = $element['__elementType'] ?? null;
+            if ($elementType == 'object') {
                 $type = ClassTypeDefinitions::get($element['__elementSubtype']);
 
                 return $type;
-            } elseif ($element['__elementType'] == 'asset') {
-                return  $this->getGraphQlService()->buildAssetType('asset');
-            } elseif ($element['__elementType'] == 'document') {
+            } elseif ($elementType == 'asset') {
+                return $this->getGraphQlService()->buildAssetType('asset');
+            } elseif ($elementType == 'document') {
                 $document = Document::getById($element['id']);
                 if ($document) {
                     $documentType = $document->getType();
