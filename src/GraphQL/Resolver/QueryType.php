@@ -962,7 +962,6 @@ class QueryType
         return $connection;
     }
 
-
     /**
      * @throws \Exception
      */
@@ -982,7 +981,6 @@ class QueryType
 
         $resultList->addCondition($args['brand'], $indexFieldName);
         $s = $resultList->count();
-
 
         // @TODO: how can we call the "resolveFilter" with the correct arguments
         // steps:
