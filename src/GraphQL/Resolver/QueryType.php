@@ -9,8 +9,8 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     GPLv3 and PCL
+ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
@@ -40,13 +40,13 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\PermissionInfoTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
-use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException;
 use Pimcore\Cache;
 use Pimcore\Db;
 use Pimcore\Logger;
@@ -188,6 +188,7 @@ class QueryType
      * @return array|null
      *
      * @throws ClientSafeException
+     *
      * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
      *
      */
@@ -683,8 +684,7 @@ class QueryType
         $this->setupAssortment($args, $factory);
         $resultList = $this->getProductList($args, $factory);
 
-        return $this->resolveFilterQuery($args, $context, $factory, $resultList, $resolveInfo );
-
+        return $this->resolveFilterQuery($args, $context, $factory, $resultList, $resolveInfo);
     }
 
     /**
@@ -717,7 +717,7 @@ class QueryType
         // - re-create a filter defintion if not set
         // - copy arguemnt over as a filter input or directly
         //
-        return $this->resolveFilterQuery($args, $context, $factory, $resultList, $resolveInfo );
+        return $this->resolveFilterQuery($args, $context, $factory, $resultList, $resolveInfo);
     }
 
     /**
@@ -849,6 +849,7 @@ class QueryType
     /**
      * @param array $args
      * @param Factory $factory
+     *
      * @return array
      */
     protected function setupAssortment(array $args, Factory $factory): void
@@ -879,7 +880,9 @@ class QueryType
      * @param Factory $factory
      * @param ProductListInterface $resultList
      * @param ResolveInfo|null $resolveInfo
+     *
      * @return array|null
+     *
      * @throws InvalidConfigException
      * @throws Exception
      * @throws \Doctrine\DBAL\Exception
@@ -1155,6 +1158,7 @@ class QueryType
     /**
      * @param array $args
      * @param Factory $factory
+     *
      * @return ProductListInterface
      */
     protected function getProductList(array $args, Factory $factory): ProductListInterface
@@ -1166,6 +1170,7 @@ class QueryType
             // get fallback resultList
             $resultList = $factory->getIndexService()->getProductListForCurrentTenant();
         }
+
         return $resultList;
     }
 }
