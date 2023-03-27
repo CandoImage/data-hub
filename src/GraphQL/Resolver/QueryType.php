@@ -962,6 +962,37 @@ class QueryType
         return $connection;
     }
 
+
+    /**
+     * @throws \Exception
+     */
+    public function resolveBrandFilter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
+    {
+        $f = 0;
+        $factory = Factory::getInstance();
+        $resultList = $factory->getIndexService()->getProductListForTenant('default_' . $args['defaultLanguage']);
+
+        $attributeConfig = $resultList->getTenantConfig()->getAttributeConfig();
+        // how to deal with this magic string
+        $brandConfig = $attributeConfig['brand'] ?? null;
+        if (!$brandConfig) {
+            throw new \Exception('cannot find an indexed attribute named brand');
+        }
+        $indexFieldName = $brandConfig['filter_group'] . $brandConfig['name'];
+
+        $resultList->addCondition($args['brand'], $indexFieldName);
+        $s = $resultList->count();
+
+
+        // @TODO: how can we call the "resolveFilter" with the correct arguments
+        // steps:
+        // - check if a filter for brand exists here ?
+        // - re-create a filter defintion if not set
+        // - copy arguemnt over as a filter input or directly
+        //
+        return $this->resolveFilter($value, $args, $context, $resolveInfo);
+    }
+
     /**
      * @param null $value
      * @param array $args

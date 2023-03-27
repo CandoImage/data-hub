@@ -325,7 +325,7 @@ class QueryType extends ObjectType
      *
      * @throws \Exception
      */
-    public function buildFilterQueries(&$config = [], $context = []): void
+    public function buildFilterQueries(&$config = [], $context = [], array $additionalQueries = []): void
     {
         /** @var $configuration Configuration */
         $configuration = $context['configuration'];
@@ -374,14 +374,15 @@ class QueryType extends ObjectType
                             ])
                         ],
                         'options' => [
-                            'type' => Type::listOf(new ObjectType([
-                                'name' => $ucFirstClassName . $filterType . 'Option',
-                                'fields' => [
-                                    'value' => ['type' => Type::string()],
-                                    'label' => ['type' => Type::string()],
-                                    'count' => ['type' => Type::int()],
-                                ],
-                            ]), ),
+                            'type' => Type::listOf(
+                                new ObjectType([
+                                    'name' => $ucFirstClassName . $filterType . 'Option',
+                                    'fields' => [
+                                        'value' => ['type' => Type::string()],
+                                        'label' => ['type' => Type::string()],
+                                        'count' => ['type' => Type::int()],
+                                    ],
+                                ]),),
                         ],
                     ]
                 ]);
@@ -423,59 +424,24 @@ class QueryType extends ObjectType
                 ]
             );
 
-            $defFilter = [
-                'name' => 'get' . $ucFirstClassName . 'Filter',
-                'args' => [
-                    'tenant' => ['type' => Type::string()],
-                    'variantMode' => [
-                        'type' => Type::string(),
-                        'description' => 'Define how item variants in the results are handled.. Valid values: ' .
-                            \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_HIDE . ',' .
-                            \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_INCLUDE . ',' .
-                            \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_INCLUDE_PARENT_OBJECT . ',' .
-                            \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_VARIANTS_ONLY,
-                    ],
-                    'defaultLanguage' => ['type' => Type::string()],
-                    'fulltext' => [
-                        'type' => Type::string(),
-                        'description' => 'The keys to use for the fulltext search.'
-                    ],
-                    'instantSearch' => [
-                        'type' => Type::boolean(),
-                        'description' => 'Helper flag to differentiate between an instant search and a regular search.'
-                    ],
-                    'first' => ['type' => Type::int()],
-                    'after' => ['type' => Type::int()],
-                    'sortBy' => ['type' => Type::listOf(Type::string())],
-                    'sortOrder' => [
-                        'type' => Type::listOf(Type::string()),
-                        'description' => 'Sort by ASC or DESC, use the same position as the sortBy argument for each column to sort by',
-                    ],
-                    'filter' => ['type' => Type::string()],
-                    'filterDefinition' => [
-                        'type' => new InputObjectType([
-                            'name' => $ucFirstClassName . 'FilterDefinitionArg',
-                            'fields' => [
-                                'id' => ['type' => Type::id()],
-                                'relationField' => ['type' => Type::string()],
-                                'fallbackFilterDefinitionId' => ['type' => Type::id()],
-                            ],
-                        ]),
-                        'description' => 'Define the id of a filterDefinition or from an object and its relationField to the filterDefinition to get the correct filter. Otherwise it uses the fallBackFilterDefinition',
-                    ],
-                    'published' => ['type' => Type::boolean()],
-                    'category' => [
-                        'type' => Type::id(),
-                        'description' => 'ID of the category to filter by.',
-                    ],
-                    'facets' => [
-                        'type' => Type::listOf(new InputObjectType([
-                            'name' => $ucFirstClassName . 'FilterFacetArg',
-                            'fields' => [
-                                'field' => ['type' => Type::string()],
-                                'values' => ['type' => CustomScalarType::listOf(new CustomScalarType([
-                                        'name' => 'Object', //used for GraphIQL Editor to recognize a Type
-                                        'description' => 'The Input can be any kind of array.
+            $filterInputType = new InputObjectType([
+                'name' => $ucFirstClassName . 'FilterDefinitionArg',
+                'fields' => [
+                    'id' => ['type' => Type::id()],
+                    'relationField' => ['type' => Type::string()],
+                    'fallbackFilterDefinitionId' => ['type' => Type::id()],
+                ],
+            ]);
+
+            $facetInputTypes = Type::listOf(
+                new InputObjectType([
+                    'name' => $ucFirstClassName . 'FilterFacetArg',
+                    'fields' => [
+                        'field' => ['type' => Type::string()],
+                        'values' => ['type' => CustomScalarType::listOf(
+                            new CustomScalarType([
+                                'name' => 'Object', //used for GraphIQL Editor to recognize a Type
+                                'description' => 'The Input can be any kind of array.
                                     For Select Filters a String Array is required e.g.
                                     "values": [
                                         "11",
@@ -486,12 +452,55 @@ class QueryType extends ObjectType
                                         {"from": "10"},
                                         {"to": "100"}
                                     ]'
-                                    ])
-                                )],
-                            ],
-                        ])),
+                            ])
+                        )],
                     ],
+                ]));
+
+            $inputArguments = [
+                'tenant' => ['type' => Type::string()],
+                'variantMode' => [
+                    'type' => Type::string(),
+                    'description' => 'Define how item variants in the results are handled.. Valid values: ' .
+                        \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_HIDE . ',' .
+                        \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_INCLUDE . ',' .
+                        \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_INCLUDE_PARENT_OBJECT . ',' .
+                        \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface::VARIANT_MODE_VARIANTS_ONLY,
                 ],
+                'defaultLanguage' => ['type' => Type::string()],
+                'fulltext' => [
+                    'type' => Type::string(),
+                    'description' => 'The keys to use for the fulltext search.'
+                ],
+                'instantSearch' => [
+                    'type' => Type::boolean(),
+                    'description' => 'Helper flag to differentiate between an instant search and a regular search.'
+                ],
+                'first' => ['type' => Type::int()],
+                'after' => ['type' => Type::int()],
+                'sortBy' => ['type' => Type::listOf(Type::string())],
+                'sortOrder' => [
+                    'type' => Type::listOf(Type::string()),
+                    'description' => 'Sort by ASC or DESC, use the same position as the sortBy argument for each column to sort by',
+                ],
+                'filter' => ['type' => Type::string()],
+                'filterDefinition' => [
+                    'type' => $filterInputType,
+                    'description' => 'Define the id of a filterDefinition or from an object and its relationField to the filterDefinition to get the correct filter. Otherwise it uses the fallBackFilterDefinition',
+                ],
+                'published' => ['type' => Type::boolean()],
+                'category' => [
+                    'type' => Type::id(),
+                    'description' => 'ID of the category to filter by.',
+                ],
+                'facets' => [
+                    'type' => $facetInputTypes,
+                ],
+            ];
+
+            $defFilter = [
+                'name' => 'get' . $ucFirstClassName . 'Filter',
+                'args' => $inputArguments,
                 'type' => $filterType,
                 'resolve' => [$resolver, 'resolveFilter'],
             ];
@@ -500,6 +509,22 @@ class QueryType extends ObjectType
                 $config['fields'] = [];
             }
             $config['fields']['get' . $ucFirstClassName . 'Filter'] = $defFilter;
+
+            foreach ($additionalQueries as $additionalQuery) {
+                $queryPostfix = ucfirst($additionalQuery);
+                $additionalInputArguments = [
+                    $additionalQuery => ['type' => Type::nonNull(Type::id())],
+                ];
+                $inputArguments = array_merge($additionalInputArguments, $inputArguments);
+
+                $additionalFilter = [
+                    'name' => 'get' . $ucFirstClassName . $queryPostfix . 'Filter',
+                    'args' => $inputArguments,
+                    'type' => $filterType,
+                    'resolve' => [$resolver, 'resolve' . $queryPostfix . 'Filter'],
+                ];
+                $config['fields']['get' . $ucFirstClassName . $queryPostfix . 'Filter'] = $additionalFilter;
+            }
         }
     }
 
@@ -705,7 +730,7 @@ class QueryType extends ObjectType
         $this->buildDocumentQueries($config, $context);
         $this->buildDataObjectQueries($config, $context);
         if (interface_exists('\Pimcore\Bundle\EcommerceFrameworkBundle\Model\IndexableInterface')) {
-            $this->buildFilterQueries($config, $context);
+            $this->buildFilterQueries($config, $context, ['brand']);
         }
         $this->buildAssetListingQueries($config, $context);
         $this->buildTranslationListingQueries($config, $context);
