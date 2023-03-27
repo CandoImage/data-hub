@@ -687,7 +687,6 @@ class QueryType
 
     }
 
-
     /**
      * @throws InvalidConfigException
      * @throws Exception
@@ -711,7 +710,6 @@ class QueryType
         }
         $indexFieldName = 'relations.' . $brandConfig['name'];
         $resultList->addCondition($args['brand'], $indexFieldName);
-
 
         // @TODO: how can we call the "resolveFilter" with the correct arguments
         // steps:

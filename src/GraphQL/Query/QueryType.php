@@ -382,7 +382,7 @@ class QueryType extends ObjectType
                                         'label' => ['type' => Type::string()],
                                         'count' => ['type' => Type::int()],
                                     ],
-                                ]),),
+                                ]), ),
                         ],
                     ]
                 ]);
