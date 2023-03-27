@@ -9,12 +9,13 @@
  * Full copyright and license information is available in
  * LICENSE.md which is distributed with this source code.
  *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
+ * @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Resolver;
 
+use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
 use GraphQL\Language\AST\FragmentSpreadNode;
@@ -30,6 +31,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ListingEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\TenantEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\TenantEvents;
 use Pimcore\Bundle\DataHubBundle\EventListener\CacheListener;
+use Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Helper;
@@ -39,7 +41,12 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException;
 use Pimcore\Cache;
 use Pimcore\Db;
 use Pimcore\Logger;
@@ -173,8 +180,6 @@ class QueryType
     }
 
     /**
-     * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
-     *
      * @param ElementDescriptor|null $value
      * @param array $args
      * @param array $context
@@ -183,6 +188,8 @@ class QueryType
      * @return array|null
      *
      * @throws ClientSafeException
+     * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
+     *
      */
     public function resolveDocumentGetter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
@@ -658,330 +665,52 @@ class QueryType
      *
      * @param null $value
      * @param array $args
-     * @param $context
+     * @param array $context
      * @param ResolveInfo|null $resolveInfo
      *
-     * @return array
+     * @return array|null
      *
-     * @throws \Exception
+     * @throws Exception
+     * @throws InvalidConfigException
+     * @throws \Doctrine\DBAL\Exception
      */
-    public function resolveFilter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
+    public function resolveFilter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null): ?array
     {
         if ($args && $args['defaultLanguage']) {
             $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
         }
         $factory = Factory::getInstance();
+        $this->setupAssortment($args, $factory);
+        $resultList = $this->getProductList($args, $factory);
 
-        // Set tenant config.
-        if (!empty($args['tenant'])) {
-            $factory->getEnvironment()->setCurrentAssortmentTenant($args['tenant']);
-        } else {
-            if (class_exists('\Pimcore\Model\DataObject\Tenant')) {
-                $security = new Security(\Pimcore::getKernel()->getContainer());
-                $user = $security->getUser();
-                $environment = $factory->getEnvironment();
+        return $this->resolveFilterQuery($args, $context, $factory, $resultList, $resolveInfo );
 
-                $tenantEvent = new TenantEvent($user);
-                $this->eventDispatcher->dispatch($tenantEvent, TenantEvents::LOAD_TENANTS);
-
-                $userTenants = $tenantEvent->getUserTenants();
-                if (method_exists($environment, 'setMultipleAssortmentTenants')) {
-                    $environment->setMultipleAssortmentTenants($userTenants);
-                }
-            }
-        }
-
-        /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface $resultList */
-        if ($args && $args['defaultLanguage']) {
-            // get language based tenant
-            $resultList = $factory->getIndexService()->getProductListForTenant('default_' . $args['defaultLanguage']);
-        } else {
-            // get fallback resultList
-            $resultList = $factory->getIndexService()->getProductListForCurrentTenant();
-        }
-
-        /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition $filterDefinition */
-        $currentFilters = [];
-        $facets = [];
-        $filterDefinition = false;
-        // Set default settings using a FilterDefinition if id is provided.
-        if (!empty($args['filterDefinition'])) {
-            if (isset($args['filterDefinition']['id'])) {
-                $object = AbstractObject::getById($args['filterDefinition']['id']);
-                if ($object instanceof AbstractFilterDefinition) {
-                    $filterDefinition = $object;
-                } elseif ($object && isset($args['filterDefinition']['relationField'])) {
-                    $getter = 'get' . ucfirst($args['filterDefinition']['relationField']);
-                    if (method_exists($object, $getter)) {
-                        $filterDefinition = $object->$getter();
-                    }
-                }
-            }
-            if (
-                !($filterDefinition && $filterDefinition instanceof AbstractFilterDefinition)
-                && isset($args['filterDefinition']['fallbackFilterDefinitionId'])
-            ) {
-                $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
-            }
-            if ($filterDefinition) {
-                $filterService = $factory->getFilterService();
-
-                if ($pageLimit = $filterDefinition->getPageLimit()) {
-                    $resultList->setLimit($pageLimit);
-                }
-
-                // we need to set the default OrderBy only on specific preconditions
-                //if (empty($args['fulltext']) && empty($args['facets'])) {
-                // adds default sort from FilterDefinition "Default OrderBy"
-                $orderByList = [];
-                if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
-                    foreach ($orderByCollection as $orderBy) {
-                        if (method_exists($orderBy, 'getAdvancedSort')) {
-                            $config = $factory->getIndexService()->getCurrentTenantConfig();
-                            $orderByList = $orderBy->getAdvancedSort($orderByCollection, $config);
-                            break;
-                        } else {
-                            if (method_exists($orderBy, 'getOrderField')) {
-                                if ($orderBy->getOrderField()) {
-                                    $orderByList[] = [$orderBy->getOrderField(), $orderBy->getDirection()];
-                                    continue;
-                                }
-                            }
-                            if ($orderBy->getField()) {
-                                $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
-                            }
-                        }
-                    }
-                }
-                $resultList->setOrderKey($orderByList);
-                $resultList->setOrder('ASC');
-                //}
-
-                $filterValues = [];
-                if (!empty($args['facets'])) {
-                    foreach ($args['facets'] as $facet) {
-                        $filterValues[$facet['field']] = $facet['values'];
-                    }
-                }
-                // Read out requested filter from GraphQL Request Query to check if an output is necessary or not
-                $filterNodes = [];
-                /** @var NodeList $requestedFilters */
-                $requestedFilters = $resolveInfo->operation->selectionSet->selections[0]->selectionSet->selections[0]->selectionSet->selections;
-
-                foreach ($requestedFilters as $filter) {
-                    if ($filter->name->value == 'facets') {
-                        $filterNodes[] = $filter->selectionSet->selections;
-                    }
-                }
-
-                //Facets could be multiple in a Request e.g. to separate filters and categories
-                //Merge everything together
-                if (count($filterNodes) >= 1) {
-                    $tempFilterNodes = [];
-                    foreach ($filterNodes as $filterNode) {
-                        foreach ($filterNode as $node) {
-                            $tempFilterNodes[] = $node;
-                        }
-                    }
-                    $filterNodes = $tempFilterNodes;
-                }
-
-                $requestFilters = [];
-                if (!empty($filterNodes)) {
-                    foreach ($filterNodes as $filterNode) {
-                        if ($filterNode->kind == NodeKind::FRAGMENT_SPREAD && $filters = $filterDefinition->getFilters()) {
-                            /** @var FragmentSpreadNode $filterNode */
-                            //check for fragments type name because fragments can have any name
-                            foreach ($filters as $savedFilter) {
-                                foreach ($resolveInfo->fragments as $fragment) {
-                                    if (strpos($fragment->typeCondition->name->value, $savedFilter->getType()) !== false) {
-                                        if ($filterNode->name->value == $fragment->name->value) {
-                                            $requestFilters[] = $fragment->typeCondition->name->value;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        if ($filterNode->kind == NodeKind::INLINE_FRAGMENT) {
-                            /** @var InlineFragmentNode $filterNode */
-                            $requestFilters[] = $filterNode->typeCondition->name->value;
-                        }
-                    }
-                }
-
-                if ($filters = $filterDefinition->getFilters()) {
-                    foreach ($filters as $k => $filter) {
-                        // Check if this filter can handle multiple values and if
-                        // not use the first values entry.
-                        $filterType = $filterService->getFilterType($filter->getType());
-                        $field = \Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
-
-                        // Check if filter is requested from GraphQL Query
-                        $hasFilter = false;
-                        foreach ($requestFilters as $requestFilter) {
-                            if (strpos($requestFilter, $filter->getType()) !== false) {
-                                $hasFilter = true;
-                                break;
-                            }
-                        }
-                        // If still adding field to facets which is not request an empty array is in the output result
-                        if (!$hasFilter) {
-                            continue;
-                        }
-                        if (!\Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType::isMultiValueFilter($filterType, $filter)) {
-                            if (isset($filterValues[$field])) {
-                                $filterValues[$field] = current($filterValues[$field]);
-                            }
-                        }
-
-                        $facets[$k] = [
-                            'filter' => $filter,
-                            'filterService' => $filterService,
-                            'resultList' => $resultList,
-                        ];
-                    }
-                }
-
-                $currentFilters = $filterService->initFilterService($filterDefinition, $resultList, $filterValues);
-            }
-        }
-        // paging
-        if (isset($args['first'])) {
-            $resultList->setLimit($args['first']);
-        }
-        if (isset($args['after'])) {
-            $resultList->setOffset($args['after']);
-        }
-
-        // Manual sorting
-        if (!empty($args['sortBy'])) {
-            if (!empty($args['sortOrder'])) {
-                $resultList->setOrderKey(array_map(function ($a, $b) {
-                    return [$a, $b];
-                }, $args['sortBy'], $args['sortOrder']));
-            } else {
-                $resultList->setOrderKey($args['sortBy']);
-            }
-        }
-
-        if (!empty($args['variantMode'])) {
-            $resultList->setVariantMode($args['variantMode']);
-        }
-
-        if (!empty($args['fulltext'])) {
-            if ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql) {
-                $resultList->buildFulltextSearchWhere(
-                    $resultList->getCurrentTenantConfig()->getSearchAttributes(),
-                    $args['fulltext']
-                );
-
-                return $resultList->addCondition($args['fulltext'], 'relevance');
-            } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
-                /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
-                $resultList->addQueryCondition($args['fulltext']);
-
-                // Update sorting if not manually specified. Use the currently set
-                // default sorting with prefixed scoring.
-                if (empty($args['sortBy'])) {
-                    $sorting = $resultList->getOrderKey();
-                    if (empty($sorting)) {
-                        $sorting = [['_score', 'DESC']];
-                    } else {
-                        if (!is_array($sorting)) {
-                            $sorting = [$sorting];
-                        }
-                        if (isset($sorting[$resultList::ADVANCED_SORT])) {
-                            $sorting[$resultList::ADVANCED_SORT] = array_merge(
-                                [(object)[
-                                    '_score' => 'desc',
-                                ]],
-                                $sorting[$resultList::ADVANCED_SORT]
-                            );
-                        } else {
-                            $sorting = array_merge([['_score', 'DESC']], $sorting);
-                        }
-                    }
-                    $resultList->setOrderKey($sorting);
-                }
-            }
-        }
-
-        /** @var $configuration Configuration */
-        $configuration = $context['configuration'];
-        // @TODO Implement SQL Conditions in a generic way - we need to support
-        // ElasticSearch.
-        //@TODO Implement workspace limitation in a generic way.
-
-        $db = Db::get();
-        if ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql) {
-            // Add SQL-Conditions.
-            if ($sqlListCondition = $configuration->getSqlObjectCondition()) {
-                $conditionParts[] = '(' . $sqlListCondition . ')';
-            }
-            // check permissions
-            $conditionParts[] = ' (
-                                    (select `read` from plugin_datahub_workspaces_object where configuration = ' . $db->quote($configuration->getName()) . ' and LOCATE(CONCAT(o_path,o_key),cpath)=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)
-                                    UNION
-                                    (select `read` from plugin_datahub_workspaces_object where configuration = ' . $db->quote($configuration->getName()) . ' and LOCATE(cpath,CONCAT(o_path,o_key))=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)
-                                 )';
-            if ($conditionParts) {
-                $condition = implode(' AND ', $conditionParts);
-                $resultList->addCondition($condition);
-            }
-        } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
-            /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
-
-            // @FIXME How can we convert that to DSL?
-            // We might can use something like this:
-            // https://www.elastic.co/guide/en/elasticsearch/reference/6.8/sql-spec.html
-            // https://github.com/elastic/elasticsearch/tree/master/x-pack/plugin/sql
-            // https://github.com/opendistro-for-elasticsearch/sql
-            // $sqlListCondition = $configuration->getSqlObjectCondition();
-
-            // Fetch readablePaths to implement a access filter.
-            $readablePaths = $db->fetchCol('select `cpath` from plugin_datahub_workspaces_object where configuration = ? AND `read`=1 ORDER BY LENGTH(cpath)', [$configuration->getName()]);
-            // @FIXME path is not part of the system parameters indexed - see
-            // \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker\ElasticSearch\AbstractElasticSearch::getSystemAttributes()
-            // We could hook into the indexing and add it automagically but that
-            // seems intrusive.
-            // $resultList->addCondition(['terms' => ['system.path' => $readablePaths]]);
-        }
-
-        /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory $category */
-        if (!empty($args['category']) && ($category = AbstractObject::getById($args['category']))) {
-            $resultList->setCategory($category);
-        }
-
-        $resultList->setInProductList(!isset($args['published']) || !empty($args['published']));
-
-        $connection = [];
-        $connection['edges'] = [$resultList, 'load'];
-        $connection['facets'] = $facets;
-        $connection['totalCount'] = [$resultList, 'count'];
-
-        return $connection;
     }
 
 
     /**
-     * @throws \Exception
+     * @throws InvalidConfigException
+     * @throws Exception
+     * @throws \Doctrine\DBAL\Exception
      */
-    public function resolveBrandFilter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
+    public function resolveBrandFilter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null): ?array
     {
-        $f = 0;
+        if ($args && $args['defaultLanguage']) {
+            $this->getGraphQlService()->getLocaleService()->setLocale($args['defaultLanguage']);
+        }
         $factory = Factory::getInstance();
-        $resultList = $factory->getIndexService()->getProductListForTenant('default_' . $args['defaultLanguage']);
+        $this->setupAssortment($args, $factory);
+        $resultList = $this->getProductList($args, $factory);
 
+        // check for configured brand config in index attributes
         $attributeConfig = $resultList->getTenantConfig()->getAttributeConfig();
         // how to deal with this magic string
         $brandConfig = $attributeConfig['brand'] ?? null;
         if (!$brandConfig) {
             throw new \Exception('cannot find an indexed attribute named brand');
         }
-        $indexFieldName = $brandConfig['filter_group'] . $brandConfig['name'];
-
+        $indexFieldName = 'relations.' . $brandConfig['name'];
         $resultList->addCondition($args['brand'], $indexFieldName);
-        $s = $resultList->count();
 
 
         // @TODO: how can we call the "resolveFilter" with the correct arguments
@@ -990,7 +719,7 @@ class QueryType
         // - re-create a filter defintion if not set
         // - copy arguemnt over as a filter input or directly
         //
-        return $this->resolveFilter($value, $args, $context, $resolveInfo);
+        return $this->resolveFilterQuery($args, $context, $factory, $resultList, $resolveInfo );
     }
 
     /**
@@ -1091,7 +820,7 @@ class QueryType
         // Extract the facet information.
         /* @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinitionType $filter */
         $filterType = $filterService->getFilterType($filter->getType());
-        $field = \Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
+        $field = HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
         $options = $resultList->getGroupByValues($field, true, !method_exists($filter, 'getUseAndCondition') || !$filter->getUseAndCondition());
 
         foreach ($options as &$option) {
@@ -1117,5 +846,328 @@ class QueryType
         ];
 
         return isset($value[$resolveInfo->fieldName]) ? $value[$resolveInfo->fieldName] : null;
+    }
+
+    /**
+     * @param array $args
+     * @param Factory $factory
+     * @return array
+     */
+    protected function setupAssortment(array $args, Factory $factory): void
+    {
+        // Set tenant config.
+        if (!empty($args['tenant'])) {
+            $factory->getEnvironment()->setCurrentAssortmentTenant($args['tenant']);
+        } else {
+            if (class_exists('\Pimcore\Model\DataObject\Tenant')) {
+                $security = new Security(\Pimcore::getKernel()->getContainer());
+                $user = $security->getUser();
+                $environment = $factory->getEnvironment();
+
+                $tenantEvent = new TenantEvent($user);
+                $this->eventDispatcher->dispatch($tenantEvent, TenantEvents::LOAD_TENANTS);
+
+                $userTenants = $tenantEvent->getUserTenants();
+                if (method_exists($environment, 'setMultipleAssortmentTenants')) {
+                    $environment->setMultipleAssortmentTenants($userTenants);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array $args
+     * @param array $context
+     * @param Factory $factory
+     * @param ProductListInterface $resultList
+     * @param ResolveInfo|null $resolveInfo
+     * @return array|null
+     * @throws InvalidConfigException
+     * @throws Exception
+     * @throws \Doctrine\DBAL\Exception
+     */
+    protected function resolveFilterQuery(
+        array $args,
+        array $context,
+        Factory $factory,
+        ProductListInterface $resultList,
+        ?ResolveInfo $resolveInfo
+    ): ?array {
+        /** @var AbstractFilterDefinition $filterDefinition */
+        $facets = [];
+        $filterDefinition = false;
+        // Set default settings using a FilterDefinition if id is provided.
+        if (!empty($args['filterDefinition'])) {
+            if (isset($args['filterDefinition']['id'])) {
+                $object = AbstractObject::getById($args['filterDefinition']['id']);
+                if ($object instanceof AbstractFilterDefinition) {
+                    $filterDefinition = $object;
+                } elseif ($object && isset($args['filterDefinition']['relationField'])) {
+                    $getter = 'get' . ucfirst($args['filterDefinition']['relationField']);
+                    if (method_exists($object, $getter)) {
+                        $filterDefinition = $object->$getter();
+                    }
+                }
+            }
+            if (
+                !($filterDefinition instanceof AbstractFilterDefinition)
+                && isset($args['filterDefinition']['fallbackFilterDefinitionId'])
+            ) {
+                $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
+            }
+            if ($filterDefinition) {
+                $filterService = $factory->getFilterService();
+
+                if ($pageLimit = $filterDefinition->getPageLimit()) {
+                    $resultList->setLimit($pageLimit);
+                }
+
+                // we need to set the default OrderBy only on specific preconditions
+                //if (empty($args['fulltext']) && empty($args['facets'])) {
+                // adds default sort from FilterDefinition "Default OrderBy"
+                $orderByList = [];
+                if ($orderByCollection = $filterDefinition->getDefaultOrderBy()) {
+                    foreach ($orderByCollection as $orderBy) {
+                        if (method_exists($orderBy, 'getAdvancedSort')) {
+                            $config = $factory->getIndexService()->getCurrentTenantConfig();
+                            $orderByList = $orderBy->getAdvancedSort($orderByCollection, $config);
+                            break;
+                        } else {
+                            if (method_exists($orderBy, 'getOrderField')) {
+                                if ($orderBy->getOrderField()) {
+                                    $orderByList[] = [$orderBy->getOrderField(), $orderBy->getDirection()];
+                                    continue;
+                                }
+                            }
+                            if ($orderBy->getField()) {
+                                $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
+                            }
+                        }
+                    }
+                }
+                $resultList->setOrderKey($orderByList);
+                $resultList->setOrder('ASC');
+                //}
+
+                $filterValues = [];
+                if (!empty($args['facets'])) {
+                    foreach ($args['facets'] as $facet) {
+                        $filterValues[$facet['field']] = $facet['values'];
+                    }
+                }
+                // Read out requested filter from GraphQL Request Query to check if an output is necessary or not
+                $filterNodes = [];
+                /** @var NodeList $requestedFilters */
+                $requestedFilters = $resolveInfo->operation->selectionSet->selections[0]->selectionSet->selections[0]->selectionSet->selections;
+
+                foreach ($requestedFilters as $filter) {
+                    if ($filter->name->value == 'facets') {
+                        $filterNodes[] = $filter->selectionSet->selections;
+                    }
+                }
+
+                //Facets could be multiple in a Request e.g. to separate filters and categories
+                //Merge everything together
+                if (count($filterNodes) >= 1) {
+                    $tempFilterNodes = [];
+                    foreach ($filterNodes as $filterNode) {
+                        foreach ($filterNode as $node) {
+                            $tempFilterNodes[] = $node;
+                        }
+                    }
+                    $filterNodes = $tempFilterNodes;
+                }
+
+                $requestFilters = [];
+                if (!empty($filterNodes)) {
+                    foreach ($filterNodes as $filterNode) {
+                        if ($filterNode->kind == NodeKind::FRAGMENT_SPREAD && $filters = $filterDefinition->getFilters()) {
+                            /** @var FragmentSpreadNode $filterNode */
+                            //check for fragments type name because fragments can have any name
+                            foreach ($filters as $savedFilter) {
+                                foreach ($resolveInfo->fragments as $fragment) {
+                                    if (strpos($fragment->typeCondition->name->value, $savedFilter->getType()) !== false) {
+                                        if ($filterNode->name->value == $fragment->name->value) {
+                                            $requestFilters[] = $fragment->typeCondition->name->value;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if ($filterNode->kind == NodeKind::INLINE_FRAGMENT) {
+                            /** @var InlineFragmentNode $filterNode */
+                            $requestFilters[] = $filterNode->typeCondition->name->value;
+                        }
+                    }
+                }
+
+                if ($filters = $filterDefinition->getFilters()) {
+                    foreach ($filters as $k => $filter) {
+                        // Check if this filter can handle multiple values and if
+                        // not use the first values entry.
+                        $filterType = $filterService->getFilterType($filter->getType());
+                        $field = HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
+
+                        // Check if filter is requested from GraphQL Query
+                        $hasFilter = false;
+                        foreach ($requestFilters as $requestFilter) {
+                            if (strpos($requestFilter, $filter->getType()) !== false) {
+                                $hasFilter = true;
+                                break;
+                            }
+                        }
+                        // If still adding field to facets which is not request an empty array is in the output result
+                        if (!$hasFilter) {
+                            continue;
+                        }
+                        if (!HijackAbstractFilterType::isMultiValueFilter($filterType, $filter)) {
+                            if (isset($filterValues[$field])) {
+                                $filterValues[$field] = current($filterValues[$field]);
+                            }
+                        }
+
+                        $facets[$k] = [
+                            'filter' => $filter,
+                            'filterService' => $filterService,
+                            'resultList' => $resultList,
+                        ];
+                    }
+                }
+
+                $currentFilters = $filterService->initFilterService($filterDefinition, $resultList, $filterValues);
+            }
+        }
+        // paging
+        if (isset($args['first'])) {
+            $resultList->setLimit($args['first']);
+        }
+        if (isset($args['after'])) {
+            $resultList->setOffset($args['after']);
+        }
+
+        // Manual sorting
+        if (!empty($args['sortBy'])) {
+            if (!empty($args['sortOrder'])) {
+                $resultList->setOrderKey(
+                    array_map(function ($a, $b) {
+                        return [$a, $b];
+                    }, $args['sortBy'], $args['sortOrder']));
+            } else {
+                $resultList->setOrderKey($args['sortBy']);
+            }
+        }
+
+        if (!empty($args['variantMode'])) {
+            $resultList->setVariantMode($args['variantMode']);
+        }
+
+        if (!empty($args['fulltext'])) {
+            if ($resultList instanceof DefaultMysql) {
+                $resultList->buildFulltextSearchWhere(
+                    $resultList->getCurrentTenantConfig()->getSearchAttributes(),
+                    $args['fulltext']
+                );
+
+                return $resultList->addCondition($args['fulltext'], 'relevance');
+            } elseif ($resultList instanceof AbstractElasticSearch) {
+                $resultList->addQueryCondition($args['fulltext']);
+
+                // Update sorting if not manually specified. Use the currently set
+                // default sorting with prefixed scoring.
+                if (empty($args['sortBy'])) {
+                    $sorting = $resultList->getOrderKey();
+                    if (empty($sorting)) {
+                        $sorting = [['_score', 'DESC']];
+                    } else {
+                        if (!is_array($sorting)) {
+                            $sorting = [$sorting];
+                        }
+                        if (isset($sorting[$resultList::ADVANCED_SORT])) {
+                            $sorting[$resultList::ADVANCED_SORT] = array_merge(
+                                [(object)[
+                                    '_score' => 'desc',
+                                ]],
+                                $sorting[$resultList::ADVANCED_SORT]
+                            );
+                        } else {
+                            $sorting = array_merge([['_score', 'DESC']], $sorting);
+                        }
+                    }
+                    $resultList->setOrderKey($sorting);
+                }
+            }
+        }
+
+        /** @var $configuration Configuration */
+        $configuration = $context['configuration'];
+        // @TODO Implement SQL Conditions in a generic way - we need to support
+        // ElasticSearch.
+        //@TODO Implement workspace limitation in a generic way.
+
+        $db = Db::get();
+        if ($resultList instanceof DefaultMysql) {
+            // Add SQL-Conditions.
+            if ($sqlListCondition = $configuration->getSqlObjectCondition()) {
+                $conditionParts[] = '(' . $sqlListCondition . ')';
+            }
+            // check permissions
+            $conditionParts[] = ' (
+                                    (select `read` from plugin_datahub_workspaces_object where configuration = ' . $db->quote($configuration->getName()) . ' and LOCATE(CONCAT(o_path,o_key),cpath)=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)
+                                    UNION
+                                    (select `read` from plugin_datahub_workspaces_object where configuration = ' . $db->quote($configuration->getName()) . ' and LOCATE(cpath,CONCAT(o_path,o_key))=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)
+                                 )';
+            if ($conditionParts) {
+                $condition = implode(' AND ', $conditionParts);
+                $resultList->addCondition($condition);
+            }
+        } elseif ($resultList instanceof AbstractElasticSearch) {
+            /** @var AbstractElasticSearch $resultList */
+
+            // @FIXME How can we convert that to DSL?
+            // We might can use something like this:
+            // https://www.elastic.co/guide/en/elasticsearch/reference/6.8/sql-spec.html
+            // https://github.com/elastic/elasticsearch/tree/master/x-pack/plugin/sql
+            // https://github.com/opendistro-for-elasticsearch/sql
+            // $sqlListCondition = $configuration->getSqlObjectCondition();
+
+            // Fetch readablePaths to implement a access filter.
+            $readablePaths = $db->fetchCol('select `cpath` from plugin_datahub_workspaces_object where configuration = ? AND `read`=1 ORDER BY LENGTH(cpath)', [$configuration->getName()]);
+            // @FIXME path is not part of the system parameters indexed - see
+            // \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker\ElasticSearch\AbstractElasticSearch::getSystemAttributes()
+            // We could hook into the indexing and add it automagically but that
+            // seems intrusive.
+            // $resultList->addCondition(['terms' => ['system.path' => $readablePaths]]);
+        }
+
+        /** @var AbstractCategory $category */
+        if (!empty($args['category']) && ($category = AbstractObject::getById($args['category']))) {
+            $resultList->setCategory($category);
+        }
+
+        $resultList->setInProductList(!isset($args['published']) || !empty($args['published']));
+
+        $connection = [];
+        $connection['edges'] = [$resultList, 'load'];
+        $connection['facets'] = $facets;
+        $connection['totalCount'] = [$resultList, 'count'];
+
+        return $connection;
+    }
+
+    /**
+     * @param array $args
+     * @param Factory $factory
+     * @return ProductListInterface
+     */
+    protected function getProductList(array $args, Factory $factory): ProductListInterface
+    {
+        if ($args && $args['defaultLanguage']) {
+            // get language based tenant
+            $resultList = $factory->getIndexService()->getProductListForTenant('default_' . $args['defaultLanguage']);
+        } else {
+            // get fallback resultList
+            $resultList = $factory->getIndexService()->getProductListForCurrentTenant();
+        }
+        return $resultList;
     }
 }
