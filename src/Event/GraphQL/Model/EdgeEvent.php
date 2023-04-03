@@ -16,6 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
 use GraphQL\Error\SyntaxError;
+use GraphQL\Server\OperationParams;
 use GraphQL\Type\Definition\ResolveInfo;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -99,39 +100,14 @@ class EdgeEvent extends Event
     }
 
     /**
-     * FIX ME: currently there is no better way to get the original arguments of a GraphQL query from a
-     * lower level node. If there is another way this should be refactored
-     *
-     * @param string|null $filterNode
-     *
-     * @return array|mixed
-     *
-     * @throws SyntaxError
+     * @return array
      */
-    public function getArguments(string $filterNode = null)
+    public function getArguments(): array
     {
-        if (!isset($this->options['context']['arguments'])) {
-            $arguments = [];
-            // @TODO Document why we do this here-
-            foreach ($this->getResolveInfo()->operation->selectionSet->selections as $subNode) {
-                foreach ($subNode->arguments as $argument) {
-                    $arguments[$subNode->name->value][$argument->name->value] = $argument->value->value;
-                }
-            }
-            // @TODO Document why we collect global arguments too.
-            foreach ($this->getResolveInfo()->fragments as $fragment) {
-                foreach ($fragment->selectionSet->selections as $subNode) {
-                    foreach ($subNode->arguments as $argument) {
-                        $arguments[$subNode->name->value][$argument->name->value] = $argument->value->value;
-                    }
-                }
-            }
-            $this->options['context']['arguments'] = $arguments;
+        $operation = $this->options['context']['operation'] ?? null;
+        if ($operation instanceof OperationParams && $operation->operation) {
+            return $operation->variables;
         }
-        if ($filterNode) {
-            return $this->options['context']['arguments'][$filterNode] ?? [];
-        }
-
-        return $this->options['context']['arguments'];
+        return [];
     }
 }
