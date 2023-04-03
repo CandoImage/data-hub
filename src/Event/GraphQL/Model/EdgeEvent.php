@@ -15,7 +15,6 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
-use GraphQL\Error\SyntaxError;
 use GraphQL\Server\OperationParams;
 use GraphQL\Type\Definition\ResolveInfo;
 use Symfony\Contracts\EventDispatcher\Event;
@@ -108,6 +107,7 @@ class EdgeEvent extends Event
         if ($operation instanceof OperationParams && $operation->operation) {
             return $operation->variables;
         }
+
         return [];
     }
 }
