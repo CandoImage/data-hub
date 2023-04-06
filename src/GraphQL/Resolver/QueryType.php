@@ -972,7 +972,7 @@ class QueryType
                 foreach ($fragmentSelectionSet as $fragmentSelection) {
                     if (isset($fragmentSelection->alias) && $fragmentSelection->alias->value == $facetName) {
                         $filterNodes = $fragmentSelection->selectionSet->selections;
-                    } 
+                    }
                 }
                 break;
             }
