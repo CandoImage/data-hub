@@ -967,6 +967,7 @@ class QueryType
         $connection = [];
         $connection['edges'] = [$resultList, 'load'];
         $connection['facets'] = $facets;
+        $connection['filterNodes'] = $filterNodes;
         $connection['totalCount'] = [$resultList, 'count'];
 
         return $connection;
@@ -986,6 +987,11 @@ class QueryType
     }
 
     /**
+     *
+     * This resolver relies on data pre-processed by \Pimcore\Bundle\DataHubBundle\GraphQL\Resolver\QueryType::resolveFilter()
+     *
+     * @TODO Explain exactly what is done in this processing - it is not obvious.
+     *
      * @param null $value
      * @param array $args
      * @param $context
@@ -997,31 +1003,10 @@ class QueryType
     {
         //check which values are necessary if multiple facet arguments sent in the request
         //this prevents empty arrays in multiple facet types
-        $facetName = end($resolveInfo->path);
-
-        $filterNodes = null;
-        /** @var NodeList $requestedFilters */
-        $requestedFilters = $resolveInfo->operation->selectionSet->selections[0]->selectionSet->selections[0]->selectionSet->selections;
-
-        foreach ($requestedFilters as $filter) {
-            if ($filter instanceof FragmentSpreadNode) {
-                $filterName = $filter->name->value;
-                $fragmentSelectionSet = $resolveInfo->fragments[$filterName]->selectionSet->selections;
-                foreach ($fragmentSelectionSet as $fragmentSelection) {
-                    if (isset($fragmentSelection->alias) && $fragmentSelection->alias->value == $facetName) {
-                        $filterNodes = $fragmentSelection->selectionSet->selections;
-                    }
-                }
-                break;
-            }
-            if (isset($filter->alias) && $filter->alias->value == $facetName) {
-                $filterNodes = $filter->selectionSet->selections;
-            }
-        }
         $filterNames = [];
         $fragmentNames = [];
         $storeFragments = false;
-        foreach ($filterNodes as $filterNode) {
+        foreach ($value['filterNodes'] ?? [] as $filterNode) {
             if ($filterNode->kind == NodeKind::FRAGMENT_SPREAD) {
                 $fragmentNames[] = $filterNode->name->value;
                 $storeFragments = true;
