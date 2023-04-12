@@ -769,6 +769,16 @@ class QueryType
                 $requestedFilters = $resolveInfo->operation->selectionSet->selections[0]->selectionSet->selections[0]->selectionSet->selections;
 
                 foreach ($requestedFilters as $filter) {
+                    if ($filter instanceof FragmentSpreadNode) {
+                        $filterName = $filter->name->value;
+                        $fragmentSelectionSet = $resolveInfo->fragments[$filterName]->selectionSet->selections;
+                        foreach ($fragmentSelectionSet as $fragmentSelection) {
+                            if ($fragmentSelection->name->value == 'facets') {
+                                $filterNodes[] = $fragmentSelection->selectionSet->selections;
+                            }
+                        }
+                        break;
+                    }
                     if ($filter->name->value == 'facets') {
                         $filterNodes[] = $filter->selectionSet->selections;
                     }
