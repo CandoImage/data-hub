@@ -133,8 +133,10 @@ abstract class AbstractRelationsType extends UnionType implements ContainerAware
 
     /**
      * @inheritdoc
+     * 
+     * @return callable|null
      */
-    public function resolveType($element, $context, ResolveInfo $info)
+    public function resolveType($element, $context, ResolveInfo $info): ?callable
     {
         //@TODO: we need to contribute that as a direct access to a non existing array key throws an error on PHP >8.0
         // original code: $element['__elementType'] == 'object'
