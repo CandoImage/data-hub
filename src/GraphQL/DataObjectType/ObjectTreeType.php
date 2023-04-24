@@ -64,7 +64,7 @@ class ObjectTreeType extends UnionType implements ContainerAwareInterface
 
     /**
      * @inheritdoc
-     * 
+     *
      * @return callable|null
      */
     public function resolveType($element, $context, ResolveInfo $info): ?callable

@@ -64,7 +64,7 @@ class VideoTypeDataType extends UnionType
 
     /**
      * @inheritdoc
-     * 
+     *
      * @return callable|null
      */
     public function resolveType($element, $context, ResolveInfo $info): ?callable
