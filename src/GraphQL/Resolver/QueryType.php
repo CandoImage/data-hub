@@ -949,7 +949,7 @@ class QueryType
             // $sqlListCondition = $configuration->getSqlObjectCondition();
 
             // Fetch readablePaths to implement a access filter.
-            $readablePaths = $db->fetchCol('select `cpath` from plugin_datahub_workspaces_object where configuration = ? AND `read`=1 ORDER BY LENGTH(cpath)', [$configuration->getName()]);
+            $readablePaths = $db->fetchFirstColumn('select `cpath` from plugin_datahub_workspaces_object where configuration = ? AND `read`=1 ORDER BY LENGTH(cpath)', [$configuration->getName()]);
             // @FIXME path is not part of the system parameters indexed - see
             // \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker\ElasticSearch\AbstractElasticSearch::getSystemAttributes()
             // We could hook into the indexing and add it automagically but that
