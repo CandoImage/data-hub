@@ -59,7 +59,7 @@ class AssetTreeType extends UnionType implements ContainerAwareInterface
      *
      * @return callable|null
      */
-    public function resolveType($element, $context, ResolveInfo $info): ?callable
+    public function resolveType($element, $context, ResolveInfo $info)
     {
         if (!$element) {
             return null;

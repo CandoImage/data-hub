@@ -74,7 +74,7 @@ class ObjectsType extends UnionType implements ContainerAwareInterface
      *
      * @return callable|null
      */
-    public function resolveType($element, $context, ResolveInfo $info): ?callable
+    public function resolveType($element, $context, ResolveInfo $info)
     {
         if ($element) {
             if ($element['__elementType'] == 'object') {

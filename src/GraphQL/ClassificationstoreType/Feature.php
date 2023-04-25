@@ -65,7 +65,7 @@ class Feature extends UnionType implements ContainerAwareInterface
      *
      * @return callable|null
      */
-    public function resolveType($element, $context, ResolveInfo $info): ?callable
+    public function resolveType($element, $context, ResolveInfo $info)
     {
         if (!$element instanceof FeatureDescriptor) {
             throw new ClientSafeException('expected feature descriptor');

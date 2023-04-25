@@ -67,7 +67,7 @@ class VideoTypeDataType extends UnionType
      *
      * @return callable|null
      */
-    public function resolveType($element, $context, ResolveInfo $info): ?callable
+    public function resolveType($element, $context, ResolveInfo $info)
     {
         if ($element instanceof ElementDescriptor) {
             return $this->assetType;

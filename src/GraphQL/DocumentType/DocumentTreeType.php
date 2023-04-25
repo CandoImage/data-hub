@@ -85,7 +85,7 @@ class DocumentTreeType extends UnionType implements ContainerAwareInterface
      *
      * @return callable|null
      */
-    public function resolveType($element, $context, ResolveInfo $info): ?callable
+    public function resolveType($element, $context, ResolveInfo $info)
     {
         $rawElement = $element;
         $element = Document::getById($element['id']);

@@ -124,7 +124,7 @@ class ElementPropertyType extends UnionType
      *
      * @return callable|null
      */
-    public function resolveType($element, $context, ResolveInfo $info): ?callable
+    public function resolveType($element, $context, ResolveInfo $info)
     {
         if ($element instanceof \Pimcore\Model\Property) {
             $type = $element->getType();
