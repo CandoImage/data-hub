@@ -702,6 +702,7 @@ class QueryType
 
         /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition $filterDefinition */
         $currentFilters = [];
+        $filterNodes = [];
         $facets = [];
         $filterDefinition = false;
         // Set default settings using a FilterDefinition if id is provided.
@@ -764,7 +765,6 @@ class QueryType
                     }
                 }
                 // Read out requested filter from GraphQL Request Query to check if an output is necessary or not
-                $filterNodes = [];
                 /** @var NodeList $requestedFilters */
                 $requestedFilters = $resolveInfo->operation->selectionSet->selections[0]->selectionSet->selections[0]->selectionSet->selections;
 
