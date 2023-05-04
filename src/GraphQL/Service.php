@@ -802,7 +802,7 @@ class Service
             $value = $value->$getBrickType();
             if (!empty($value) && !empty($brickKey)) {
                 if ($brickDescriptor) {
-                    $innerContainer = $brickDescriptor['innerContainer'] ? $brickDescriptor['innerContainer'] : 'localizedfields';
+                    $innerContainer = $brickDescriptor['innerContainer'] ?? 'localizedfields';
                     $localizedFields = $value->{'get' . ucfirst($innerContainer)}();
                     $brickDefinition = Definition::getByKey($brickType);
                     /** @var Data\Localizedfields $fieldDefinitionLocalizedFields */
@@ -886,7 +886,7 @@ class Service
             if ($brickDescriptor) {
                 $def = $brickClass->getFieldDefinition($brickKey);
                 if (!$def) {
-                    $innerContainer = $brickDescriptor['innerContainer'] ? $brickDescriptor['innerContainer'] : 'localizedfields';
+                    $innerContainer = $brickDescriptor['innerContainer'] ?? 'localizedfields';
                     /** @var Data\Localizedfields $localizedFields */
                     $localizedFields = $brickClass->getFieldDefinition($innerContainer);
                     $def = $localizedFields->getFieldDefinition($brickDescriptor['brickfield']);
@@ -1014,7 +1014,11 @@ class Service
             } else {
                 $blockGetter = 'get' . ucfirst($descriptorData['__blockName']);
                 $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
-                $blockData = $object->$blockGetter($isLocalizedField && isset($descriptorData['args']['language']) ? $descriptorData['args']['language'] : null);
+                if ($isLocalizedField) {
+                    $blockData = $object->$blockGetter($descriptorData['args']['language'] ?? null);
+                } else {
+                    $blockData = $object->$blockGetter();
+                }
             }
 
             if ($blockData) {
@@ -1049,7 +1053,7 @@ class Service
             $context['outerFieldname'] = $key;
 
             if ($brickDescriptor) {
-                $innerContainer = $brickDescriptor['innerContainer'] ? $brickDescriptor['innerContainer'] : 'localizedfields';
+                $innerContainer = $brickDescriptor['innerContainer'] ?? 'localizedfields';
                 /** @var Data\Localizedfields $localizedFields */
                 $localizedFields = $brickClass->getFieldDefinition($innerContainer);
                 $def = $localizedFields->getFieldDefinition($brickDescriptor['brickfield']);
@@ -1072,7 +1076,11 @@ class Service
             }
         } elseif (method_exists($container, $getter)) {
             $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
-            $result = $container->$getter($isLocalizedField && isset($args['language']) ? $args['language'] : null);
+            if ($isLocalizedField) {
+                $result = $container->$getter($args['language'] ?? null);
+            } else {
+                $result = $container->$getter();
+            }
         }
 
         return $result;
