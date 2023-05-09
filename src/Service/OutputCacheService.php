@@ -29,6 +29,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class OutputCacheService
 {
@@ -61,7 +62,7 @@ class OutputCacheService
      */
     public EventDispatcherInterface $eventDispatcher;
 
-    public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher)
+    public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher, protected RequestStack $requestStack)
     {
         $this->operationData = new \SplObjectStorage();
         $this->eventDispatcher = $eventDispatcher;
@@ -160,8 +161,10 @@ class OutputCacheService
         if (isset($this->operationData[$operation]['operationCid'])) {
             return $this->operationData[$operation]['operationCid'];
         }
+        $currentRequest = $this->requestStack?->getCurrentRequest();
+        $previewHeader = $currentRequest?->headers->get('x-pimcore-object-preview');
 
-        $originalInputHash = \Closure::bind(function () {
+        $originalInputHash = \Closure::bind(function (Bool $preview = false) {
             $originalInput = $this->originalInput;
 
             // Ensure only relevant parts are ingested. And exclude input that
@@ -176,6 +179,7 @@ class OutputCacheService
                 'variables' => null,
                 'extensions' => null,
             ]);
+            $originalInput['preview'] = $preview;
             // Sort params to ensure consistent hashing. For the execution only
             // contents matter, order doesn't.
             asort($originalInput);
@@ -192,7 +196,7 @@ class OutputCacheService
         $this->operationData[$operation] = new ArrayObject(
             array_merge(
                 $this->operationData[$operation]->getArrayCopy() ?? [],
-                ['operationCid' => $originalInputHash()]
+                ['operationCid' => $originalInputHash($previewHeader)]
             )
         );
 
