@@ -196,7 +196,7 @@ class OutputCacheService
         $this->operationData[$operation] = new ArrayObject(
             array_merge(
                 $this->operationData[$operation]->getArrayCopy() ?? [],
-                ['operationCid' => $originalInputHash($previewHeader)]
+                ['operationCid' => $originalInputHash(boolval($previewHeader))]
             )
         );
 
