@@ -364,11 +364,11 @@ class OutputCacheService
             }
         }
 
-       if ($this->previewHelper->isPreviewRequest()) {
+        if ($this->previewHelper->isPreviewRequest()) {
             Logger::debug('Output cache is disabled for this request');
 
             return false;
-       }
+        }
 
         // So far, cache will be used, unless the listener denies it
         $event = new OutputCachePreLoadEvent($request, true, $operation, $parsedQuery);
