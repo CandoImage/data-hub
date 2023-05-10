@@ -355,6 +355,7 @@ class OutputCacheService
             Logger::debug('Output cache is disabled');
 
             $this->operationData[$operation]['useCache'] = false;
+
             return false;
         }
 
@@ -363,13 +364,13 @@ class OutputCacheService
             || filter_var($request->query->get('pimcore_outputfilters_disabled', 'false'), FILTER_VALIDATE_BOOLEAN);
         } elseif ($this->requestHelper->isFrontendRequestByAdmin()) {
             $disableCacheForSingleRequest = true;
-       }
-
+        }
 
         if ($disableCacheForSingleRequest) {
             Logger::debug('Output cache is disabled for this request');
 
             $this->operationData[$operation]['useCache'] = false;
+
             return false;
         }
 
