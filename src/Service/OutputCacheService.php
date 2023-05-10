@@ -16,6 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
 use ArrayObject;
+use CandoCX\CoreBundle\Service\Helper\PreviewHelper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -28,7 +29,6 @@ use Pimcore\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 
 class OutputCacheService
@@ -62,7 +62,7 @@ class OutputCacheService
      */
     public EventDispatcherInterface $eventDispatcher;
 
-    public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher, protected RequestStack $requestStack)
+    public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher, protected PreviewHelper $previewHelper)
     {
         $this->operationData = new \SplObjectStorage();
         $this->eventDispatcher = $eventDispatcher;
@@ -161,10 +161,8 @@ class OutputCacheService
         if (isset($this->operationData[$operation]['operationCid'])) {
             return $this->operationData[$operation]['operationCid'];
         }
-        $currentRequest = $this->requestStack?->getCurrentRequest();
-        $previewHeader = $currentRequest?->headers->get('x-pimcore-object-preview');
 
-        $originalInputHash = \Closure::bind(function (Bool $preview = false) {
+        $originalInputHash = \Closure::bind(function () {
             $originalInput = $this->originalInput;
 
             // Ensure only relevant parts are ingested. And exclude input that
@@ -179,7 +177,6 @@ class OutputCacheService
                 'variables' => null,
                 'extensions' => null,
             ]);
-            $originalInput['preview'] = $preview;
             // Sort params to ensure consistent hashing. For the execution only
             // contents matter, order doesn't.
             asort($originalInput);
@@ -196,7 +193,7 @@ class OutputCacheService
         $this->operationData[$operation] = new ArrayObject(
             array_merge(
                 $this->operationData[$operation]->getArrayCopy() ?? [],
-                ['operationCid' => $originalInputHash(boolval($previewHeader))]
+                ['operationCid' => $originalInputHash()]
             )
         );
 
@@ -366,6 +363,12 @@ class OutputCacheService
                 return false;
             }
         }
+
+       if ($this->previewHelper->isPreviewRequest()) {
+            Logger::debug('Output cache is disabled for this request');
+
+            return false;
+       }
 
         // So far, cache will be used, unless the listener denies it
         $event = new OutputCachePreLoadEvent($request, true, $operation, $parsedQuery);
