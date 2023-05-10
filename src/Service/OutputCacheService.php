@@ -16,7 +16,6 @@
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
 use ArrayObject;
-use CandoCX\CoreBundle\Service\Helper\PreviewHelper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -25,6 +24,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCacheGenerateCidEvent
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreLoadEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
+use Pimcore\Http\RequestHelper;
 use Pimcore\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -62,7 +62,7 @@ class OutputCacheService
      */
     public EventDispatcherInterface $eventDispatcher;
 
-    public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher, protected PreviewHelper $previewHelper)
+    public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher, protected RequestHelper $requestHelper)
     {
         $this->operationData = new \SplObjectStorage();
         $this->eventDispatcher = $eventDispatcher;
@@ -347,26 +347,29 @@ class OutputCacheService
 
     private function useCache(Request $request, OperationParams $operation, DocumentNode $parsedQuery): bool
     {
+        if (!isset($this->operationData[$operation])) {
+            $this->operationData->attach($operation, []);
+        }
+
         if (!$this->cacheEnabled) {
             Logger::debug('Output cache is disabled');
 
+            $this->operationData[$operation]['useCache'] = false;
             return false;
         }
 
         if (\Pimcore::inDebugMode()) {
             $disableCacheForSingleRequest = filter_var($request->query->get('pimcore_nocache', 'false'), FILTER_VALIDATE_BOOLEAN)
             || filter_var($request->query->get('pimcore_outputfilters_disabled', 'false'), FILTER_VALIDATE_BOOLEAN);
+        } elseif ($this->requestHelper->isFrontendRequestByAdmin()) {
+            $disableCacheForSingleRequest = true;
+       }
 
-            if ($disableCacheForSingleRequest) {
-                Logger::debug('Output cache is disabled for this request');
 
-                return false;
-            }
-        }
-
-        if ($this->previewHelper->isPreviewRequest()) {
+        if ($disableCacheForSingleRequest) {
             Logger::debug('Output cache is disabled for this request');
 
+            $this->operationData[$operation]['useCache'] = false;
             return false;
         }
 
@@ -374,9 +377,6 @@ class OutputCacheService
         $event = new OutputCachePreLoadEvent($request, true, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::PRE_LOAD);
 
-        if (!isset($this->operationData[$operation])) {
-            $this->operationData->attach($operation, []);
-        }
         $this->operationData[$operation]['useCache'] = $event->isUseCache();
 
         return $this->operationData[$operation]['useCache'];
