@@ -15,15 +15,21 @@
 
 namespace Pimcore\Bundle\DataHubBundle;
 
+use Pimcore\Bundle\AdminBundle\PimcoreAdminBundle;
 use Pimcore\Bundle\DataHubBundle\DependencyInjection\Compiler\CustomDocumentTypePass;
 use Pimcore\Bundle\DataHubBundle\DependencyInjection\Compiler\ImportExportLocatorsPass;
 use Pimcore\Extension\Bundle\AbstractPimcoreBundle;
 use Pimcore\Extension\Bundle\Installer\InstallerInterface;
+use Pimcore\Extension\Bundle\PimcoreBundleAdminClassicInterface;
+use Pimcore\Extension\Bundle\Traits\BundleAdminClassicTrait;
 use Pimcore\Extension\Bundle\Traits\PackageVersionTrait;
+use Pimcore\HttpKernel\Bundle\DependentBundleInterface;
+use Pimcore\HttpKernel\BundleCollection\BundleCollection;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-class PimcoreDataHubBundle extends AbstractPimcoreBundle
+class PimcoreDataHubBundle extends AbstractPimcoreBundle implements PimcoreBundleAdminClassicInterface, DependentBundleInterface
 {
+    use BundleAdminClassicTrait;
     use PackageVersionTrait;
 
     const RUNTIME_CONTEXT_KEY = 'datahub_context';
@@ -44,6 +50,11 @@ class PimcoreDataHubBundle extends AbstractPimcoreBundle
         $container->addCompilerPass(new CustomDocumentTypePass());
     }
 
+    public static function registerDependentBundles(BundleCollection $collection): void
+    {
+        $collection->addBundle(new PimcoreAdminBundle(), 60);
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -55,7 +66,7 @@ class PimcoreDataHubBundle extends AbstractPimcoreBundle
     /**
      * @return array
      */
-    public function getCssPaths()
+    public function getCssPaths(): array
     {
         return [
             '/bundles/pimcoredatahub/css/icons.css',
@@ -66,7 +77,7 @@ class PimcoreDataHubBundle extends AbstractPimcoreBundle
     /**
      * @return array
      */
-    public function getJsPaths()
+    public function getJsPaths(): array
     {
         return [
             '/bundles/pimcoredatahub/js/datahub.js',
@@ -104,7 +115,7 @@ class PimcoreDataHubBundle extends AbstractPimcoreBundle
      *
      * @return InstallerInterface|null
      */
-    public function getInstaller()
+    public function getInstaller(): ?InstallerInterface
     {
         return $this->container->get(Installer::class);
     }

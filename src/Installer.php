@@ -15,9 +15,8 @@
 
 namespace Pimcore\Bundle\DataHubBundle;
 
-use Doctrine\DBAL\Exception;
 use Pimcore\Bundle\DataHubBundle\Controller\ConfigController;
-use Pimcore\Bundle\DataHubBundle\Migrations\PimcoreX\Version20210305134111;
+use Pimcore\Bundle\DataHubBundle\Migrations\PimcoreX\Version20230503165847;
 use Pimcore\Db;
 use Pimcore\Extension\Bundle\Installer\Exception\InstallationException;
 use Pimcore\Extension\Bundle\Installer\SettingsStoreAwareInstaller;
@@ -39,7 +38,7 @@ class Installer extends SettingsStoreAwareInstaller
     /**
      * {@inheritdoc}
      */
-    public function install()
+    public function install(): void
     {
         try {
             // create backend permission
@@ -75,12 +74,7 @@ class Installer extends SettingsStoreAwareInstaller
         parent::install();
     }
 
-    /**
-     * @return bool
-     *
-     * @throws Exception
-     */
-    public function isInstalled()
+    public function isInstalled(): bool
     {
         // When switching to SettingsStoreAwareInstaller, we need to explicitly mark this bundle installed, if Settingstore entry doesn't exists and datahub permission is installed
         // e.g. updating from 1.0.* to 1.1.*
@@ -100,6 +94,6 @@ class Installer extends SettingsStoreAwareInstaller
 
     public function getLastMigrationVersionClassName(): ?string
     {
-        return Version20210305134111::class;
+        return Version20230503165847::class;
     }
 }

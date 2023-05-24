@@ -28,6 +28,9 @@ use Pimcore\Model\DataObject\ClassDefinition;
 use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 
+/**
+ * @deprecated will be removed in Data Hub 2
+ */
 class MergeType extends UnionType implements ContainerAwareInterface
 {
     use ContainerAwareTrait;
@@ -82,8 +85,8 @@ class MergeType extends UnionType implements ContainerAwareInterface
         $attributes = $nodeDef['attributes'];
         $fieldHelper = $this->getGraphQlService()->getObjectFieldHelper();
 
-        if ($attributes['childs']) {
-            foreach ($attributes['childs'] as $childDef) {
+        if ($attributes['children']) {
+            foreach ($attributes['children'] as $childDef) {
                 $type = $fieldHelper->getGraphQlTypeFromNodeConf($childDef, $this->class, $this->container);
                 $childTypes[] = $type;
             }

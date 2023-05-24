@@ -295,6 +295,7 @@ class QueryType extends ObjectType
                         'type' => Type::string(),
                         'description' => 'Comma separated list of fullpath'
                     ],
+                    'tags' => ['type' => Type::string(),  'description' => 'Comma separated list of tag names'],
                     'defaultLanguage' => ['type' => Type::string()],
                     'first' => ['type' => Type::int()],
                     'after' => ['type' => Type::int()],

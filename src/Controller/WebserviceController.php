@@ -69,7 +69,7 @@ class WebserviceController extends FrontendController
     protected Helper $graphQlRequestHelper;
 
     /**
-     * @var \Symfony\Component\HttpKernel\HttpKernelInterface
+     * @var HttpKernelInterface
      */
     protected HttpKernelInterface $httpKernel;
 
@@ -89,7 +89,7 @@ class WebserviceController extends FrontendController
     }
 
     /**
-     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param Request $request
      *
      * @return array{operations: bool, resolveEdge: bool, resolveObjectGetter: bool}
      */
@@ -139,12 +139,12 @@ class WebserviceController extends FrontendController
 
         $clientname = $request->get('clientname');
 
-        $clientConfiguration = Configuration::getByName($clientname);
-        if (!$clientConfiguration || !$clientConfiguration->isActive()) {
+        $configuration = Configuration::getByName($clientname);
+        if (!$configuration || !$configuration->isActive()) {
             throw new NotFoundHttpException('No active configuration found for ' . $clientname);
         }
 
-        if (!$this->permissionsService->performSecurityCheck($request, $clientConfiguration)) {
+        if (!$this->permissionsService->performSecurityCheck($request, $configuration)) {
             throw new AccessDeniedHttpException('Permission denied, apikey not valid');
         }
 
@@ -165,7 +165,7 @@ class WebserviceController extends FrontendController
         $cachingConfig = $this->getCachingContextConfiguration($request);
         $context = [
             'clientname' => $clientname,
-            'configuration' => $clientConfiguration,
+            'configuration' => $configuration,
             'caching' => $cachingConfig,
         ];
         $datahubConfig = $this->getParameter('pimcore_data_hub');
@@ -181,7 +181,7 @@ class WebserviceController extends FrontendController
 //                    new NoUndefinedVariables()
             ];
         }
-        $disableIntrospection = $clientConfiguration->getSecurityConfig()['disableIntrospection'] ?? false;
+        $disableIntrospection = $configuration->getSecurityConfig()['disableIntrospection'] ?? false;
         if ($disableIntrospection === true) {
             DocumentValidator::addRule(new DisableIntrospection());
         }

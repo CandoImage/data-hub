@@ -26,10 +26,11 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\OutputCachePreSaveEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
 use Pimcore\Http\RequestHelper;
 use Pimcore\Logger;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use SplObjectStorage;
+use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class OutputCacheService
 {
@@ -53,29 +54,38 @@ class OutputCacheService
     private array $excludedQueries = [];
 
     /**
+     * Specific exclude queries
+     *
+     * @var array
+     */
+    private array $exclude_pattern = [];
+
+    /**
      * State collection for an operation.
      */
-    private \SplObjectStorage $operationData;
+    private SplObjectStorage $operationData;
 
     /**
      * @var EventDispatcherInterface
      */
     public EventDispatcherInterface $eventDispatcher;
 
-    public function __construct(ContainerInterface $container, EventDispatcherInterface $eventDispatcher, protected RequestHelper $requestHelper)
-    {
-        $this->operationData = new \SplObjectStorage();
+    public function __construct(
+        ContainerBagInterface $container,
+        EventDispatcherInterface $eventDispatcher,
+        protected RequestHelper $requestHelper
+    ) {
+        $this->operationData = new SplObjectStorage();
         $this->eventDispatcher = $eventDispatcher;
 
-        $config = $container->getParameter('pimcore_data_hub');
-
-        if (isset($config['graphql'])) {
-            if (isset($config['graphql']['output_cache_enabled'])) {
-                $this->cacheEnabled = filter_var($config['graphql']['output_cache_enabled'], FILTER_VALIDATE_BOOLEAN);
+        $dataHubConfig = $container->get('pimcore_data_hub');
+        if (isset($dataHubConfig['graphql'])) {
+            if (isset($dataHubConfig['graphql']['output_cache_enabled'])) {
+                $this->cacheEnabled = filter_var($dataHubConfig['graphql']['output_cache_enabled'], FILTER_VALIDATE_BOOLEAN);
             }
 
-            if (isset($config['graphql']['output_cache_lifetime'])) {
-                $this->lifetime = intval($config['graphql']['output_cache_lifetime']);
+            if (isset($dataHubConfig['graphql']['output_cache_lifetime'])) {
+                $this->lifetime = intval($dataHubConfig['graphql']['output_cache_lifetime']);
             }
 
             if (isset($config['graphql']['output_cache_exclude_pattern'])) {
@@ -152,7 +162,7 @@ class OutputCacheService
      * This is used to track operations context data for caching but is only
      * part of the possible output cache id.
      *
-     * @param \GraphQL\Server\OperationParams $operation
+     * @param OperationParams $operation
      *
      * @return string
      */
@@ -208,8 +218,8 @@ class OutputCacheService
      *
      * BEWARE: Keep listeners as slim as possible to avoid unnecessary overhead.
      *
-     * @param \GraphQL\Server\OperationParams $operation
-     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
+     * @param OperationParams $operation
+     * @param DocumentNode $parsedQuery
      *
      * @return string
      */
@@ -228,12 +238,14 @@ class OutputCacheService
     public function registerOperation(OperationParams $operation, DocumentNode $parsedQuery)
     {
         $this->operationData->attach(
-            $operation, new ArrayObject([
-            'parsedQuery' => $parsedQuery,
-            'filterValues' => '',
-            'sortValues' => '',
-            'useCache' => true,
-        ]));
+            $operation,
+            new ArrayObject([
+                'parsedQuery' => $parsedQuery,
+                'filterValues' => '',
+                'sortValues' => '',
+                'useCache' => true,
+            ])
+        );
 
         // Check the filter values separate
         if (isset($operation->variables['filters'])) {
@@ -251,11 +263,11 @@ class OutputCacheService
     }
 
     /**
-     * @param \Symfony\Component\HttpFoundation\Request $request
-     * @param \GraphQL\Server\OperationParams $operation
-     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
+     * @param Request $request
+     * @param OperationParams $operation
+     * @param DocumentNode $parsedQuery
      *
-     * @return Response|null
+     * @return mixed
      */
     public function load(Request $request, OperationParams $operation, DocumentNode $parsedQuery)
     {
@@ -278,15 +290,19 @@ class OutputCacheService
      * calling OutputCacheService::load() or
      * OutputCacheService::registerOperation() first.
      *
-     * @param \Symfony\Component\HttpFoundation\Request $request
-     * @param \Symfony\Component\HttpFoundation\Response $response
-     * @param \GraphQL\Server\OperationParams $operation
+     * @param Request $request
+     * @param JsonResponse $response
+     * @param OperationParams $operation
      * @param array $extraTags
      *
      * @return void
      */
-    public function save(Request $request, Response $response, OperationParams $operation, array $extraTags = []): void
-    {
+    public function save(
+        Request $request,
+        JsonResponse $response,
+        OperationParams $operation,
+        array $extraTags = []
+    ): void {
         if (!empty($this->operationData[$operation]['useCache'])) {
             $operationData = $this->operationData[$operation];
             // check if we have an excluded query here
@@ -314,26 +330,30 @@ class OutputCacheService
     }
 
     /**
-     * @param \GraphQL\Server\OperationParams $operation
-     * @param \GraphQL\Language\AST\DocumentNode $parsedQuery
-     * @param \Symfony\Component\HttpFoundation\Response $response
+     * @param OperationParams $operation
+     * @param DocumentNode $parsedQuery
+     * @param JsonResponse $response
      * @param array $tags
      *
      * @return void
      */
-    protected function saveToCache(OperationParams $operation, DocumentNode $parsedQuery, Response $response, $tags = []): void
-    {
+    protected function saveToCache(
+        OperationParams $operation,
+        DocumentNode $parsedQuery,
+        JsonResponse $response,
+        $tags = []
+    ): void {
         $cacheKey = $this->getOperationOutputCid($operation, $parsedQuery);
         \Pimcore\Cache::save($response, $cacheKey, $tags, $this->lifetime);
     }
 
     /**
-     * @deprecated Use $this->>getOperationOutputCid(). This was request based
-     * which is not really compatible with multi-query support.
-     *
-     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param Request $request
      *
      * @return string
+     *@deprecated Use $this->>getOperationOutputCid(). This was request based
+     * which is not really compatible with multi-query support.
+     *
      */
     private function computeKey(Request $request): string
     {
@@ -384,7 +404,7 @@ class OutputCacheService
     }
 
     /**
-     * @param \GraphQL\Server\OperationParams $operation
+     * @param OperationParams $operation
      *
      * @return bool
      */
@@ -396,7 +416,7 @@ class OutputCacheService
     /**
      * Returns the meta data collected for an operation.
      *
-     * @param \GraphQL\Server\OperationParams $operation
+     * @param OperationParams $operation
      *
      * @return array
      */

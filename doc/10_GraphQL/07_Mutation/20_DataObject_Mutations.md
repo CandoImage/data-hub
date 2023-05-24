@@ -33,9 +33,11 @@ Also check out the Pimcore's [data type documentation](https://pimcore.com/docs/
 * Gender
 * Geopoint
 * Image
+* ImageGallery
 * Input
 * Language
 * Lastname
+* Link
 * Many-to-One Relation
 * Many-to-Many Relation
 * Many-to-Many Object Relation
@@ -48,6 +50,7 @@ Also check out the Pimcore's [data type documentation](https://pimcore.com/docs/
 * Quantity Value
 * Select
 * Slider
+* Table
 * Textarea
 * Time
 * Wysiwyg

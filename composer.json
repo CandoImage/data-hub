@@ -4,27 +4,32 @@
   "type": "pimcore-bundle",
   "description": "Pimcore Datahub",
   "config": {
-      "sort-packages": true,
-      "preferred-install": {
-        "pimcore/pimcore": "source",
-        "*": "dist"
-      }
+    "sort-packages": true,
+    "preferred-install": {
+      "pimcore/pimcore": "source",
+      "*": "dist"
+    }
   },
+  "prefer-stable": true,
+  "minimum-stability": "dev",
   "require": {
-    "php": "^8.0",
-    "pimcore/pimcore": "^10.5.16",
-    "webonyx/graphql-php": "^14.6",
-    "symfony/psr-http-message-bridge": "^2.1",
-    "nyholm/psr7": "^1.5"
+    "php": "~8.0.0 || ~8.1.0 || ~8.2.0",
+    "pimcore/pimcore": "^10.6 || ^11.0",
+    "pimcore/compatibility-bridge-v10": "^1.0",
+    "webonyx/graphql-php": "^15.2.3"
   },
   "require-dev": {
-    "phpstan/phpstan": "^1.6.0",
-    "phpunit/phpunit": "^9.3",
+    "phpstan/phpstan": "^1.9",
+    "phpunit/phpunit": "^9.6",
     "symfony/phpunit-bridge": "^6",
-    "codeception/module-symfony": "^1.6",
-    "codeception/codeception": "^4.1.12",
+    "codeception/codeception": "^4.1.12 || ^5.0.3",
     "codeception/phpunit-wrapper": "^9",
-    "codeception/module-asserts": "^2"
+    "codeception/module-asserts": "^2",
+    "codeception/module-symfony": "^1.6.0 || ^3.1.0",
+    "symfony/dotenv": "^6.2 || ^5.4.21"
+  },
+  "suggest": {
+    "pimcore/admin-ui-classic-bundle": "Required for Pimcore 11"
   },
   "autoload": {
     "psr-4": {

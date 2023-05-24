@@ -26,16 +26,6 @@ class OutputCachePreSaveEvent extends Event
     use RequestAwareTrait;
     use ResponseAwareTrait;
 
-    /**
-     * @var Request
-     */
-    protected $request;
-
-    /**
-     * @var Response
-     */
-    protected $response;
-
     protected array $tags = [];
 
     /**

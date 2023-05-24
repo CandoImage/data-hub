@@ -14,18 +14,17 @@
  */
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
-use PHPUnit_Framework_TestCase;
+use Codeception\Test\Unit;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
 use GraphQL\Server\OperationParams;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
+class OutputCacheServiceTest extends Unit
 {
 
     protected $container;
@@ -37,8 +36,8 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
 
     protected function setUp(): void
     {
-        $this->container = $this->createMock(ContainerInterface::class);
-        $this->container->method('getParameter')
+        $this->container = $this->createMock(ContainerBagInterface::class);
+        $this->container->method('get')
             ->willReturn(array(
                 'graphql' => array(
                     'output_cache_enabled' => true,
@@ -111,8 +110,8 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
     public function testIgnoreSaveWhenCacheIsDisabled()
     {
         // Arrange
-        $this->container = $this->createMock(ContainerInterface::class);
-        $this->container->method('getParameter')
+        $this->container = $this->createMock(ContainerBagInterface::class);
+        $this->container->method('get')
             ->willReturn(array(
                 'graphql' => array(
                     'output_cache_enabled' => false
@@ -138,8 +137,8 @@ class OutputCacheServiceTest extends PHPUnit_Framework_TestCase
     public function testIgnoreLoadWhenCacheIsDisabled()
     {
         // Arrange
-        $this->container = $this->createMock(ContainerInterface::class);
-        $this->container->method('getParameter')
+        $this->container = $this->createMock(ContainerBagInterface::class);
+        $this->container->method('get')
         ->willReturn(array(
             'graphql' => array(
                 'output_cache_enabled' => false

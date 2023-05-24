@@ -15,6 +15,7 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model;
 
+use GraphQL\Error\SyntaxError;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -31,11 +32,6 @@ class ExecutorEvent extends Event
     use ResponseAwareTrait;
 
     /**
-     * @var mixed
-     */
-    protected $request;
-
-    /**
      * @var OperationParams
      */
     protected $operation;
@@ -46,9 +42,14 @@ class ExecutorEvent extends Event
     protected $queryHash;
 
     /**
-     * @var \GraphQL\Language\AST\DocumentNode|null
+     * @var DocumentNode|null
      */
     protected ?DocumentNode $parsedQuery;
+
+    /**
+     * @var string
+     */
+    protected $query;
 
     /**
      * @var Schema
@@ -78,7 +79,7 @@ class ExecutorEvent extends Event
     }
 
     /**
-     * @return \GraphQL\Server\OperationParams
+     * @return OperationParams
      */
     public function getOperation(): OperationParams
     {
@@ -132,9 +133,9 @@ class ExecutorEvent extends Event
     }
 
     /**
-     * @return \GraphQL\Language\AST\DocumentNode
+     * @return DocumentNode
      *
-     * @throws \GraphQL\Error\SyntaxError
+     * @throws SyntaxError
      */
     public function getParsedQuery(): DocumentNode
     {
@@ -146,7 +147,7 @@ class ExecutorEvent extends Event
     }
 
     /**
-     * @param \GraphQL\Language\AST\DocumentNode|null $parsedQuery
+     * @param DocumentNode|null $parsedQuery
      */
     public function setParsedQuery(?DocumentNode $parsedQuery): void
     {
@@ -155,10 +156,10 @@ class ExecutorEvent extends Event
 
     /**
      * @param Request $request
-     * @param \GraphQL\Server\OperationParams $operation
+     * @param OperationParams $operation
      * @param Schema $schema
      * @param array $context
-     * @param \GraphQL\Language\AST\DocumentNode|null $parsedQuery
+     * @param DocumentNode|null $parsedQuery
      */
     public function __construct(
         Request $request,

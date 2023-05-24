@@ -4,6 +4,8 @@ title: GraphQL
 
 # ![GraphQL Icon](../img/graphql/logo_small.png) GraphQL 
 
+<!-- This GraphQL extension of Pimcores Datahub makes Assets and Data Objects available through an organized and easy-to-query GraphQL schema and constitutes a powerful and flexible way to connect Pimcore to other systems or frontend applications. -->
+
 With [GraphQL](https://graphql.org/) endpoints, Datahub allows integrating Pimcore to other systems 
 and services via GraphQL and test them with the integrated 
 [GraphiQL explorer](https://github.com/graphql/graphiql/tree/main/packages/graphiql#readme) tool right away. 
@@ -27,7 +29,7 @@ The standard endpoint is
 ```
 So if your configuration name is blogdemo and your apikey 123456 then your endpoint would be
 ```
-/pimcore-graphql-webservices/blogdemo?apikey=12345
+/pimcore-graphql-webservices/blogdemo?apikey=123456
 ```
 Here is a configuration how to [override the standard endpoint](./01_Configuration/15_Customize_Endpoint_URL.md)
 

@@ -22,6 +22,7 @@ use GraphQL\Language\AST\InlineFragmentNode;
 use GraphQL\Language\AST\NodeKind;
 use GraphQL\Language\AST\NodeList;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore;
 use Pimcore\Bundle\DataHubBundle\Configuration;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\EdgeEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ListingEvents;
@@ -30,6 +31,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\ListingEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\TenantEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\TenantEvents;
 use Pimcore\Bundle\DataHubBundle\EventListener\CacheListener;
+use Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Helper;
@@ -39,7 +41,12 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\Helper\CacheHelper;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinitionType;
 use Pimcore\Cache;
 use Pimcore\Db;
 use Pimcore\Logger;
@@ -173,8 +180,6 @@ class QueryType
     }
 
     /**
-     * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
-     *
      * @param ElementDescriptor|null $value
      * @param array $args
      * @param array $context
@@ -183,6 +188,9 @@ class QueryType
      * @return array|null
      *
      * @throws ClientSafeException
+     *
+     * @deprecated args['path'] will no longer be supported by Release 1.0. Use args['fullpath'] instead.
+     *
      */
     public function resolveDocumentGetter($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
@@ -308,13 +316,14 @@ class QueryType
         $conditionParts = [];
 
         if ($isIdSet) {
-            $tableName = $objectList->getDao()->getTableName();
-            $conditionParts[] = '(' . $tableName . '.o_id =' . $args['id'] . ')';
+            $conditionParts[] = sprintf('(%s =' . $args['id'] . ')', Service::getVersionDependentDatabaseColumnName('o_id'));
         }
 
         if ($isFullpathSet) {
             $fullpath = Service::correctPath($args['fullpath']);
-            $conditionParts[] = '(concat(o_path, o_key) =' . Db::get()->quote($fullpath) . ')';
+            $conditionParts[] = sprintf('(concat(%s, %s) =' . Db::get()->quote($fullpath) . ')',
+                Service::getVersionDependentDatabaseColumnName('o_path'),
+                Service::getVersionDependentDatabaseColumnName('o_key'));
         }
 
         /** @var Configuration $configuration */
@@ -325,10 +334,8 @@ class QueryType
             $conditionParts[] = '(' . $sqlGetCondition . ')';
         }
 
-        if ($conditionParts) {
-            $condition = implode(' AND ', $conditionParts);
-            $objectList->setCondition($condition);
-        }
+        $condition = implode(' AND ', $conditionParts);
+        $objectList->setCondition($condition);
 
         $objectList->setObjectTypes([AbstractObject::OBJECT_TYPE_OBJECT, AbstractObject::OBJECT_TYPE_FOLDER, AbstractObject::OBJECT_TYPE_VARIANT]);
         $objectList->setLimit(1);
@@ -511,7 +518,7 @@ class QueryType
                 $args['ids'] = explode(',', $args['ids']);
             }
             $ids = implode(', ', array_map([$db, 'quote'], $args['ids']));
-            $conditionParts[] = '(o_id IN (' . $ids . '))';
+            $conditionParts[] = sprintf('(%s IN (' . $ids . '))', Service::getVersionDependentDatabaseColumnName('o_id'));
         }
         if (isset($args['fullpaths'])) {
             $quotedFullpaths = array_map(
@@ -523,7 +530,25 @@ class QueryType
                 },
                 str_getcsv($args['fullpaths'], ',', "'")
             );
-            $conditionParts[] = '(concat(o_path, o_key) IN (' . implode(',', $quotedFullpaths) . '))';
+            $conditionParts[] = sprintf('(concat(%s, %s) IN (' . implode(',', $quotedFullpaths) . '))',
+                Service::getVersionDependentDatabaseColumnName('o_path'),
+                Service::getVersionDependentDatabaseColumnName('o_key'));
+        }
+
+        if (isset($args['tags'])) {
+            if (!is_array($args['tags'])) {
+                $args['tags'] = explode(',', $args['tags']);
+            }
+            $tags = strtolower(implode(', ', array_map(static function ($tag) use ($db) {
+                $tag = trim($tag);
+
+                return $db->quote($tag);
+            }, $args['tags'])));
+
+            $conditionParts[] = "o_id IN (
+                            SELECT cId FROM tags_assignment INNER JOIN tags ON tags.id = tags_assignment.tagid
+                            WHERE
+                                ctype = 'object' AND LOWER(tags.name) IN (" . $tags . '))';
         }
 
         // paging
@@ -559,11 +584,11 @@ class QueryType
         if (!$configuration->skipPermisssionCheck()) {
             // check permissions
             $workspacesTableName = 'plugin_datahub_workspaces_object';
-            $conditionParts[] = ' (
+            $conditionParts[] = sprintf(' (
             (
                 SELECT `read` from ' . $db->quoteIdentifier($workspacesTableName) . '
                 WHERE ' . $db->quoteIdentifier($workspacesTableName) . '.configuration = ' . $db->quote($configuration->getName()) . '
-                AND LOCATE(CONCAT(' . $db->quoteIdentifier($tableName) . '.o_path,' . $db->quoteIdentifier($tableName) . '.o_key),' . $db->quoteIdentifier($workspacesTableName) . '.cpath)=1
+                AND LOCATE(CONCAT(' . $db->quoteIdentifier($tableName) . '.%s,' . $db->quoteIdentifier($tableName) . '.%s),' . $db->quoteIdentifier($workspacesTableName) . '.cpath)=1
                 ORDER BY LENGTH(' . $db->quoteIdentifier($workspacesTableName) . '.cpath) DESC
                 LIMIT 1
             )=1
@@ -571,11 +596,15 @@ class QueryType
             (
                 SELECT `read` from ' . $db->quoteIdentifier($workspacesTableName) . '
                 WHERE ' . $db->quoteIdentifier($workspacesTableName) . '.configuration = ' . $db->quote($configuration->getName()) . '
-                AND LOCATE(' . $db->quoteIdentifier($workspacesTableName) . '.cpath,CONCAT(' . $db->quoteIdentifier($tableName) . '.o_path,' . $db->quoteIdentifier($tableName) . '.o_key))=1
+                AND LOCATE(' . $db->quoteIdentifier($workspacesTableName) . '.cpath,CONCAT(' . $db->quoteIdentifier($tableName) . '.%s,' . $db->quoteIdentifier($tableName) . '.%s))=1
                 ORDER BY LENGTH(' . $db->quoteIdentifier($workspacesTableName) . '.cpath) DESC
                 LIMIT 1
             )=1
-            )';
+            )',
+                Service::getVersionDependentDatabaseColumnName('o_path'),
+                Service::getVersionDependentDatabaseColumnName('o_key'),
+                Service::getVersionDependentDatabaseColumnName('o_path'),
+                Service::getVersionDependentDatabaseColumnName('o_key'));
         }
 
         if (isset($args['filter'])) {
@@ -593,10 +622,8 @@ class QueryType
             $conditionParts[] = $filterCondition;
         }
 
-        if ($conditionParts) {
-            $condition = implode(' AND ', $conditionParts);
-            $objectList->setCondition($condition);
-        }
+        $condition = implode(' AND ', $conditionParts);
+        $objectList->setCondition($condition);
 
         $objectList->setObjectTypes([AbstractObject::OBJECT_TYPE_OBJECT, AbstractObject::OBJECT_TYPE_FOLDER, AbstractObject::OBJECT_TYPE_VARIANT]);
 
@@ -677,7 +704,7 @@ class QueryType
             $factory->getEnvironment()->setCurrentAssortmentTenant($args['tenant']);
         } else {
             if (class_exists('\Pimcore\Model\DataObject\Tenant')) {
-                $security = new Security(\Pimcore::getKernel()->getContainer());
+                $security = new Security(Pimcore::getKernel()->getContainer());
                 $user = $security->getUser();
                 $environment = $factory->getEnvironment();
 
@@ -691,7 +718,7 @@ class QueryType
             }
         }
 
-        /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface $resultList */
+        /** @var ProductListInterface $resultList */
         if ($args && $args['defaultLanguage']) {
             // get language based tenant
             $resultList = $factory->getIndexService()->getProductListForTenant('default_' . $args['defaultLanguage']);
@@ -700,7 +727,7 @@ class QueryType
             $resultList = $factory->getIndexService()->getProductListForCurrentTenant();
         }
 
-        /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition $filterDefinition */
+        /** @var AbstractFilterDefinition $filterDefinition */
         $currentFilters = [];
         $filterNodes = [];
         $facets = [];
@@ -799,7 +826,10 @@ class QueryType
                 $requestFilters = [];
                 if (!empty($filterNodes)) {
                     foreach ($filterNodes as $filterNode) {
-                        if ($filterNode->kind == NodeKind::FRAGMENT_SPREAD && $filters = $filterDefinition->getFilters()) {
+                        if (
+                            $filterNode->kind == NodeKind::FRAGMENT_SPREAD &&
+                            $filters = $filterDefinition->getFilters()
+                        ) {
                             /** @var FragmentSpreadNode $filterNode */
                             //check for fragments type name because fragments can have any name
                             foreach ($filters as $savedFilter) {
@@ -824,7 +854,7 @@ class QueryType
                         // Check if this filter can handle multiple values and if
                         // not use the first values entry.
                         $filterType = $filterService->getFilterType($filter->getType());
-                        $field = \Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
+                        $field = HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
 
                         // Check if filter is requested from GraphQL Query
                         $hasFilter = false;
@@ -838,7 +868,7 @@ class QueryType
                         if (!$hasFilter) {
                             continue;
                         }
-                        if (!\Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType::isMultiValueFilter($filterType, $filter)) {
+                        if (!HijackAbstractFilterType::isMultiValueFilter($filterType, $filter)) {
                             if (isset($filterValues[$field])) {
                                 $filterValues[$field] = current($filterValues[$field]);
                             }
@@ -879,15 +909,15 @@ class QueryType
         }
 
         if (!empty($args['fulltext'])) {
-            if ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql) {
+            if ($resultList instanceof DefaultMysql) {
                 $resultList->buildFulltextSearchWhere(
                     $resultList->getCurrentTenantConfig()->getSearchAttributes(),
                     $args['fulltext']
                 );
 
                 return $resultList->addCondition($args['fulltext'], 'relevance');
-            } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
-                /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
+            } elseif ($resultList instanceof AbstractElasticSearch) {
+                /** @var AbstractElasticSearch $resultList */
                 $resultList->addQueryCondition($args['fulltext']);
 
                 // Update sorting if not manually specified. Use the currently set
@@ -923,7 +953,7 @@ class QueryType
         //@TODO Implement workspace limitation in a generic way.
 
         $db = Db::get();
-        if ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql) {
+        if ($resultList instanceof DefaultMysql) {
             // Add SQL-Conditions.
             if ($sqlListCondition = $configuration->getSqlObjectCondition()) {
                 $conditionParts[] = '(' . $sqlListCondition . ')';
@@ -938,8 +968,8 @@ class QueryType
                 $condition = implode(' AND ', $conditionParts);
                 $resultList->addCondition($condition);
             }
-        } elseif ($resultList instanceof \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch) {
-            /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ElasticSearch\AbstractElasticSearch $resultList */
+        } elseif ($resultList instanceof AbstractElasticSearch) {
+            /** @var AbstractElasticSearch $resultList */
 
             // @FIXME How can we convert that to DSL?
             // We might can use something like this:
@@ -949,7 +979,10 @@ class QueryType
             // $sqlListCondition = $configuration->getSqlObjectCondition();
 
             // Fetch readablePaths to implement a access filter.
-            $readablePaths = $db->fetchFirstColumn('select `cpath` from plugin_datahub_workspaces_object where configuration = ? AND `read`=1 ORDER BY LENGTH(cpath)', [$configuration->getName()]);
+            $readablePaths = $db->fetchFirstColumn(
+                'select `cpath` from plugin_datahub_workspaces_object where configuration = ? AND `read`=1 ORDER BY LENGTH(cpath)',
+                [$configuration->getName()]
+            );
             // @FIXME path is not part of the system parameters indexed - see
             // \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker\ElasticSearch\AbstractElasticSearch::getSystemAttributes()
             // We could hook into the indexing and add it automagically but that
@@ -957,7 +990,7 @@ class QueryType
             // $resultList->addCondition(['terms' => ['system.path' => $readablePaths]]);
         }
 
-        /** @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory $category */
+        /** @var AbstractCategory $category */
         if (!empty($args['category']) && ($category = AbstractObject::getById($args['category']))) {
             $resultList->setCategory($category);
         }
@@ -988,7 +1021,8 @@ class QueryType
 
     /**
      *
-     * This resolver relies on data pre-processed by \Pimcore\Bundle\DataHubBundle\GraphQL\Resolver\QueryType::resolveFilter()
+     * This resolver relies on data pre-processed by
+     * \Pimcore\Bundle\DataHubBundle\GraphQL\Resolver\QueryType::resolveFilter()
      *
      * @TODO Explain exactly what is done in this processing - it is not obvious.
      *
@@ -1032,7 +1066,8 @@ class QueryType
             $filterType = $filter->getType();
             foreach ($filterNames as $filterName) {
                 $fieldName = $filter->getField();
-                // check filterName string and duplicates e.g. FilterSelect and FilterSelectSortable has the same beginning name
+                // check filterName string and duplicates
+                // e.g. FilterSelect and FilterSelectSortable has the same beginning name
                 if (strpos($filterName, $filterType) !== false && !in_array($fieldName, $filterFields)) {
                     $facets[] = $facet;
                     $filterFields[] = $fieldName;
@@ -1063,10 +1098,14 @@ class QueryType
         $resultList = $value['resultList'];
 
         // Extract the facet information.
-        /* @var \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinitionType $filter */
+        /* @var AbstractFilterDefinitionType $filter */
         $filterType = $filterService->getFilterType($filter->getType());
-        $field = \Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
-        $options = $resultList->getGroupByValues($field, true, !method_exists($filter, 'getUseAndCondition') || !$filter->getUseAndCondition());
+        $field = HijackAbstractFilterType::getFieldFromFilter($filterType, $filter);
+        $options = $resultList->getGroupByValues(
+            $field,
+            true,
+            !method_exists($filter, 'getUseAndCondition') || !$filter->getUseAndCondition()
+        );
 
         foreach ($options as &$option) {
             if (!empty($option['value'])) {
@@ -1090,6 +1129,6 @@ class QueryType
             'options' => $options,
         ];
 
-        return isset($value[$resolveInfo->fieldName]) ? $value[$resolveInfo->fieldName] : null;
+        return $value[$resolveInfo?->fieldName] ?? null;
     }
 }
