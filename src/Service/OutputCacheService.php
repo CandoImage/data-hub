@@ -351,6 +351,7 @@ class OutputCacheService
      * @param Request $request
      *
      * @return string
+     *
      *@deprecated Use $this->>getOperationOutputCid(). This was request based
      * which is not really compatible with multi-query support.
      *

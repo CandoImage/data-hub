@@ -38,6 +38,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'text');
     }
 
@@ -56,6 +57,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'path');
     }
 
@@ -72,6 +74,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'target');
     }
 
@@ -88,6 +91,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'anchor');
     }
 
@@ -104,6 +108,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'title');
     }
 
@@ -120,6 +125,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'accesskey');
     }
 
@@ -136,6 +142,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'rel');
     }
 
@@ -152,6 +159,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'class');
     }
 
@@ -168,6 +176,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'attributes');
     }
 
@@ -184,6 +193,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'tabindex');
     }
 
@@ -200,6 +210,7 @@ class Link
         if (is_array($value)) {
             return Service::resolveCachedValue($value, $resolveInfo);
         }
+
         return $this->resolveLinkValue($value, 'parameters');
     }
 
