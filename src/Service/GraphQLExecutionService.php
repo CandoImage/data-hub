@@ -28,7 +28,6 @@ use GraphQL\Language\Source;
 use GraphQL\Server\Helper;
 use GraphQL\Server\OperationParams;
 use GraphQL\Server\ServerConfig;
-use GraphQL\Type\Definition\Argument;
 use GraphQL\Type\Definition\Directive;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
@@ -207,22 +206,21 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // @TODO PURE POC - DOESN'T DO ANYTHING YET.
             $schemaConfig['directives'] = array_merge(GraphQL::getStandardDirectives(), [
                 'cacheable' => new Directive([
-                     'name' => 'cacheable',
-                     'description' => 'Marks an element of a GraphQL schema as cacheable',
-                     'locations' => [
-                         DirectiveLocation::OBJECT,
-                         DirectiveLocation::FIELD_DEFINITION,
-                         DirectiveLocation::ENUM_VALUE,
-                     ],
-                     'args' => [
-                         new Argument([
-                           'name' => 'ttl',
-                           'type' => Type::int(),
-                           'description' => 'Set the time to live for this item',
-                           'defaultValue' => 0,
-                         ]),
-                     ],
-                 ]),
+                    'name' => 'cacheable',
+                    'description' => 'Marks an element of a GraphQL schema as cacheable',
+                    'locations' => [
+                        DirectiveLocation::OBJECT,
+                        DirectiveLocation::FIELD_DEFINITION,
+                        DirectiveLocation::ENUM_VALUE,
+                    ],
+                    'args' => [
+                        'ttl' => [
+                            'type' => Type::int(),
+                            'description' => 'Set the time to live for this item',
+                            'defaultValue' => 0,
+                        ],
+                    ],
+                ]),
             ]);
 
             $schema = new Schema(
@@ -268,7 +266,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             ->setErrorFormatter([$this, 'graphQLErrorFormatter'])
             ->setQueryBatching(true)
             ->setContext([$this, 'getOperationContext'])
-            ->setPersistentQueryLoader([$this, 'queryLoader'])
+            ->setPersistedQueryLoader([$this, 'queryLoader'])
             ->setValidationRules($validators)
             ->setRootValue([])
             ->setDebugFlag($debugFlags)
