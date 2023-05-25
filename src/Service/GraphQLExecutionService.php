@@ -28,8 +28,8 @@ use GraphQL\Language\Source;
 use GraphQL\Server\Helper;
 use GraphQL\Server\OperationParams;
 use GraphQL\Server\ServerConfig;
+use GraphQL\Type\Definition\Argument;
 use GraphQL\Type\Definition\Directive;
-use GraphQL\Type\Definition\FieldArgument;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use Http\Discovery\Psr17FactoryDiscovery;
@@ -215,7 +215,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
                          DirectiveLocation::ENUM_VALUE,
                      ],
                      'args' => [
-                         new FieldArgument([
+                         new Argument([
                            'name' => 'ttl',
                            'type' => Type::int(),
                            'description' => 'Set the time to live for this item',
