@@ -555,7 +555,8 @@ class GraphQLExecutionService implements ContainerAwareInterface
             $cacheItemEvent = new CacheItemEvent($request, $executionResult, $operation, $response);
             $this->eventDispatcher->dispatch($cacheItemEvent, CacheItemEvents::CACHE_ITEM);
             if ($cacheItemEvent->isUseCache()) {
-                $this->cacheService->save($request, $response, $operation, $cacheItemEvent->getCacheTags());
+                $jsonResponse = new JsonResponse($response->getContent(), $response->getStatusCode(), $response->headers->all());
+                $this->cacheService->save($request, $jsonResponse, $operation, $cacheItemEvent->getCacheTags());
             }
         } catch (\Throwable $e) {
             $exException = new ExecutorExceptionEvent($request, $e);
