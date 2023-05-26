@@ -380,6 +380,7 @@ class OutputCacheService
             return false;
         }
 
+        $disableCacheForSingleRequest = false;
         if (\Pimcore::inDebugMode()) {
             $disableCacheForSingleRequest = filter_var($request->query->get('pimcore_nocache', 'false'), FILTER_VALIDATE_BOOLEAN)
             || filter_var($request->query->get('pimcore_outputfilters_disabled', 'false'), FILTER_VALIDATE_BOOLEAN);

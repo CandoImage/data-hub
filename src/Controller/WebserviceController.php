@@ -153,7 +153,7 @@ class WebserviceController extends FrontendController
             $input = $this->uploadService->parseUploadedFiles($request);
             $operations = OperationParams::create($input);
         } else {
-            $operations = $graphQLExecutionService->getWebonxyOperations($request);
+            $operations = $graphQLExecutionService->getWebonyxOperations($request);
         }
 
         $isBatchedQuery = is_array($operations);

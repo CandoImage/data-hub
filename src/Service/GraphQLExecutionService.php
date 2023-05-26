@@ -15,8 +15,11 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
+use Closure;
+use Exception;
 use GraphQL\Error\DebugFlag;
 use GraphQL\Error\FormattedError;
+use GraphQL\Error\SyntaxError;
 use GraphQL\Error\Warning;
 use GraphQL\Executor\ExecutionResult;
 use GraphQL\Executor\Promise\Promise;
@@ -27,11 +30,14 @@ use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
 use GraphQL\Server\Helper;
 use GraphQL\Server\OperationParams;
+use GraphQL\Server\RequestError;
 use GraphQL\Server\ServerConfig;
 use GraphQL\Type\Definition\Directive;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use Http\Discovery\Psr17FactoryDiscovery;
+use JsonException;
+use Pimcore;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\CacheItemEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\ExecutorEvents;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
@@ -49,7 +55,9 @@ use Pimcore\Helper\LongRunningHelper;
 use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Logger;
 use Pimcore\Model\Factory;
+use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
 use Symfony\Component\DependencyInjection\ContainerAwareInterface;
@@ -57,104 +65,56 @@ use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Throwable;
 
 class GraphQLExecutionService implements ContainerAwareInterface
 {
     use ContainerAwareTrait;
 
-    /**
-     * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
-     */
-    private EventDispatcherInterface $eventDispatcher;
-
-    /**
-     * @var \Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService
-     */
-    private CheckConsumerPermissionsService $permissionsService;
-
-    /**
-     * @var \Pimcore\Bundle\DataHubBundle\Service\OutputCacheService
-     */
-    private OutputCacheService $cacheService;
-
-    /**
-     * @var \Pimcore\Bundle\DataHubBundle\GraphQL\Service
-     */
-    private Service $service;
-
-    /**
-     * @var \Pimcore\Localization\LocaleServiceInterface
-     */
-    private LocaleServiceInterface $localeService;
-
-    /**
-     * @var \Pimcore\Model\Factory
-     */
-    private Factory $modelFactory;
-
-    /**
-     * @var array
-     */
+    private Helper $graphQlRequestHelper;
     protected array $baseOperationContext = [];
-
-    /**
-     * @var array
-     */
     protected array $loadedQueries = [];
-
-    /**
-     * @var \Symfony\Component\HttpKernel\HttpKernelInterface
-     */
-    private HttpKernelInterface $httpKernel;
-
-    /**
-     * @var bool
-     */
     protected bool $triggerSubrequestPerQuery = false;
 
     /**
+     * @param ContainerInterface $container
      * @param EventDispatcherInterface $eventDispatcher
-     * @param \Pimcore\Bundle\DataHubBundle\Service\CheckConsumerPermissionsService $permissionsService
-     * @param \Pimcore\Bundle\DataHubBundle\Service\OutputCacheService $cacheService
-     * @param \Pimcore\Bundle\DataHubBundle\Service\FileUploadService $uploadService
-     * @param \Symfony\Component\HttpKernel\HttpKernelInterface $httpKernel
+     * @param CheckConsumerPermissionsService $permissionsService
+     * @param Service $service
+     * @param OutputCacheService $cacheService
+     * @param LocaleServiceInterface $localeService
+     * @param Factory $modelFactory
+     * @param HttpKernelInterface $httpKernel
      */
     public function __construct(
         ContainerInterface $container,
-        EventDispatcherInterface $eventDispatcher,
-        CheckConsumerPermissionsService $permissionsService,
-        Service $service,
-        OutputCacheService $cacheService,
-        LocaleServiceInterface $localeService,
-        Factory $modelFactory,
-        HttpKernelInterface $httpKernel
+        protected EventDispatcherInterface $eventDispatcher,
+        protected CheckConsumerPermissionsService $permissionsService,
+        protected Service $service,
+        protected OutputCacheService $cacheService,
+        protected LocaleServiceInterface $localeService,
+        protected Factory $modelFactory,
+        protected HttpKernelInterface $httpKernel
     ) {
         $this->container = $container;
         $this->graphQlRequestHelper = new Helper();
-        $this->eventDispatcher = $eventDispatcher;
-        $this->permissionsService = $permissionsService;
-        $this->cacheService = $cacheService;
-        $this->service = $service;
-        $this->localeService = $localeService;
-        $this->modelFactory = $modelFactory;
-        $this->httpKernel = $httpKernel;
-
         $dataHubConfig = $this->container->getParameter('pimcore_data_hub');
         $this->triggerSubrequestPerQuery = !empty($dataHubConfig['graphql']['run_subrequest_per_query']);
     }
 
     /**
-     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param Request $request
      *
-     * @return \GraphQL\Server\OperationParams|\GraphQL\Server\OperationParams[]
+     * @return OperationParams|OperationParams[]
      *
-     * @throws \GraphQL\Server\RequestError
+     * @throws RequestError
      */
-    public function getWebonxyOperations(Request $request)
+    public function getWebonyxOperations(Request $request): OperationParams|array
     {
-        // Use the webonxy native handling.
+        // Use the webonyx native handling.
         //$input = json_decode($request->getContent(), true);
         // Convert the symfony request to a PSR17 Request.
         $psrHttpFactory = new PsrHttpFactory(
@@ -164,11 +124,12 @@ class GraphQLExecutionService implements ContainerAwareInterface
             Psr17FactoryDiscovery::findResponseFactory()
         );
         $psrRequest = $psrHttpFactory->createRequest($request);
-        $operations = $this->graphQlRequestHelper->parsePsrRequest($psrRequest);
-
-        return $operations;
+        return $this->graphQlRequestHelper->parsePsrRequest($psrRequest);
     }
 
+    /**
+     * @throws Exception
+     */
     public function getGraphQlSchema(
         array $context,
         LongRunningHelper $longRunningHelper
@@ -226,7 +187,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             $schema = new Schema(
                 $schemaConfig
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Warning::enable(false);
             $schema = new Schema(
                 [
@@ -251,7 +212,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
         static $defaultFieldResolver = [DefaultCacheFieldResolver::class, 'defaultFieldResolver'];
 
         $debugFlags = DebugFlag::NONE;
-        if (\Pimcore::inDebugMode()) {
+        if (Pimcore::inDebugMode()) {
             $debugFlags = DebugFlag::INCLUDE_DEBUG_MESSAGE |
                 DebugFlag::INCLUDE_TRACE |
                 DebugFlag::RETHROW_UNSAFE_EXCEPTIONS;
@@ -273,16 +234,23 @@ class GraphQLExecutionService implements ContainerAwareInterface
             ;
     }
 
+    /**
+     * @throws Throwable
+     */
     public function graphQLErrorFormatter($e): array
     {
         return FormattedError::createFromException($e);
     }
 
+    /**
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
     public function graphQLErrorHandler(array $errors, callable $formatter)
     {
         // Run custom event for each error.
         // @FIXME Accessing a request here doesn't feel right...
-        /** @var \Symfony\Component\HttpFoundation\RequestStack $requestStack */
+        /** @var RequestStack $requestStack */
         $requestStack = $this->container->get('request_stack');
         foreach ($errors as &$e) {
             $exException = new ExecutorExceptionEvent($requestStack->getCurrentRequest(), $e);
@@ -300,11 +268,11 @@ class GraphQLExecutionService implements ContainerAwareInterface
      * https://github.com/webonyx/graphql-php/pull/658
      *
      * @param $queryId
-     * @param \GraphQL\Language\AST\DocumentNode $query
+     * @param DocumentNode $query
      *
      * @return void
      */
-    public function addLoadedQuery($queryId, DocumentNode $query)
+    public function addLoadedQuery($queryId, DocumentNode $query): void
     {
         $this->loadedQueries[$queryId] = $query;
     }
@@ -313,11 +281,11 @@ class GraphQLExecutionService implements ContainerAwareInterface
      * Simple query loader that checks the config directory for a file.
      *
      * @param $queryId
-     * @param \GraphQL\Server\OperationParams $params
+     * @param OperationParams $params
      *
      * @return false|mixed|string|null
      */
-    public function queryLoader($queryId, OperationParams $params)
+    public function queryLoader($queryId, OperationParams $params): mixed
     {
         // Check cache first - avoid multiple filesystem scans & reads.
         if (!empty($this->loadedQueries[$queryId])) {
@@ -338,16 +306,17 @@ class GraphQLExecutionService implements ContainerAwareInterface
      * We don't want to use our built-in loader directly because this would
      * break configurability.
      *
-     * @return \GraphQL\Language\AST\DocumentNode|string
+     * @param ServerConfig $config
+     * @param OperationParams $operationParams
+     * @return DocumentNode|string
      *
      * @see Helper::loadPersistedQuery()
-     *
      */
-    public function loadPersistedQuery(ServerConfig $config, OperationParams $operationParams)
+    public function loadPersistedQuery(ServerConfig $config, OperationParams $operationParams): string|DocumentNode
     {
         // Hijack the private method from the helper object by binding a closure
         // to the object instance scope.
-        $loader = \Closure::bind(
+        $loader = Closure::bind(
             function ($config, $operationParams) {
                 return $this->loadPersistedQuery($config, $operationParams);
             },
@@ -361,8 +330,8 @@ class GraphQLExecutionService implements ContainerAwareInterface
     /**
      * Dynamic context to allow context info per operation.
      *
-     * @param \GraphQL\Server\OperationParams $params
-     * @param \GraphQL\Language\AST\DocumentNode $doc
+     * @param OperationParams $params
+     * @param DocumentNode $doc
      * @param string $operationType
      *
      * @return array
@@ -380,15 +349,16 @@ class GraphQLExecutionService implements ContainerAwareInterface
     /**
      * Executes the passed in operations and takes the cache in account.
      *
-     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param Request $request
      * @param $operations
-     * @param \GraphQL\Server\ServerConfig $graphQlConfig
+     * @param ServerConfig $graphQlConfig
      * @param bool $disableCache
      * @param string $subRequestController
      *
      * @return Response[]
      *
-     * @throws \GraphQL\Error\SyntaxError
+     * @throws SyntaxError
+     * @throws JsonException
      */
     public function executeOperations(
         Request $request,
@@ -408,7 +378,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             if (!$operation->query && $operation->queryId) {
                 try {
                     $operation->query = $this->loadPersistedQuery($graphQlConfig, $operation);
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     $responses[] = new JsonResponse([
                         'errors' => [$errorFormatter($e)],
                     ], 200, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
@@ -425,9 +395,9 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // Order matters here - we need to trigger load in order to build
             // the operation metadata handling. So the disabled cache check
             // follows. Could be optimized...
-            if (($response = $this->cacheService->load($request, $operation, $parsedQuery)) && !$disableCache) {
+            if (!$disableCache && ($response = $this->cacheService->load($request, $operation, $parsedQuery))) {
                 Logger::debug('Loading response from cache');
-                if (\Pimcore::inDebugMode()) {
+                if (Pimcore::inDebugMode()) {
                     $response->headers->set('X-GQL-OperationCache-Hit', 'true');
                 }
                 $responses[] = $response;
@@ -454,7 +424,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 $operation->query = null;
                 $operation->queryId = $queryId;
                 $operationsBatch[] = $operation;
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $exException = new ExecutorExceptionEvent($request, $e);
                 $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
                 $e = $exException->getException();
@@ -501,13 +471,13 @@ class GraphQLExecutionService implements ContainerAwareInterface
      * Takes care of caching calls and builds a http response object for the
      * operation results.
      *
-     * @param \GraphQL\Server\ServerConfig $config
-     * @param \GraphQL\Executor\ExecutionResult $executionResult
-     * @param \GraphQL\Server\OperationParams $operation
-     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param ServerConfig $config
+     * @param ExecutionResult $executionResult
+     * @param OperationParams $operation
+     * @param Request $request
      * @param string $subRequestController
      *
-     * @return \Symfony\Component\HttpFoundation\Response
+     * @return Response
      */
     public function processExecutionResult(
         ServerConfig $config,
@@ -558,7 +528,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 $jsonResponse = new JsonResponse($response->getContent(), $response->getStatusCode(), $response->headers->all());
                 $this->cacheService->save($request, $jsonResponse, $operation, $cacheItemEvent->getCacheTags());
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $exException = new ExecutorExceptionEvent($request, $e);
             $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
             $e = $exException->getException();
@@ -586,7 +556,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
      *
      * @param Response[] $responses
      *
-     * @return \Symfony\Component\HttpFoundation\Response
+     * @return Response
      */
     public function mergeWebonyxResponses(array $responses): Response
     {
@@ -638,7 +608,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
         if ($private) {
             $response->setPrivate();
         }
-        if (\Pimcore::inDebugMode()) {
+        if (Pimcore::inDebugMode()) {
             $response->headers->set('X-GQL-OperationCache-Hit', implode(', ', $operationCacheHits));
         }
 
