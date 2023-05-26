@@ -112,7 +112,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
      *
      * @throws RequestError
      */
-    public function getWebonyxOperations(Request $request): OperationParams|array
+    public function getWebonyxOperations(Request $request): OperationParams | array
     {
         // Use the webonyx native handling.
         //$input = json_decode($request->getContent(), true);
@@ -124,6 +124,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             Psr17FactoryDiscovery::findResponseFactory()
         );
         $psrRequest = $psrHttpFactory->createRequest($request);
+
         return $this->graphQlRequestHelper->parsePsrRequest($psrRequest);
     }
 
@@ -308,11 +309,12 @@ class GraphQLExecutionService implements ContainerAwareInterface
      *
      * @param ServerConfig $config
      * @param OperationParams $operationParams
+     *
      * @return DocumentNode|string
      *
      * @see Helper::loadPersistedQuery()
      */
-    public function loadPersistedQuery(ServerConfig $config, OperationParams $operationParams): string|DocumentNode
+    public function loadPersistedQuery(ServerConfig $config, OperationParams $operationParams): string | DocumentNode
     {
         // Hijack the private method from the helper object by binding a closure
         // to the object instance scope.
