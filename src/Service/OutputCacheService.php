@@ -78,7 +78,7 @@ class OutputCacheService
         $this->operationData = new SplObjectStorage();
         $this->eventDispatcher = $eventDispatcher;
 
-        $dataHubConfig = $container->get('pimcore_data_hub');
+        $dataHubConfig = $container->get('pimcore_data_hub')['supported_types'] ?? [];
         if (isset($dataHubConfig['graphql'])) {
             if (isset($dataHubConfig['graphql']['output_cache_enabled'])) {
                 $this->cacheEnabled = filter_var($dataHubConfig['graphql']['output_cache_enabled'], FILTER_VALIDATE_BOOLEAN);

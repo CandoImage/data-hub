@@ -168,7 +168,7 @@ class WebserviceController extends FrontendController
             'configuration' => $configuration,
             'caching' => $cachingConfig,
         ];
-        $datahubConfig = $this->getParameter('pimcore_data_hub');
+        $datahubConfig = $this->getParameter('pimcore_data_hub')['supported_types'] ?? [];
 
         if (isset($datahubConfig['graphql']) && isset($datahubConfig['graphql']['not_allowed_policy'])) {
             PimcoreDataHubBundle::setNotAllowedPolicy($datahubConfig['graphql']['not_allowed_policy']);

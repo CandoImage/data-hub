@@ -101,7 +101,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
     ) {
         $this->container = $container;
         $this->graphQlRequestHelper = new Helper();
-        $dataHubConfig = $this->container->getParameter('pimcore_data_hub');
+        $dataHubConfig = $this->container->getParameter('pimcore_data_hub')['supported_types'] ?? [];
         $this->triggerSubrequestPerQuery = !empty($dataHubConfig['graphql']['run_subrequest_per_query']);
     }
 
