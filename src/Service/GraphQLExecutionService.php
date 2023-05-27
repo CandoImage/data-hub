@@ -397,7 +397,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // Order matters here - we need to trigger load in order to build
             // the operation metadata handling. So the disabled cache check
             // follows. Could be optimized...
-            if (!$disableCache && ($response = $this->cacheService->load($request, $operation, $parsedQuery))) {
+            if (($response = $this->cacheService->load($request, $operation, $parsedQuery)) && !$disableCache) {
                 Logger::debug('Loading response from cache');
                 if (Pimcore::inDebugMode()) {
                     $response->headers->set('X-GQL-OperationCache-Hit', 'true');
