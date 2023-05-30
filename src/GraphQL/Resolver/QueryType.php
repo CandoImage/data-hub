@@ -763,7 +763,7 @@ class QueryType
                 if (!empty($args['filterDefinition']['fallbackFilterDefinitionId'])) {
                     $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
                 } elseif (!empty($args['filterDefinition']['fallbackFilterDefinitionPath'])) {
-                    $filterDefinition = AbstractFilterDefinition::getByPath($args['filterDefinition']['fallbackFilterDefinitionPath']);
+                    $filterDefinition = DataObject::getByPath($args['filterDefinition']['fallbackFilterDefinitionPath']);
                 }
             }
             if ($filterDefinition) {
