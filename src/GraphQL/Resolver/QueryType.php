@@ -671,20 +671,28 @@ class QueryType
         if (!empty($args['filterDefinition'])) {
             if (isset($args['filterDefinition']['id'])) {
                 $object = AbstractObject::getById($args['filterDefinition']['id']);
+            } elseif (isset($args['filterDefinition']['path'])) {
+                $object = AbstractObject::getByPath($args['filterDefinition']['path']);
+            }
+            // If a object was found check if it is the actual filter or the
+            // object referencing a filter.
+            if (!empty($object)) {
                 if ($object instanceof AbstractFilterDefinition) {
                     $filterDefinition = $object;
-                } elseif ($object && isset($args['filterDefinition']['relationField'])) {
+                } elseif (!empty($args['filterDefinition']['relationField'])) {
                     $getter = 'get' . ucfirst($args['filterDefinition']['relationField']);
                     if (method_exists($object, $getter)) {
                         $filterDefinition = $object->$getter();
                     }
                 }
             }
-            if (
-                !($filterDefinition && $filterDefinition instanceof AbstractFilterDefinition)
-                && isset($args['filterDefinition']['fallbackFilterDefinitionId'])
-            ) {
-                $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
+            // If no filter definition was found check if a fallback is given.
+            if (!( $filterDefinition instanceof AbstractFilterDefinition)) {
+                if (!empty($args['filterDefinition']['fallbackFilterDefinitionId'])) {
+                    $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
+                } elseif (!empty($args['filterDefinition']['fallbackFilterDefinitionPath'])) {
+                    $filterDefinition = AbstractFilterDefinition::getByPath($args['filterDefinition']['fallbackFilterDefinitionPath']);
+                }
             }
             if ($filterDefinition) {
                 $filterService = $factory->getFilterService();
