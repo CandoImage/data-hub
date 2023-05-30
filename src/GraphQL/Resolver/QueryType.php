@@ -758,7 +758,7 @@ class QueryType
                 }
             }
             // If no filter definition was found check if a fallback is given.
-            if (!( $filterDefinition instanceof AbstractFilterDefinition)) {
+            if (!($filterDefinition instanceof AbstractFilterDefinition)) {
                 if (!empty($args['filterDefinition']['fallbackFilterDefinitionId'])) {
                     $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
                 } elseif (!empty($args['filterDefinition']['fallbackFilterDefinitionPath'])) {
