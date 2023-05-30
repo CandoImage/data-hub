@@ -458,11 +458,15 @@ class QueryType extends ObjectType
                             'name' => $ucFirstClassName . 'FilterDefinitionArg',
                             'fields' => [
                                 'id' => ['type' => Type::id()],
+                                'path' => ['type' => Type::string()],
                                 'relationField' => ['type' => Type::string()],
                                 'fallbackFilterDefinitionId' => ['type' => Type::id()],
+                                'fallbackFilterDefinitionPath' => ['type' => Type::string()],
                             ],
                         ]),
-                        'description' => 'Define the id of a filterDefinition or from an object and its relationField to the filterDefinition to get the correct filter. Otherwise it uses the fallBackFilterDefinition',
+                        'description' => 'Loads a FilterDefinition by its id/path OR loads the FilterDefinition from relationField of the object with the given id/path.' .
+                        'This allows you to e.g. define FilterDefinition on product category objects and dynamically load them. ' .
+                        'If no FilterDefinition is found but the fallback definition is given this will be used instead.',
                     ],
                     'published' => ['type' => Type::boolean()],
                     'category' => [
