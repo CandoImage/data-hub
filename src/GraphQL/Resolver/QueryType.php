@@ -43,6 +43,7 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinition;
 use Pimcore\Cache;
 use Pimcore\Db;
 use Pimcore\Logger;
+use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Listing;
@@ -672,7 +673,7 @@ class QueryType
             if (isset($args['filterDefinition']['id'])) {
                 $object = AbstractObject::getById($args['filterDefinition']['id']);
             } elseif (isset($args['filterDefinition']['path'])) {
-                $object = AbstractObject::getByPath($args['filterDefinition']['path']);
+                $object = DataObject::getByPath($args['filterDefinition']['path']);
             }
             // If a object was found check if it is the actual filter or the
             // object referencing a filter.
