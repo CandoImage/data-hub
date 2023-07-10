@@ -147,23 +147,13 @@ class AssetType
             if (!isset($thumbNailConfig)) {
                 return $asset->getFullPath();
             }
-            // @TODO: check if this still possible with the new metohd
-            // before we had:
-            /*
-             * if ($asset instanceof Asset\Image) {
-             *   return isset($args['thumbnail']) ? $asset->getThumbnail($args['thumbnail'], $deferredThumbnail) : $asset->getFullPath();
-             * }
-             */
 
-            // get thumbnails with the "deferred" option as we don't need the data itself
-            // only the URL and the generation of the thumbnail should happen later
-            // which is done during request the image and could be parallelized from the browser
-            $deferredThumbnail = false;
-            if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
-                $deferredThumbnail = true;
-            }
-
-            return $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
+            return $assetFieldHelper->getAssetThumbnail(
+                $asset,
+                $thumbNailConfig,
+                $thumbNailFormat,
+                !empty($args['deferred'])
+            );
         }
 
         return Service::resolveCachedValue($value, $resolveInfo);

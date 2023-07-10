@@ -98,7 +98,8 @@ class AssetType extends ObjectType
                 'type' => Type::string(),
                 'args' => [
                     'thumbnail' => ['type' => Type::string()],
-                    'format' => ['type' => Type::string()]
+                    'format' => ['type' => Type::string()],
+                    'deferred' => ['type' => Type::boolean(), 'defaultValue' => true],
                 ],
                 'resolve' => [$resolver, 'resolvePath'],
             ],
