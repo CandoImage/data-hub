@@ -211,9 +211,7 @@ class AssetType
                 if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
                     $deferredThumbnail = true;
                 }
-                //@TODO: check if we can use the $deferredThumbnail variable with the new method too
-                // $thumbnail = $asset->getThumbnail($args['thumbnail'], $deferredThumbnail);
-                $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat);
+                $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbNailConfig, $thumbNailFormat, $deferredThumbnail);
                 $thumbnailConfig = $asset->getThumbnailConfig($args['thumbnail']);
                 if ($thumbnailConfig) {
                     foreach ($thumbnailConfig->getMedias() as $key => $val) {
@@ -293,9 +291,7 @@ class AssetType
             if (!$asset) {
                 return [];
             }
-            //@TODO: check if we can use the $deferredThumbnail variable with the new method too
-            // before we had: $thumbnail = $asset->getThumbnail($thumbnailName, $deferredThumbnail);
-            $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbnailName, $thumbnailFormat);
+            $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbnailName, $thumbnailFormat, $deferredThumbnail);
             if (isset($thumbnail)) {
                 $thumbnailConfig = $thumbnail->getConfig();
                 foreach ($types as $type) {
@@ -303,9 +299,7 @@ class AssetType
                     $thumbConfigRes->setHighResolution($type);
                     $thumbConfigRes->setMedias([]);
                     $resolutions[] = [
-                        //@TODO: check if we can use the $deferredThumbnail variable with the new method too
-                        // $asset->getThumbnail($thumbConfigRes, $deferredThumbnail),
-                        'url' => $assetFieldHelper->getAssetThumbnail($asset, $thumbConfigRes, $thumbnailFormat),
+                        'url' => $assetFieldHelper->getAssetThumbnail($asset, $thumbConfigRes, $thumbnailFormat, $deferredThumbnail),
                         'resolution' => $type,
                     ];
                 }
