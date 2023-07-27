@@ -884,7 +884,7 @@ class QueryType
                             continue;
                         }
                         if (!HijackAbstractFilterType::isMultiValueFilter($filterType, $filter)) {
-                            if (isset($filterValues[$field])) {
+                            if (isset($filterValues[$field]) && is_array($filterValues[$field])) {
                                 $filterValues[$field] = current($filterValues[$field]);
                             }
                         }
