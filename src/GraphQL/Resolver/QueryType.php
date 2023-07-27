@@ -801,7 +801,7 @@ class QueryType
                             continue;
                         }
                         if (!\Pimcore\Bundle\DataHubBundle\FilterService\FilterType\HijackAbstractFilterType::isMultiValueFilter($filterType, $filter)) {
-                            if (isset($filterValues[$field])) {
+                            if (isset($filterValues[$field]) && is_array($filterValues[$field])) {
                                 $filterValues[$field] = current($filterValues[$field]);
                             }
                         }
