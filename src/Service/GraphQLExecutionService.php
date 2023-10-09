@@ -466,6 +466,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
             $responses[$operationsIndex[$i]] = $response;
         }
         ksort($responses);
+
         return $responses;
     }
 
