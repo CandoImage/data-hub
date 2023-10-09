@@ -372,16 +372,17 @@ class GraphQLExecutionService implements ContainerAwareInterface
         // Prepare all operations for execution.
         $responses = [];
         $operationsBatch = [];
+        $operationsIndex = [];
         $errorFormatter = FormattedError::prepareFormatter(
             $graphQlConfig->getErrorFormatter(),
             $graphQlConfig->getDebugFlag()
         );
-        foreach ($operations as $operation) {
+        foreach ($operations as $opIndex => $operation) {
             if (!$operation->query && $operation->queryId) {
                 try {
                     $operation->query = $this->loadPersistedQuery($graphQlConfig, $operation);
                 } catch (Throwable $e) {
-                    $responses[] = new JsonResponse([
+                    $responses[$opIndex] = new JsonResponse([
                         'errors' => [$errorFormatter($e)],
                     ], 200, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
                     continue;
@@ -402,7 +403,7 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 if (Pimcore::inDebugMode()) {
                     $response->headers->set('X-GQL-OperationCache-Hit', 'true');
                 }
-                $responses[] = $response;
+                $responses[$opIndex] = $response;
                 continue;
             }
             Logger::debug('Cache entry not found');
@@ -426,11 +427,12 @@ class GraphQLExecutionService implements ContainerAwareInterface
                 $operation->query = null;
                 $operation->queryId = $queryId;
                 $operationsBatch[] = $operation;
+                $operationsIndex[] = $opIndex;
             } catch (Throwable $e) {
                 $exException = new ExecutorExceptionEvent($request, $e);
                 $this->eventDispatcher->dispatch($exException, ExecutorEvents::EXCEPTION);
                 $e = $exException->getException();
-                $responses[] = new JsonResponse([
+                $responses[$opIndex] = new JsonResponse([
                     'errors' => [$errorFormatter($e)],
                 ], 200, ['Cache-Control' => 'no-cache, no-store, must-revalidate']);
             }
@@ -461,9 +463,9 @@ class GraphQLExecutionService implements ContainerAwareInterface
                     $subRequestController
                 );
             }
-            $responses[] = $response;
+            $responses[$operationsIndex[$i]] = $response;
         }
-
+        ksort($responses);
         return $responses;
     }
 
