@@ -84,6 +84,7 @@ class Link
         if ($value instanceof \Pimcore\Model\DataObject\Data\Link) {
             return $value->getPath();
         }
+
         return null;
     }
 }
