@@ -516,21 +516,17 @@ class GraphQLExecutionService implements ContainerAwareInterface
         string $subRequestController = 'Pimcore\Bundle\DataHubBundle\Controller\WebserviceController::webonyxOperationResponseAction'
     ): Response {
         try {
-            // Allow last intervention after execution.
-            $exResultEvent = new ExecutorResultEvent($request, $executionResult, $operation);
-            $this->eventDispatcher->dispatch($exResultEvent, ExecutorEvents::POST_EXECUTE);
-
+            // @TODO: workaround to create a repsone for caching!!!
             // Use the native parser to create a response.
             $response = Psr17FactoryDiscovery::findResponseFactory()->createResponse();
             $response = $this->graphQlRequestHelper->toPsrResponse(
-                $exResultEvent->getResult(),
+                $executionResult,
                 Psr17FactoryDiscovery::findResponseFactory()->createResponse(),
                 $response->getBody()
             );
             // Convert the PSR-Response to a Symfony response.
             $httpFoundationFactory = new HttpFoundationFactory();
             $response = $httpFoundationFactory->createResponse($response);
-            $response->headers->set('X-GQL-OperationCache-Hit', 'false');
 
             // Run every single http response through the http kernel to allow
             // for response modifications before the response is stored in the
@@ -553,6 +549,36 @@ class GraphQLExecutionService implements ContainerAwareInterface
             // Allow last interference before this response is cached.
             $cacheItemEvent = new CacheItemEvent($request, $executionResult, $operation, $response);
             $this->eventDispatcher->dispatch($cacheItemEvent, CacheItemEvents::CACHE_ITEM);
+            //@TODO: this is currently a quickfix for Fumo, as we had the same issue
+            // before we started with the whole caching stuff
+            // see: https://github.com/CandoImage/data-hub/commit/43e355f185d3b0ed9380725bdd3210bf5c9c0994
+            // we need to cache the result before the POST_EXECUTE event is fired as this is doing some permission checks
+            // and probably strips data dynamically e.g. Specials, see: https://cando-image.atlassian.net/browse/T2-1610
+            // or translate stuff which should be cached too
+            // currently affected CX Listeners which listen to the POST_EXECUTE:
+            // -LabelTranslationListener
+            // -BrandPageListener
+            // -AuthenticationListener
+            // -RemoveEmptyVariantAttributeListener
+            // -PermissionListener (strips specials)
+            // -ExceptionListener
+
+            // Allow last intervention after execution.
+            $exResultEvent = new ExecutorResultEvent($request, $executionResult, $operation);
+            $this->eventDispatcher->dispatch($exResultEvent, ExecutorEvents::POST_EXECUTE);
+
+            //@TODO: re set the response after executed the event with the event result
+            $response = Psr17FactoryDiscovery::findResponseFactory()->createResponse();
+            $response = $this->graphQlRequestHelper->toPsrResponse(
+                $exResultEvent->getResult(),
+                Psr17FactoryDiscovery::findResponseFactory()->createResponse(),
+                $response->getBody()
+            );
+            // Convert the PSR-Response to a Symfony response.
+            $httpFoundationFactory = new HttpFoundationFactory();
+            $response = $httpFoundationFactory->createResponse($response);
+            $response->headers->set('X-GQL-OperationCache-Hit', 'false');
+
             if ($cacheItemEvent->isUseCache()) {
                 $this->cacheService->save($request, $response, $operation, $cacheItemEvent->getCacheTags());
             }

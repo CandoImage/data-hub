@@ -25,6 +25,7 @@ use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\Element\Data\MarkerHotspotItem;
 use Pimcore\Model\Property;
+use Throwable;
 
 class DataObjectType extends ObjectType
 {
@@ -70,10 +71,18 @@ class DataObjectType extends ObjectType
                             }
 
                             if ($element) {
-                                if (!WorkspaceHelper::checkPermission($element, 'read')) {
+                                // CANDO: BEGIN CUSTOM CODE
+                                // simply catch exception and return null instead of an exception
+                                // will return null and prevent FE to display an error if a related marker hotspot item
+                                // has no permission
+                                try {
+                                    if (!WorkspaceHelper::checkPermission($element, 'read')) {
+                                        return null;
+                                    }
+                                } catch (Throwable $e) {
                                     return null;
                                 }
-
+                                // CANDO: END CUSTOM CODE
                                 /** @var $element AbstractObject */
                                 $data = new ElementDescriptor($element);
                                 $graphQlService->extractData($data, $element, $args, $context, $resolveInfo);
