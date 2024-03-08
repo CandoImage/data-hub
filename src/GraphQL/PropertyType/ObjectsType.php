@@ -78,7 +78,7 @@ class ObjectsType extends UnionType implements ContainerAwareInterface
      */
     public function resolveType($element, $context, ResolveInfo $info)
     {
-        if ($element) {
+        if (isset($element['__elementType'])) {
             if ($element['__elementType'] == 'object') {
                 $type = ClassTypeDefinitions::get($element['__elementSubtype']);
 
