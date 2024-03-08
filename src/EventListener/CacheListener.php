@@ -19,9 +19,15 @@ use GraphQL\Server\OperationParams;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
 use Pimcore\Cache;
 use Pimcore\Model\Asset;
+use Pimcore\Model\DataObject\ClassDefinition\Data;
+use Pimcore\Model\DataObject\ClassDefinition\Data\Fieldcollections;
 use Pimcore\Model\DataObject\ClassDefinition\Data\Image;
 use Pimcore\Model\DataObject\ClassDefinition\Data\Relations\AbstractRelations;
 use Pimcore\Model\DataObject\Concrete;
+use Pimcore\Model\DataObject\Data\Hotspotimage;
+use Pimcore\Model\Document\Link;
+use Pimcore\Model\Document\PageSnippet;
+use Pimcore\Model\Element\AbstractElement;
 
 class CacheListener
 {
@@ -143,27 +149,35 @@ class CacheListener
     {
         $tags = $concrete->getCacheTags();
         foreach ($concrete->getClass()->getFieldDefinitions() as $name => $def) {
-            // filter only relations and get raw data to generate the cache tags
-            if ($def instanceof AbstractRelations) {
+
+            if ($def instanceof Data) {
                 $getter = 'get' . ucfirst($name);
-                $relationData = $concrete->{$getter}();
-                if (is_array($relationData)) {
-                    foreach ($relationData as $relation) {
-                        if ($relation instanceof Concrete) {
-                            $tags = array_merge($tags, $relation->getCacheTags());
-                        }
+                $data = $concrete->{$getter}();
+                // Use the getCacheTags integration of the field definition.
+                // This might be not enough hence the further resolving further
+                // down.
+                $tags = $def->getCacheTags($data, $tags);
+
+                // Handle everything as array.
+                if (!is_array($data)) {
+                    $data = [$data];
+                }
+                // Check every item in the data for a dedicated cache tags
+                // handling.
+                foreach($data as $item) {
+                    switch (true) {
+                        case $item instanceof Concrete:
+                            $tags = array_merge($tags, self::getObjectCacheTags($item));
+                            break;
+
+                        case $item instanceof AbstractElement:
+                        case $item instanceof ElementInterface:
+                        case $item instanceof Hardlink:
+                        case $item instanceof Link:
+                        case $item instanceof PageSnippet:
+                            $tags = $item->getCacheTags($tags);
+                            break;
                     }
-                }
-                if ($relationData instanceof Concrete) {
-                    $tags = array_merge($tags, $relationData->getCacheTags());
-                    $tags = array_merge($tags, self::getObjectCacheTags($relationData));
-                }
-            }
-            if ($def instanceof Image) {
-                $getter = 'get' . ucfirst($name);
-                $asset = $concrete->{$getter}();
-                if ($asset instanceof Asset) {
-                    $tags = array_merge($tags, $asset->getCacheTags());
                 }
             }
         }
