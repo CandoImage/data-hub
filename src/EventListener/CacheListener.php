@@ -18,13 +18,8 @@ namespace Pimcore\Bundle\DataHubBundle\EventListener;
 use GraphQL\Server\OperationParams;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent;
 use Pimcore\Cache;
-use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
-use Pimcore\Model\DataObject\ClassDefinition\Data\Fieldcollections;
-use Pimcore\Model\DataObject\ClassDefinition\Data\Image;
-use Pimcore\Model\DataObject\ClassDefinition\Data\Relations\AbstractRelations;
 use Pimcore\Model\DataObject\Concrete;
-use Pimcore\Model\DataObject\Data\Hotspotimage;
 use Pimcore\Model\Document\Link;
 use Pimcore\Model\Document\PageSnippet;
 use Pimcore\Model\Element\AbstractElement;
@@ -149,7 +144,6 @@ class CacheListener
     {
         $tags = $concrete->getCacheTags();
         foreach ($concrete->getClass()->getFieldDefinitions() as $name => $def) {
-
             if ($def instanceof Data) {
                 $getter = 'get' . ucfirst($name);
                 $data = $concrete->{$getter}();
@@ -164,7 +158,7 @@ class CacheListener
                 }
                 // Check every item in the data for a dedicated cache tags
                 // handling.
-                foreach($data as $item) {
+                foreach ($data as $item) {
                     switch (true) {
                         case $item instanceof Concrete:
                             $tags = array_merge($tags, self::getObjectCacheTags($item));
