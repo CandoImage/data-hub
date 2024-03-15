@@ -53,6 +53,7 @@ use Pimcore\Logger;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
+use Pimcore\Model\DataObject\FilterDefinition;
 use Pimcore\Model\DataObject\Listing;
 use Pimcore\Model\DataObject\Service;
 use Pimcore\Model\Translation;
@@ -760,10 +761,19 @@ class QueryType
             }
             // If no filter definition was found check if a fallback is given.
             if (!($filterDefinition instanceof AbstractFilterDefinition)) {
-                if (!empty($args['filterDefinition']['fallbackFilterDefinitionId'])) {
-                    $filterDefinition = AbstractFilterDefinition::getById($args['filterDefinition']['fallbackFilterDefinitionId']);
-                } elseif (!empty($args['filterDefinition']['fallbackFilterDefinitionPath'])) {
-                    $filterDefinition = DataObject::getByPath($args['filterDefinition']['fallbackFilterDefinitionPath']);
+                if (method_exists('Pimcore\Model\DataObject\FilterDefinition', 'getDefaultFilterDefinition')) {
+                    $filterDefinition = FilterDefinition::getDefaultFilterDefinition();
+                } else {
+                    // fallback to passed values from FE
+                    if (!empty($args['filterDefinition']['fallbackFilterDefinitionId'])) {
+                        $filterDefinition = AbstractFilterDefinition::getById(
+                            $args['filterDefinition']['fallbackFilterDefinitionId']
+                        );
+                    } elseif (!empty($args['filterDefinition']['fallbackFilterDefinitionPath'])) {
+                        $filterDefinition = DataObject::getByPath(
+                            $args['filterDefinition']['fallbackFilterDefinitionPath']
+                        );
+                    }
                 }
             }
             if ($filterDefinition) {

@@ -460,8 +460,18 @@ class QueryType extends ObjectType
                                 'id' => ['type' => Type::id()],
                                 'path' => ['type' => Type::string()],
                                 'relationField' => ['type' => Type::string()],
-                                'fallbackFilterDefinitionId' => ['type' => Type::id()],
-                                'fallbackFilterDefinitionPath' => ['type' => Type::string()],
+                                'fallbackFilterDefinitionId' => [
+                                    'type' => Type::id(),
+                                    'description' => 'Another possibility is to overwrite AbstractFilterDefinition ' .
+                                        'and create method static getDefaultFilterDefinition(), ' .
+                                        'to provide a default filter definition'
+                                ],
+                                'fallbackFilterDefinitionPath' => [
+                                    'type' => Type::string(),
+                                    'description' => 'Another possibility is to overwrite AbstractFilterDefinition ' .
+                                        'and create method static getDefaultFilterDefinition(), ' .
+                                        'to provide a default filter definition'
+                                ],
                             ],
                         ]),
                         'description' => 'Loads a FilterDefinition by its id/path OR loads the FilterDefinition from relationField of the object with the given id/path.' .
