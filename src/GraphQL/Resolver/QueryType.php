@@ -1091,9 +1091,14 @@ class QueryType
             $filterType = $filter->getType();
             foreach ($filterNames as $filterName) {
                 $fieldName = $filter->getField();
+                // function getFieldConfig will return a unique field name with important configurations
+                // if there is no field config defined, field name will be used
+                if (method_exists($filter, 'getFieldConfig')) {
+                    $fieldName = $filter->getFieldConfig() ?? $fieldName;
+                }
                 // check filterName string and duplicates
                 // e.g. FilterSelect and FilterSelectSortable has the same beginning name
-                if (strpos($filterName, $filterType) !== false && !in_array($fieldName, $filterFields)) {
+                if (str_contains($filterName, $filterType) && !in_array($fieldName, $filterFields)) {
                     $facets[] = $facet;
                     $filterFields[] = $fieldName;
                 }
