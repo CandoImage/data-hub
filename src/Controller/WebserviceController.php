@@ -95,7 +95,7 @@ class WebserviceController extends FrontendController
     /**
      * @param \Symfony\Component\HttpFoundation\Request $request
      *
-     * @return array{operations: bool, resolveEdge: bool, resolveObjectGetter: bool}
+     * @return array{operations: bool, resolveEdge: bool, resolveObjectGetter: bool, cidBase: string}
      */
     protected function getCachingContextConfiguration(Request $request): array
     {
@@ -103,6 +103,9 @@ class WebserviceController extends FrontendController
             'operations' => true,
             'resolveEdge' => true,
             'resolveObjectGetter' => true,
+            // Allows to inject global contexts into the cache handling,
+            // isolating cache items by custom rules.
+            'cidBase' => '',
         ];
         $env = Config::getEnvironment();
         if (!in_array(strtolower($env), ['prod', 'production'])) {
