@@ -64,7 +64,13 @@ class CacheHelper
         return self::$queryHash;
     }
 
-    public static function generateCacheId(array $keyItems = []): string
+    /**
+     * @param array $keyItems
+     * @param array $context Execution context
+     *
+     * @return string
+     */
+    public static function generateCacheId(array $keyItems = [], array $context = []): string
     {
         $allKeys = '';
         foreach ($keyItems as $key => $keyItem) {
@@ -75,6 +81,6 @@ class CacheHelper
             }
         }
 
-        return md5($allKeys);
+        return ($context['caching']['cidBase'] ?? '') . '_' . md5($allKeys);
     }
 }
