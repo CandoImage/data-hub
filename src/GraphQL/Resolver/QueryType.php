@@ -436,7 +436,8 @@ class QueryType
         $query = CacheHelper::getQueryHash($context['doc']);
         $language = $resolveInfo->variableValues['lang'];
         $cid = CacheHelper::generateCacheId(
-            ['datahub-caching', $object->getClassId(), $object->getId(), $language, $query, implode(',', $path)]
+            ['datahub-caching', $object->getClassId(), $object->getId(), $language, $query, implode(',', $path)],
+            $context
         );
         if ($cachedData = Cache::load($cid)) {
             $deferred = new Deferred(function () use ($cachedData) {
