@@ -360,6 +360,7 @@ class QueryType extends ObjectType
                     'name' => $ucFirstClassName . $filterType,
                     'fields' => [
                         'filterType' => ['type' => Type::string()],
+                        'subFilterType' => ['type' => Type::string()],
                         'field' => ['type' => Type::string()],
                         'label' => ['type' => Type::string()],
                         'config' => [

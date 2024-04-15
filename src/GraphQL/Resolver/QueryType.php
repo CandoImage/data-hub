@@ -1152,8 +1152,15 @@ class QueryType
             $config = $filter->getConfig();
         }
 
+        // fill sub filter type
+        $subFilterType = null;
+        if (method_exists($filter, 'getFilterType')) {
+            $subFilterType = $filter->getFilterType();
+        }
+
         $value = [
             'filterType' => $filter->getType(),
+            'subFilterType' => $subFilterType,
             'field' => $field,
             'label' => $translator->trans($filter->getLabel()),
             'config' => $config,
