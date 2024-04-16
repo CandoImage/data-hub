@@ -232,6 +232,7 @@ class OutputCacheService
         $cid .= '-' . self::cleanTag($filterValues) . '-' . self::cleanTag($sortValues);
         $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
+
         return $event->getCid();
     }
 
