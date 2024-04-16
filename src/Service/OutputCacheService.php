@@ -16,7 +16,6 @@
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
 use ArrayObject;
-use CandoCX\CoreBundle\Cache\CacheTagHelper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -28,6 +27,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
 use Pimcore\Http\RequestHelper;
 use Pimcore\Logger;
 use SplObjectStorage;
+use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -229,7 +229,7 @@ class OutputCacheService
         $cid = $this->getOperationCid($operation);
         $filterValues = $this->operationData[$operation]['filterValues'] ?? '';
         $sortValues = $this->operationData[$operation]['sortValues'] ?? '';
-        $cid .= '-' . CacheTagHelper::cleanTag($filterValues) . '-' . CacheTagHelper::cleanTag($sortValues);
+        $cid .= '-' . self::cleanTag($filterValues) . '-' . self::cleanTag($sortValues);
         $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
         return $event->getCid();
@@ -485,5 +485,10 @@ class OutputCacheService
         }
 
         return implode(',', $filterValues);
+    }
+
+    public static function cleanTag(string $tag): string
+    {
+        return str_replace(str_split(CacheItem::RESERVED_CHARACTERS), '-', $tag);
     }
 }
