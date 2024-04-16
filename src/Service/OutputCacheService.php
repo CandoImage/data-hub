@@ -16,6 +16,7 @@
 namespace Pimcore\Bundle\DataHubBundle\Service;
 
 use ArrayObject;
+use CandoCX\CoreBundle\Cache\CacheTagHelper;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Language\Source;
@@ -226,12 +227,11 @@ class OutputCacheService
     public function getOperationOutputCid(OperationParams $operation, DocumentNode $parsedQuery): string
     {
         $cid = $this->getOperationCid($operation);
-        $cid .= '-' . ($this->operationData[$operation]['filterValues'] ?? '') .
-            '-' . ($this->operationData[$operation]['sortValues'] ?? '');
-
+        $filterValues = $this->operationData[$operation]['filterValues'] ?? '';
+        $sortValues = $this->operationData[$operation]['sortValues'] ?? '';
+        $cid .= '-' . CacheTagHelper::cleanTag($filterValues) . '-' . CacheTagHelper::cleanTag($sortValues);
         $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
-
         return $event->getCid();
     }
 
