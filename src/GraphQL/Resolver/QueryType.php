@@ -1016,8 +1016,13 @@ class QueryType
             // $resultList->addCondition(['terms' => ['system.path' => $readablePaths]]);
         }
 
+        // set category if there is one from type AbstractCategory
         /** @var AbstractCategory $category */
-        if (!empty($args['category']) && ($category = AbstractObject::getById($args['category']))) {
+        if (
+            !empty($args['category']) &&
+            ($category = AbstractObject::getById($args['category'])) &&
+            $category instanceof AbstractCategory
+        ) {
             $resultList->setCategory($category);
         }
 
