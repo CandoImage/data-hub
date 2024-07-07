@@ -227,9 +227,11 @@ class Dao extends Model\Dao\PimcoreLocationAwareConfigDao
 
         $configs = &$this->getConfig();
         foreach ($configs as $item) {
-            $name = $item['general']['name'];
-            $configuration = Configuration::getByName($name);
-            $list[$name] = $configuration;
+            if (isset($item['general'])) {
+                $name = $item['general']['name'];
+                $configuration = Configuration::getByName($name);
+                $list[$name] = $configuration;
+            }
         }
 
         return $list;
