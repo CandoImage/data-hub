@@ -28,9 +28,18 @@ use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData;
 use Pimcore\Model\DataObject\Localizedfield;
 use Pimcore\Model\DataObject\Objectbrick\Definition;
+use Pimcore\Model\Factory;
 
 class DataObjectFieldHelper extends AbstractFieldHelper
 {
+    protected Factory $modelFactory;
+
+    public function __construct(\Pimcore\Model\Factory $modelFactory)
+    {
+        parent::__construct();
+        $this->modelFactory = $modelFactory;
+    }
+
     /**
      * @param array $nodeDef
      * @param ClassDefinition|\Pimcore\Model\DataObject\Fieldcollection\Definition $class
@@ -70,8 +79,8 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'key' => $key,
                             'config' => [
                                 'name' => $key,
-                                'type' => Type::int()
-                            ]
+                                'type' => Type::int(),
+                            ],
                         ];
                     case 'filename':
                     case 'fullpath':
@@ -80,8 +89,8 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'key' => $key,
                             'config' => [
                                 'name' => $key,
-                                'type' => Type::string()
-                            ]
+                                'type' => Type::string(),
+                            ],
                         ];
                     case 'published':
                         return [
@@ -89,7 +98,7 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'config' => [
                                 'name' => $key,
                                 'type' => Type::boolean(),
-                            ]
+                            ],
                         ];
                     default:
                         return null;
@@ -269,7 +278,7 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'arg' => ['type' => Type::string()],
                             'processor' => function ($object, $newValue, $args) {
                                 $object->setKey($newValue);
-                            }
+                            },
 
                         ];
                     case 'published':
@@ -278,7 +287,7 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'arg' => ['type' => Type::boolean()],
                             'processor' => function ($object, $newValue, $args) {
                                 $object->setPublished($newValue);
-                            }
+                            },
                         ];
                     default:
                         return null;
@@ -370,10 +379,39 @@ class DataObjectFieldHelper extends AbstractFieldHelper
         $isLocalizedField = false;
         $containerDefinition = null;
 
-        if ($container instanceof Concrete) {
-            $containerDefinition = $container->getClass();
-        } elseif ($container instanceof AbstractData || $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData) {
-            $containerDefinition = $container->getDefinition();
+        // This reflection object is used to determine if the getter can be used.
+        // $container isn't used directly in order to allow specialized handling
+        // of mock objects and other placeholders which act transparently but
+        // don't implement the getters themselves.
+        $methodCheckClass = new \ReflectionClass($container);
+        $skipMethodCallCheck = false;
+        // Adjust meta data for data handling on type of the data container.
+        switch (true) {
+            case $container instanceof Concrete:
+                $containerDefinition = $container->getClass();
+                break;
+
+            case $container instanceof AbstractData:
+            case $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData:
+                $containerDefinition = $container->getDefinition();
+                break;
+
+            // All default indexers implement o_classId - access it directly to
+            // load class definition and with it use the model loader to fetch
+            // the actual implementing class for further reflection.
+            case $container instanceof DefaultMockup:
+                if (($mockClassId = $container->getParam('o_classId'))) {
+                    $containerDefinition = ClassDefinition::getById($mockClassId);
+                    // Unfortunately there's no API for this so we re-implement
+                    // what \Pimcore\Model\DataObject\AbstractObject::getById()
+                    // does.
+                    $baseClassName = 'Pimcore\\Model\\DataObject\\' . ucfirst($containerDefinition->getName());
+                    $className = $this->modelFactory->getClassNameFor($baseClassName);
+                    $methodCheckClass = new \ReflectionClass($className);
+                } else {
+                    $skipMethodCallCheck = true;
+                }
+                break;
         }
 
         if ($containerDefinition) {
@@ -383,7 +421,8 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                 $isLocalizedField = true;
             }
         }
-        if (method_exists($container, $getter)) {
+
+        if (($methodCheckClass->hasMethod($getter) && $methodCheckClass->getMethod($getter)->isPublic()) || $skipMethodCallCheck) {
             if ($isLocalizedField) {
                 // defer it
                 $data[$astName] = function ($source, $args, $context, ResolveInfo $info) use (
@@ -394,17 +433,6 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                 };
             } else {
                 $data[$astName] = $container->$getter();
-            }
-        } else {
-            // we could also have a Mockup objects from Elastic which not supports the "method_exists"
-            // in this case we just try to get the data directly
-            if ($container instanceof DefaultMockup) {
-                try {
-                    // we don't have to take care about localization because this is already handled in elastic
-                    $data[$astName] = $container->$getter();
-                } catch (\Exception $e) {
-                    Logger::info('Could not get data from Datahub/DataObjectFieldHelper with message: ' . $e->getMessage());
-                }
             }
         }
     }
