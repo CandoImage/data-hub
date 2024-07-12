@@ -12,6 +12,7 @@ services:
     Pimcore\Bundle\DataHubBundle\EventListener\CacheListener:
         tags:
             - { name: kernel.event_listener, event: pimcore.datahub.graphql.cache.item, method: onCacheItemEvent }
+            - { name: kernel.event_listener, event: pimcore.system.shutdown, method: onPimcoreShutdown }
 
     Pimcore\Bundle\DataHubBundle\EventListener\AdminListener:
         bind:
