@@ -96,7 +96,6 @@ class CacheListener
         return $ref;
     }
 
-
     /**
      * Add the cache item meta-data before saving the cache items.
      *
