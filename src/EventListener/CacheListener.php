@@ -23,6 +23,7 @@ use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\Document\Link;
 use Pimcore\Model\Document\PageSnippet;
 use Pimcore\Model\Element\AbstractElement;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
 class CacheListener
 {
@@ -58,18 +59,13 @@ class CacheListener
             self::$cachingItems = new \SplObjectStorage();
         }
 
-        // Load object to get cache tags.
-        $object = Concrete::getById($objectId);
-        if ($object) {
-            self::$cachingItems[$operation] = self::$cachingItems[$operation] ?? [];
-            $cacheTags = ['datahub-cache'] + (self::getObjectCacheTags($object) ?? []);
-            self::$cachingItems[$operation] += [$cid => [
-                'path' => $path,
-                'tags' => $cacheTags,
-                'indexKey' => $indexKey,
-                'lifetime' => $lifetime,
-            ]];
-        }
+        self::$cachingItems[$operation] = self::$cachingItems[$operation] ?? [];
+        self::$cachingItems[$operation] += [$cid => [
+            'objectId' => $objectId,
+            'path' => $path,
+            'indexKey' => $indexKey,
+            'lifetime' => $lifetime,
+        ]];
     }
 
     public static function clearCachingItems(OperationParams $operation = null): void
@@ -100,26 +96,30 @@ class CacheListener
         return $ref;
     }
 
-    public function onCacheItemEvent(CacheItemEvent $event): void
+    /**
+     * Add the cache item meta-data before saving the cache items.
+     *
+     * Uses shutdown because at this point the response should be already
+     * delivered and any further processing shouldn't affect reponse times.
+     *
+     * @param \Symfony\Component\EventDispatcher\GenericEvent $event
+     *
+     * @return void
+     */
+    public function onPimcoreShutdown(GenericEvent $event): void
     {
-        $operation = $event->getOperation();
-
-        if (isset(self::$cachingItems[$operation])) {
-            $result = $event->getResult();
-            $data = $result->data;
-
+        foreach (self::$cachingItems ?? [] as $operation) {
             // Find items declared for caching in result set and store them in cache.
             foreach (self::$cachingItems[$operation] as $cid => $item) {
-                // replace the "delta" placeholder with the effective index to extract data
-                $path = $item['path'];
-                if ($index = array_search('delta', $path, true)) {
-                    $path[$index] = $item['indexKey'];
+                // Extract the related cache tags.
+                $cacheTags = [];
+                $object = Concrete::getById($item['objectId']);
+                if (!empty($object)) {
+                    $cacheTags = ['datahub-cache'] + (self::getObjectCacheTags($object) ?? []);
                 }
-                // Extract the cacheable portion from the result.
-                $value = self::arrayGetNestedValue($data, $path);
-                $cacheTags = $item['tags'] ?? [];
+                // Not sure why force is necessary.
                 Cache::save(
-                    $value,
+                    $item['data'],
                     $cid,
                     $cacheTags,
                     $item['lifetime'] ?? null,
@@ -128,7 +128,40 @@ class CacheListener
                 );
             }
         }
-        self::clearCachingItems($operation);
+    }
+
+    /**
+     * Adds the actual data to the for caching prepared cache items.
+     *
+     * Do NOT save yet - wait for that till shutdown to ensure response is
+     * out before triggering any further processing.
+     *
+     *
+     * @param \Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\CacheItemEvent $event
+     *
+     * @return void
+     */
+    public function onCacheItemEvent(CacheItemEvent $event): void
+    {
+        $operation = $event->getOperation();
+        if (isset(self::$cachingItems[$operation])) {
+            $result = $event->getResult();
+            $data = $result->data;
+            // Find items declared for caching in result set and store them in cache.
+            $cachedItems = self::$cachingItems[$operation];
+            foreach ($cachedItems as $cid => $item) {
+                // replace the "delta" placeholder with the effective index to extract data
+                $path = $item['path'];
+                if ($index = array_search('delta', $path, true)) {
+                    $path[$index] = $item['indexKey'];
+                }
+                // Extract the cacheable portion from the result.
+                $value = self::arrayGetNestedValue($data, $path);
+                $item['data'] = $value;
+                $cachedItems[$cid] = $item;
+                self::$cachingItems->offsetSet($operation, $cachedItems);
+            }
+        }
     }
 
     /**
