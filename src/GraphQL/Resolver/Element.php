@@ -57,7 +57,7 @@ class Element
      */
     public function resolveTag($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = ElementService::getElementById($this->elementType, $value['id']);
+        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
 
         if ($element) {
             $result = $this->getTags('document', $element->getId());
@@ -82,7 +82,7 @@ class Element
     public function resolveProperties($value = null, array $args = [], array $context = [], ResolveInfo $resolveInfo = null)
     {
         $elementId = $value['id'];
-        $element = ElementService::getElementById($this->elementType, $elementId);
+        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $elementId);
 
         if (!$element) {
             throw new ClientSafeException('element ' . $this->elementType . ' ' . $elementId . ' not found');
@@ -116,7 +116,7 @@ class Element
      */
     public function resolveParent($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = ElementService::getElementById($this->elementType, $value['id']);
+        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
         if ($element) {
             $parent = $element->getParent();
             if ($parent) {
@@ -139,7 +139,8 @@ class Element
      */
     public function resolveChildren($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = ElementService::getElementById($this->elementType, $value['id']);
+        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
+
         if ($element) {
             $arguments = $this->composeArguments($args);
 
@@ -161,7 +162,7 @@ class Element
      */
     public function resolveSiblings($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = ElementService::getElementById($this->elementType, $value['id']);
+        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
         if ($element) {
             $arguments = $this->composeArguments($args);
 

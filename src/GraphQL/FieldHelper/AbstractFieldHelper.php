@@ -23,6 +23,7 @@ use GraphQL\Language\AST\NodeList;
 use GraphQL\Language\AST\SelectionSetNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Model\Element\ElementInterface;
 
 abstract class AbstractFieldHelper
@@ -118,10 +119,13 @@ abstract class AbstractFieldHelper
      */
     public function extractData(&$data, $container, $args, $context = [], ResolveInfo $resolveInfo = null)
     {
-        if ($container instanceof ElementInterface) {
+        if ($container instanceof ElementInterface || $container instanceof DefaultMockup) {
             // we have to at least add the ID and pass it around even if not requested because we need it internally
             // to resolve fields of linked elements (such as asset image and so on)
             $data['id'] = $container->getId();
+            // Register the element for downstream resolvers to avoid object
+            // loads.
+            $data[ElementInterface::class] = $container;
         }
 
         $resolveInfoArray = (array)$resolveInfo;
