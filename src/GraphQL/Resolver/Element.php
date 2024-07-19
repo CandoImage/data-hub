@@ -21,6 +21,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper\AbstractFieldHelper;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementTagTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
@@ -29,12 +30,11 @@ use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\Document;
 use Pimcore\Model\Element\ElementInterface;
-use Pimcore\Model\Element\Service as ElementService;
 use Pimcore\Model\Property;
 
 class Element
 {
-    use ServiceTrait, ElementTagTrait;
+    use ServiceTrait, ElementTagTrait, ElementLoaderTrait;
 
     /** @var string */
     protected $elementType;
@@ -57,7 +57,7 @@ class Element
      */
     public function resolveTag($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
+        $element = $this->loadDataElement($value, $this->elementType);
 
         if ($element) {
             $result = $this->getTags('document', $element->getId());
@@ -82,7 +82,7 @@ class Element
     public function resolveProperties($value = null, array $args = [], array $context = [], ResolveInfo $resolveInfo = null)
     {
         $elementId = $value['id'];
-        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $elementId);
+        $element = $this->loadDataElement($value, $this->elementType);
 
         if (!$element) {
             throw new ClientSafeException('element ' . $this->elementType . ' ' . $elementId . ' not found');
@@ -116,7 +116,7 @@ class Element
      */
     public function resolveParent($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
+        $element = $this->loadDataElement($value, $this->elementType);
         if ($element) {
             $parent = $element->getParent();
             if ($parent) {
@@ -139,7 +139,7 @@ class Element
      */
     public function resolveChildren($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
+        $element = $this->loadDataElement($value, $this->elementType);
 
         if ($element) {
             $arguments = $this->composeArguments($args);
@@ -162,7 +162,7 @@ class Element
      */
     public function resolveSiblings($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $element = $value[ElementInterface::class] ?? ElementService::getElementById($this->elementType, $value['id']);
+        $element = $this->loadDataElement($value, $this->elementType);
         if ($element) {
             $arguments = $this->composeArguments($args);
 

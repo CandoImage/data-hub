@@ -42,7 +42,7 @@ class DataObject extends Element
      */
     public function resolveTag($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $object = \Pimcore\Model\DataObject::getById($value['id']);
+        $object = $this->loadDataElement($value, 'object');
 
         if ($object) {
             $result = $this->getTags('object', $object->getId());
@@ -68,7 +68,7 @@ class DataObject extends Element
             return null;
         }
 
-        $object = \Pimcore\Model\DataObject::getById($value['id']);
+        $object = $this->loadDataElement($value, 'object');
 
         if (!$object instanceof AbstractObject) {
             return null;
@@ -91,7 +91,7 @@ class DataObject extends Element
             return null;
         }
 
-        $object = \Pimcore\Model\DataObject::getById($value['id']);
+        $object = $this->loadDataElement($value, 'object');
 
         if (!$object instanceof \Pimcore\Model\DataObject) {
             return null;

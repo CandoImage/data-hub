@@ -20,6 +20,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementTagTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
@@ -27,7 +28,7 @@ use Pimcore\Model\Asset;
 
 class AssetType
 {
-    use ServiceTrait, ElementTagTrait;
+    use ServiceTrait, ElementTagTrait, ElementLoaderTrait;
 
     /**
      * @param ElementDescriptor|null $value
@@ -410,8 +411,7 @@ class AssetType
         if (!$value instanceof ElementDescriptor) {
             return null;
         }
-
-        $asset = Asset::getById($value['id']);
+        $asset = $this->loadDataElement($value, 'asset');
 
         if (!WorkspaceHelper::checkPermission($asset, 'read')) {
             return null;
