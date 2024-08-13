@@ -26,7 +26,7 @@ class ElementDescriptor extends BaseDescriptor
     /**
      * @param ElementInterface|null $element
      */
-    public function __construct(ElementInterface|DefaultMockup $element = null)
+    public function __construct(ElementInterface | DefaultMockup $element = null)
     {
         parent::__construct();
         if ($element) {
