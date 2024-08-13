@@ -23,6 +23,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\Element\AbstractElement;
@@ -76,9 +77,16 @@ class Objects
             $relations = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
             if ($relations) {
                 $result = [];
-                /** @var $relation AbstractElement */
                 foreach ($relations as $relation) {
-                    if (!WorkspaceHelper::checkPermission($relation, 'read')) {
+                    /** @var $relation AbstractElement */
+                    // Explicitly set the type of the mockup object because
+                    // these don't have the matching class instance for
+                    // auto-detect.
+                    $type = null;
+                    if ($relation instanceof DefaultMockup) {
+                        $type = $relation->getType();
+                    }
+                    if (!WorkspaceHelper::checkPermission($relation, 'read', $type)) {
                         continue;
                     }
 

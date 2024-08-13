@@ -48,6 +48,15 @@ trait ElementLoaderTrait
      */
     protected function loadDataElement(&$data, $type)
     {
+        return self::staticLoadDataElement($data, $type);
+    }
+
+    /**
+     *
+     * @return ElementInterface
+     */
+    protected static function staticLoadDataElement(&$data, $type)
+    {
         if (!isset($data[ElementInterface::class . '_instance'])) {
             $data[ElementInterface::class . '_type'] = $type;
             $data[ElementInterface::class . '_instance'] = ElementService::getElementById($data['id'], $type);

@@ -38,7 +38,9 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper\DataObjectFieldHelper;
 use Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper\DocumentFieldHelper;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\Operator\Factory\OperatorFactoryInterface;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\Value\DefaultValue;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Cache\RuntimeCache;
 use Pimcore\DataObject\GridColumnConfig\ConfigElementInterface;
 use Pimcore\Localization\LocaleServiceInterface;
@@ -57,6 +59,8 @@ use Psr\Container\ContainerInterface;
 
 class Service
 {
+    use ElementLoaderTrait;
+
     /***
      * @var ContainerInterface
      */
@@ -944,8 +948,7 @@ class Service
     public static function resolveValue(BaseDescriptor $descriptor, Data $fieldDefinition, $attribute, $args = [])
     {
         $getter = 'get' . ucfirst($fieldDefinition->getName());
-        $objectId = $descriptor['id'];
-        $object = Concrete::getById($objectId);
+        $object = self::staticLoadDataElement($descriptor, 'object');
         if (!$object) {
             return null;
         }
@@ -1182,6 +1185,8 @@ class Service
         } elseif ($target instanceof Asset) {
             $fieldHelper = $this->getAssetFieldHelper();
         } elseif ($target instanceof AbstractObject) {
+            $fieldHelper = $this->getObjectFieldHelper();
+        } elseif ($target instanceof DefaultMockup) {
             $fieldHelper = $this->getObjectFieldHelper();
         }
 
