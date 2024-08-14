@@ -59,7 +59,7 @@ trait ElementLoaderTrait
     {
         if (!isset($data[ElementInterface::class . '_instance'])) {
             $data[ElementInterface::class . '_type'] = $type;
-            $data[ElementInterface::class . '_instance'] = ElementService::getElementById($data['id'], $type);
+            $data[ElementInterface::class . '_instance'] = ElementService::getElementById($type, $data['id']);
         }
 
         return $data[ElementInterface::class . '_instance'];
