@@ -82,7 +82,7 @@ class Objects
                     // Explicitly set the type of the mockup object because
                     // these don't have the matching class instance for
                     // auto-detect.
-                    $type = null;
+                    $type = '';
                     if ($relation instanceof DefaultMockup) {
                         $type = $relation->getType();
                     }
