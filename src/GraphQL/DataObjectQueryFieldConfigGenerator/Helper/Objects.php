@@ -82,10 +82,7 @@ class Objects
                     // Explicitly set the type of the mockup object because
                     // these don't have the matching class instance for
                     // auto-detect.
-                    $type = '';
-                    if ($relation instanceof DefaultMockup) {
-                        $type = $relation->getType();
-                    }
+                    $type = ($relation instanceof DefaultMockup) ? 'object' : '';
                     if (!WorkspaceHelper::checkPermission($relation, 'read', $type)) {
                         continue;
                     }

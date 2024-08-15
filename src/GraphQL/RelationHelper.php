@@ -16,12 +16,13 @@
 namespace Pimcore\Bundle\DataHubBundle\GraphQL;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Model\Element\ElementInterface;
 
 class RelationHelper
 {
     /**
-     * @param ElementInterface $relation
+     * @param ElementInterface|DefaultMockup  $relation
      * @param Service $graphQlService
      * @param array $args
      * @param array $context
@@ -29,7 +30,7 @@ class RelationHelper
      *
      * @return ElementDescriptor
      */
-    public static function processRelation(ElementInterface $relation, Service $graphQlService, $args, $context, ResolveInfo $resolveInfo)
+    public static function processRelation(ElementInterface|DefaultMockup  $relation, Service $graphQlService, $args, $context, ResolveInfo $resolveInfo)
     {
         $data = new ElementDescriptor($relation);
         $graphQlService->extractData($data, $relation, $args, $context, $resolveInfo);

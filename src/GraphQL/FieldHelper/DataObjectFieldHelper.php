@@ -370,59 +370,12 @@ class DataObjectFieldHelper extends AbstractFieldHelper
         if ($this->skipField($container, $astName)) {
             return;
         }
-
         // example for http://webonyx.github.io/graphql-php/error-handling/
 //         throw new MySafeException("fieldhelper", "TBD customized error message");
 
         $getter = 'get' . ucfirst($astName);
-
-        $isLocalizedField = false;
-        $containerDefinition = null;
-
-        // This reflection object is used to determine if the getter can be used.
-        // $container isn't used directly in order to allow specialized handling
-        // of mock objects and other placeholders which act transparently but
-        // don't implement the getters themselves.
-        $methodCheckClass = new \ReflectionClass($container);
-        $skipMethodCallCheck = false;
-        // Adjust meta data for data handling on type of the data container.
-        switch (true) {
-            case $container instanceof Concrete:
-                $containerDefinition = $container->getClass();
-                break;
-
-            case $container instanceof AbstractData:
-            case $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData:
-                $containerDefinition = $container->getDefinition();
-                break;
-
-            // All default indexers implement o_classId - access it directly to
-            // load class definition and with it use the model loader to fetch
-            // the actual implementing class for further reflection.
-            case $container instanceof DefaultMockup:
-                if (($mockClassId = $container->getParam('o_classId'))) {
-                    $containerDefinition = ClassDefinition::getById($mockClassId);
-                    // Unfortunately there's no API for this so we re-implement
-                    // what \Pimcore\Model\DataObject\AbstractObject::getById()
-                    // does.
-                    $baseClassName = 'Pimcore\\Model\\DataObject\\' . ucfirst($containerDefinition->getName());
-                    $className = $this->modelFactory->getClassNameFor($baseClassName);
-                    $methodCheckClass = new \ReflectionClass($className);
-                } else {
-                    $skipMethodCallCheck = true;
-                }
-                break;
-        }
-
-        if ($containerDefinition) {
-            /** @var Data\Localizedfields|null $lfDefs */
-            $lfDefs = $containerDefinition->getFieldDefinition('localizedfields');
-            if ($lfDefs && $lfDefs->getFieldDefinition($astName)) {
-                $isLocalizedField = true;
-            }
-        }
-
-        if (($methodCheckClass->hasMethod($getter) && $methodCheckClass->getMethod($getter)->isPublic()) || $skipMethodCallCheck) {
+        if ($this->getGraphQlService()::checkContainerMethodExists($container, $getter)) {
+            $isLocalizedField = $this->getGraphQlService()::isLocalizedField($container, $astName);
             if ($isLocalizedField) {
                 // defer it
                 $data[$astName] = function ($source, $args, $context, ResolveInfo $info) use (

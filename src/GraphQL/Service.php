@@ -930,7 +930,7 @@ class Service
 
                 return $result;
             }
-        } elseif (method_exists($container, $setter)) {
+        } elseif (static::checkContainerMethodExists($container, $setter)) {
             $result = $callback($container, $setter);
         }
 
@@ -1077,7 +1077,7 @@ class Service
 
                 return $value;
             }
-        } elseif (method_exists($container, $getter)) {
+        } elseif (static::checkContainerMethodExists($container, $getter)) {
             $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
             if ($isLocalizedField) {
                 $result = $container->$getter($args['language'] ?? null);
@@ -1124,15 +1124,9 @@ class Service
      *
      * @return bool
      */
-    private static function isLocalizedField($container, $fieldName): bool
+    public static function isLocalizedField($container, $fieldName): bool
     {
-        $containerDefinition = null;
-
-        if ($container instanceof Concrete) {
-            $containerDefinition = $container->getClass();
-        } elseif ($container instanceof AbstractData) {
-            $containerDefinition = $container->getDefinition();
-        }
+        $containerDefinition = static::getContainerClassDefinition($container);
 
         if ($containerDefinition) {
             /** @var Data\Localizedfields|null $lfDefs */
@@ -1213,5 +1207,90 @@ class Service
         }
 
         return $enabled;
+    }
+
+    /**
+     * Checks if a container has a given method.
+     *
+     * This works with DefaultMockup objects too that's why it's so overly
+     * complex. DefaultMockup objects will use the class definition of the
+     * mocked object to determine which model class has to be checked for the
+     * method.
+     *
+     * @param object $container
+     * @param string $method
+     *
+     * @return bool
+     * @throws \ReflectionException
+     */
+    public static function checkContainerMethodExists(object $container, string $method): bool
+    {
+        // This reflection object is used to determine if the getter can be used.
+        // $container isn't used directly in order to allow specialized handling
+        // of mock objects and other placeholders which act transparently but
+        // don't implement the getters themselves.
+        $methodCheckClass = new \ReflectionClass($container);
+        $skipMethodCallCheck = false;
+
+        // Adjust meta data for data handling on type of the data container.
+        $containerDefinition = static::getContainerClassDefinition($container);
+        if ($container instanceof DefaultMockup) {
+            if ($containerDefinition) {
+                // Unfortunately there's no API for this so we re-implement
+                // what \Pimcore\Model\DataObject\AbstractObject::getById()
+                // does.
+                $baseClassName = 'Pimcore\\Model\\DataObject\\' . ucfirst($containerDefinition->getName());
+                // @TODO figure out a nicer way to handle this. Really naughty
+                // to call kernel directly - but static doesn't have DI.
+                /** @var self $service */
+                $service = \Pimcore::getKernel()->getContainer()->get(static::class);
+                $className = $service->getModelFactory()->getClassNameFor($baseClassName);
+                $methodCheckClass = new \ReflectionClass($className);
+            } else {
+                $skipMethodCallCheck = true;
+            }
+        }
+        if (
+            (
+                $methodCheckClass->hasMethod($method)
+                && $methodCheckClass->getMethod($method)->isPublic()
+            )
+            || $skipMethodCallCheck
+        ) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns the ClassDefinition of a container - works with DefaultMockup
+     * objects too.
+     *
+     * @param object $container
+     *
+     * @return ClassDefinition|null
+     * @throws \Exception
+     */
+    public static function getContainerClassDefinition(object $container): ?ClassDefinition
+    {
+        // Adjust meta data for data handling on type of the data container.
+        switch (true) {
+            case $container instanceof Concrete:
+                return $container->getClass();
+
+            case $container instanceof \Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData:
+            case $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData:
+                return $container->getDefinition();
+
+            // All default indexers implement o_classId - access it directly to
+            // load class definition and with it use the model loader to fetch
+            // the actual implementing class for further reflection.
+            case $container instanceof DefaultMockup:
+                if (($mockClassId = $container->getParam('o_classId'))) {
+                    return ClassDefinition::getById($mockClassId);
+                }
+                break;
+        }
+        return null;
     }
 }
