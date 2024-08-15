@@ -1221,6 +1221,7 @@ class Service
      * @param string $method
      *
      * @return bool
+     *
      * @throws \ReflectionException
      */
     public static function checkContainerMethodExists(object $container, string $method): bool
@@ -1259,6 +1260,7 @@ class Service
         ) {
             return true;
         }
+
         return false;
     }
 
@@ -1269,6 +1271,7 @@ class Service
      * @param object $container
      *
      * @return ClassDefinition|null
+     *
      * @throws \Exception
      */
     public static function getContainerClassDefinition(object $container): ?ClassDefinition
@@ -1291,6 +1294,7 @@ class Service
                 }
                 break;
         }
+
         return null;
     }
 }
