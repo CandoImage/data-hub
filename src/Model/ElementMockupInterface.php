@@ -15,6 +15,8 @@
 
 namespace Pimcore\Bundle\DataHubBundle\Model;
 
+use GraphQL\Language\AST\FieldNode;
+use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\Element\ElementInterface;
@@ -57,4 +59,22 @@ interface ElementMockupInterface
      * @return \Pimcore\Model\Element\ElementInterface|null
      */
     public function getOriginalObject(): ElementInterface | null;
+
+    /**
+     * Set the GraphQL context.
+     *
+     * This can e.g. allow to react on operation arguments and select the
+     * appropriate pre-processed data from a mock object.
+     *
+     * @param string|null $getter
+     * @param array|null $getterArgs
+     * @param \GraphQL\Type\Definition\ResolveInfo|null $resolveInfo
+     * @param FieldNode $ast
+     */
+    public function setGraphQLContext(
+        ?string $getter,
+        ?array $getterArgs = null,
+        ?ResolveInfo $resolveInfo = null,
+        ?FieldNode $ast = null
+    ): void;
 }

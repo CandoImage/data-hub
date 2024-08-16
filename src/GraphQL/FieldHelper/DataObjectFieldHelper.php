@@ -19,6 +19,7 @@ use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\File;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -372,18 +373,19 @@ class DataObjectFieldHelper extends AbstractFieldHelper
 //         throw new MySafeException("fieldhelper", "TBD customized error message");
 
         $getter = 'get' . ucfirst($astName);
-        if ($this->getGraphQlService()::checkContainerMethodExists($container, $getter)) {
-            $isLocalizedField = $this->getGraphQlService()::isLocalizedField($container, $astName);
+        if (Service::checkContainerMethodExists($container, $getter)) {
+            $isLocalizedField = Service::isLocalizedField($container, $astName);
             if ($isLocalizedField) {
                 // defer it
                 $data[$astName] = function ($source, $args, $context, ResolveInfo $info) use (
                     $container,
-                    $getter
+                    $getter,
+                    $ast
                 ) {
-                    return $container->$getter($args['language'] ?? null);
+                    return Service::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null], $info, $ast);
                 };
             } else {
-                $data[$astName] = $container->$getter();
+                $data[$astName] = Service::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
             }
         }
     }

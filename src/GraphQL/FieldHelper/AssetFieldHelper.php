@@ -17,6 +17,7 @@ namespace Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper;
 
 use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Model\Asset;
 use Pimcore\Model\Asset\Image;
 use Pimcore\Model\Asset\Video;
@@ -128,21 +129,22 @@ class AssetFieldHelper extends AbstractFieldHelper
                 }
             }
         } else {
-            if ($this->getGraphQlService()::checkContainerMethodExists($container, $getter)) {
+            if (Service::checkContainerMethodExists($container, $getter)) {
                 if ($languageArgument) {
                     if ($ast->alias) {
                         // defer it
                         $data[$realName] = function ($source, $args, $context, ResolveInfo $info) use (
                             $container,
-                            $getter
+                            $getter,
+                            $ast
                         ) {
-                            return $container->$getter($args['language'] ?? null);
+                            return Service::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null], $info, $ast);
                         };
                     } else {
-                        $data[$realName] = $container->$getter($languageArgument);
+                        $data[$realName] = Service::callContainerGetterMethod($container, $getter, ['language' => $languageArgument], $resolveInfo, $ast);
                     }
                 } else {
-                    $data[$realName] = $container->$getter();
+                    $data[$realName] = Service::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
                 }
             }
         }

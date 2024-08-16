@@ -44,12 +44,11 @@ use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Cache\RuntimeCache;
 use Pimcore\DataObject\GridColumnConfig\ConfigElementInterface;
 use Pimcore\Localization\LocaleServiceInterface;
-use Pimcore\Model\AbstractModel;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
+use Pimcore\Model\DataObject\Fieldcollection\Definition;
 use Pimcore\Model\DataObject\Objectbrick\Data\AbstractData;
-use Pimcore\Model\DataObject\Objectbrick\Definition;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Factory;
 use Pimcore\Translation\Translator;
@@ -1078,9 +1077,9 @@ class Service
         } elseif (static::checkContainerMethodExists($container, $getter)) {
             $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
             if ($isLocalizedField) {
-                $result = $container->$getter($args['language'] ?? null);
+                $result = Service::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null]);
             } else {
-                $result = $container->$getter();
+                $result = Service::callContainerGetterMethod($container, $getter);
             }
         }
 
@@ -1286,11 +1285,10 @@ class Service
      *
      * @param object $container
      *
-     * @return \Pimcore\Model\AbstractModel|null
+     * @return \Pimcore\Model\DataObject\ClassDefinition|\Pimcore\Model\DataObject\Fieldcollection\Definition|null
      *
-     * @throws \Exception
      */
-    public static function getContainerClassDefinition(object $container): ?AbstractModel
+    public static function getContainerClassDefinition(object $container): ClassDefinition | Definition | null
     {
         // Adjust meta data for data handling on type of the data container.
         switch (true) {
@@ -1304,5 +1302,37 @@ class Service
         }
 
         return null;
+    }
+
+    /**
+     * Call the getter function on a container.
+     *
+     * Passes on execution context to containers with the ElementMockupInterface.
+     *
+     * @param object $container
+     * @param string $getter
+     * @param array $getterArgs
+     * @param \GraphQL\Type\Definition\ResolveInfo|null $resolveInfo
+     *
+     * @return mixed
+     */
+    public static function callContainerGetterMethod(
+        object $container,
+        string $getter,
+        array $getterArgs = [],
+        ?ResolveInfo $resolveInfo = null,
+        ?FieldNode $ast = null
+    ): mixed {
+        if ($container instanceof ElementMockupInterface) {
+            $container->setGraphQLContext($getter, $getterArgs, $resolveInfo, $ast);
+        }
+        try {
+            $return = call_user_func_array([$container, $getter], $getterArgs);
+        } finally {
+            if ($container instanceof ElementMockupInterface) {
+                $container->setGraphQLContext(null);
+            }
+        }
+        return $return;
     }
 }
