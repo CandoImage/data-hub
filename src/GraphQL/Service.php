@@ -44,6 +44,7 @@ use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Cache\RuntimeCache;
 use Pimcore\DataObject\GridColumnConfig\ConfigElementInterface;
 use Pimcore\Localization\LocaleServiceInterface;
+use Pimcore\Model\AbstractModel;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
@@ -1285,11 +1286,11 @@ class Service
      *
      * @param object $container
      *
-     * @return ClassDefinition|null
+     * @return \Pimcore\Model\AbstractModel|null
      *
      * @throws \Exception
      */
-    public static function getContainerClassDefinition(object $container): ?ClassDefinition
+    public static function getContainerClassDefinition(object $container): ?AbstractModel
     {
         // Adjust meta data for data handling on type of the data container.
         switch (true) {
