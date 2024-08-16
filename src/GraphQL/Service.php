@@ -1313,6 +1313,7 @@ class Service
      * @param string $getter
      * @param array $getterArgs
      * @param \GraphQL\Type\Definition\ResolveInfo|null $resolveInfo
+     * @param \GraphQL\Language\AST\FieldNode|null $ast
      *
      * @return mixed
      */
@@ -1335,5 +1336,29 @@ class Service
         }
 
         return $return;
+    }
+
+    public static function resolveContainerGetterData($container, &$data, $getter, ResolveInfo $resolveInfo, FieldNode $ast, $languageArgument = null , $defer = null)
+    {
+        if (static::checkContainerMethodExists($container, $getter)) {
+            $realName = $ast->name->value;
+            $outputName = $ast->alias?->value ?? $realName;
+            if ($languageArgument) {
+                if ($ast->alias || $defer) {
+                    // defer it
+                    $data[$realName] = function ($source, $args, $context, ResolveInfo $info) use (
+                        $container,
+                        $getter,
+                        $ast
+                    ) {
+                        return Service::callContainerGetterMethod($container, $getter, [$args['language'] ?? null], $info, $ast);
+                    };
+                } else {
+                    $data[$outputName] = $data[$realName] = Service::callContainerGetterMethod($container, $getter, [$languageArgument], $resolveInfo, $ast);
+                }
+            } else {
+                $data[$outputName] = $data[$realName] = Service::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
+            }
+        }
     }
 }

@@ -143,9 +143,14 @@ class AssetType
         if ($value instanceof BaseDescriptor) {
             $asset = $this->getAssetFromValue($value, $context);
             // Check if the value was already resolved in a mockup object.
-            if ($asset instanceof ElementMockupInterface && isset($value[$resolveInfo->fieldName])) {
-                return $value[$resolveInfo->fieldName];
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
             }
+
             $thumbNailConfig = $args['thumbnail'] ?? null;
             $thumbNailFormat = $args['format'] ?? null;
             $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
@@ -263,8 +268,12 @@ class AssetType
             $deferredThumbnail = true;
         }
         // Check if the value was already resolved in a mockup object.
-        if ($thumbnail instanceof ElementMockupInterface && isset($value[$resolveInfo->fieldName])) {
-            return $value[$resolveInfo->fieldName];
+        $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+        if ($thumbnail instanceof ElementMockupInterface) {
+            if (isset($value[$returnName])) {
+                return $value[$returnName];
+            }
+            $thumbnail = $thumbnail->getOriginalObject();
         }
 
         if ($thumbnail instanceof Asset\Image\Thumbnail) {
@@ -302,8 +311,12 @@ class AssetType
                 return [];
             }
             // Check if the value was already resolved in a mockup object.
-            if ($asset instanceof ElementMockupInterface && isset($value[$resolveInfo->fieldName])) {
-                return $value[$resolveInfo->fieldName];
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
             }
             $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbnailName, $thumbnailFormat, $deferredThumbnail);
             if (isset($thumbnail)) {
@@ -345,8 +358,12 @@ class AssetType
             $thumbnailName = $args['thumbnail'] ?? null;
             $asset = $this->getAssetFromValue($value, $context);
             // Check if the value was already resolved in a mockup object.
-            if ($asset instanceof ElementMockupInterface && isset($value[$resolveInfo->fieldName])) {
-                return $value[$resolveInfo->fieldName];
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
             }
 
             if ($asset instanceof Asset\Video) {

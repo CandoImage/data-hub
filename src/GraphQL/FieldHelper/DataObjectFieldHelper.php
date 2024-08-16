@@ -373,21 +373,8 @@ class DataObjectFieldHelper extends AbstractFieldHelper
 //         throw new MySafeException("fieldhelper", "TBD customized error message");
 
         $getter = 'get' . ucfirst($astName);
-        if (Service::checkContainerMethodExists($container, $getter)) {
-            $isLocalizedField = Service::isLocalizedField($container, $astName);
-            if ($isLocalizedField) {
-                // defer it
-                $data[$astName] = function ($source, $args, $context, ResolveInfo $info) use (
-                    $container,
-                    $getter,
-                    $ast
-                ) {
-                    return Service::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null], $info, $ast);
-                };
-            } else {
-                $data[$astName] = Service::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
-            }
-        }
+        $isLocalizedField = Service::isLocalizedField($container, $astName);
+        Service::resolveContainerGetterData($container, $data, $getter, $resolveInfo, $ast, null, $isLocalizedField);
     }
 
     /**

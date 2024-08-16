@@ -129,24 +129,7 @@ class AssetFieldHelper extends AbstractFieldHelper
                 }
             }
         } else {
-            if (Service::checkContainerMethodExists($container, $getter)) {
-                if ($languageArgument) {
-                    if ($ast->alias) {
-                        // defer it
-                        $data[$realName] = function ($source, $args, $context, ResolveInfo $info) use (
-                            $container,
-                            $getter,
-                            $ast
-                        ) {
-                            return Service::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null], $info, $ast);
-                        };
-                    } else {
-                        $data[$realName] = Service::callContainerGetterMethod($container, $getter, ['language' => $languageArgument], $resolveInfo, $ast);
-                    }
-                } else {
-                    $data[$realName] = Service::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
-                }
-            }
+            Service::resolveContainerGetterData($container, $data, $getter, $resolveInfo, $ast, $languageArgument);
         }
     }
 }
