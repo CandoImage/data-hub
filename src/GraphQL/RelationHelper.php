@@ -30,7 +30,7 @@ class RelationHelper
      *
      * @return ElementDescriptor
      */
-    public static function processRelation(ElementInterface | ElementMockupInterface  $relation, Service $graphQlService, $args, $context, ResolveInfo $resolveInfo)
+    public static function processRelation(ElementInterface | ElementMockupInterface $relation, Service $graphQlService, $args, $context, ResolveInfo $resolveInfo)
     {
         $data = new ElementDescriptor($relation);
         $graphQlService->extractData($data, $relation, $args, $context, $resolveInfo);

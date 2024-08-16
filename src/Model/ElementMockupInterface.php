@@ -56,5 +56,5 @@ interface ElementMockupInterface
     /**
      * @return \Pimcore\Model\Element\ElementInterface|null
      */
-    public function getOriginalObject(): ElementInterface|null;
+    public function getOriginalObject(): ElementInterface | null;
 }
