@@ -20,6 +20,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -74,7 +75,7 @@ class Image
         if ($value instanceof BaseDescriptor) {
             $relation = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
 
-            if ($relation instanceof Asset) {
+            if ($relation instanceof Asset || $relation instanceof ElementMockupInterface) {
                 if (!WorkspaceHelper::checkPermission($relation, 'read')) {
                     return null;
                 }

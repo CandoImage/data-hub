@@ -39,19 +39,16 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper\DocumentFieldHelper;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\Operator\Factory\OperatorFactoryInterface;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\Value\DefaultValue;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Cache\RuntimeCache;
 use Pimcore\DataObject\GridColumnConfig\ConfigElementInterface;
 use Pimcore\Localization\LocaleServiceInterface;
-use Pimcore\Model\Asset;
-use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\Objectbrick\Data\AbstractData;
 use Pimcore\Model\DataObject\Objectbrick\Definition;
-use Pimcore\Model\Document;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Factory;
 use Pimcore\Translation\Translator;
@@ -833,7 +830,7 @@ class Service
         if ($fieldDefinition->isEmpty($value)) {
             $parent = \Pimcore\Model\DataObject\Service::hasInheritableParentObject($object);
             if (!empty($parent)) {
-                if (!($parent instanceof Concrete)) {
+                if (!($parent instanceof Concrete) && !($parent instanceof ElementMockupInterface)) {
                     $parent = Concrete::getById($parent->getId());
                 }
 
@@ -1173,16 +1170,17 @@ class Service
      */
     public function extractData($data, $target, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $fieldHelper = null;
-        if ($target instanceof Document) {
-            $fieldHelper = $this->getDocumentFieldHelper();
-        } elseif ($target instanceof Asset) {
-            $fieldHelper = $this->getAssetFieldHelper();
-        } elseif ($target instanceof AbstractObject) {
-            $fieldHelper = $this->getObjectFieldHelper();
-        } elseif ($target instanceof DefaultMockup) {
-            $fieldHelper = $this->getObjectFieldHelper();
+        $type = null;
+        if ($target instanceof ElementInterface) {
+            $type = \Pimcore\Model\Element\Service::getElementType($target);
+        } elseif ($target instanceof ElementMockupInterface) {
+            $type = $target->getElementType();
         }
+        $fieldHelper = match ($type) {
+            'document' => $this->getDocumentFieldHelper(),
+            'asset' => $this->getAssetFieldHelper(),
+            'object' => $this->getObjectFieldHelper(),
+        };
 
         if ($fieldHelper) {
             $fieldHelper->extractData($data, $target, $args, $context, $resolveInfo);
@@ -1212,8 +1210,8 @@ class Service
     /**
      * Checks if a container has a given method.
      *
-     * This works with DefaultMockup objects too that's why it's so overly
-     * complex. DefaultMockup objects will use the class definition of the
+     * This works with ElementMockupInterface objects too that's why it's so overly
+     * complex. ElementMockupInterface objects will use the class definition of the
      * mocked object to determine which model class has to be checked for the
      * method.
      *
@@ -1234,13 +1232,30 @@ class Service
         $skipMethodCallCheck = false;
 
         // Adjust meta data for data handling on type of the data container.
-        $containerDefinition = static::getContainerClassDefinition($container);
-        if ($container instanceof DefaultMockup) {
-            if ($containerDefinition) {
-                // Unfortunately there's no API for this so we re-implement
-                // what \Pimcore\Model\DataObject\AbstractObject::getById()
-                // does.
-                $baseClassName = 'Pimcore\\Model\\DataObject\\' . ucfirst($containerDefinition->getName());
+        if ($container instanceof ElementMockupInterface) {
+            // If the mockup implements it use it straight away.
+            if (method_exists($container, $method)) {
+                return true;
+            }
+            // Otherwise check if the mocked class implements the method.
+            switch ($container->getElementType()) {
+                case 'object':
+                    $containerDefinition = static::getContainerClassDefinition($container);
+                    if ($containerDefinition) {
+                        // Unfortunately there's no API for this so we re-implement
+                        // what \Pimcore\Model\DataObject\AbstractObject::getById()
+                        // does.
+                        $baseClassName = 'Pimcore\\Model\\DataObject\\' . ucfirst($containerDefinition->getName());
+                    }
+                    break;
+                case 'document':
+                    $baseClassName = 'Pimcore\\Model\\Document\\' . ucfirst($container->getType());
+                    break;
+                case 'asset':
+                    $baseClassName = 'Pimcore\\Model\\Asset\\' . ucfirst($container->getType());
+                    break;
+            }
+            if (isset($baseClassName)) {
                 // @TODO figure out a nicer way to handle this. Really naughty
                 // to call kernel directly - but static doesn't have DI.
                 /** @var self $service */
@@ -1265,7 +1280,7 @@ class Service
     }
 
     /**
-     * Returns the ClassDefinition of a container - works with DefaultMockup
+     * Returns the ClassDefinition of a container - works with ElementMockupInterface
      * objects too.
      *
      * @param object $container
@@ -1279,20 +1294,12 @@ class Service
         // Adjust meta data for data handling on type of the data container.
         switch (true) {
             case $container instanceof Concrete:
+            case $container instanceof ElementMockupInterface:
                 return $container->getClass();
 
             case $container instanceof \Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData:
             case $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData:
                 return $container->getDefinition();
-
-            // All default indexers implement o_classId - access it directly to
-            // load class definition and with it use the model loader to fetch
-            // the actual implementing class for further reflection.
-            case $container instanceof DefaultMockup:
-                if (($mockClassId = $container->getParam('o_classId'))) {
-                    return ClassDefinition::getById($mockClassId);
-                }
-                break;
         }
 
         return null;

@@ -21,7 +21,6 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\Element\AbstractElement;
 
@@ -75,7 +74,6 @@ class Multihref
         if ($relations) {
             /** @var AbstractElement $relation */
             foreach ($relations as $relation) {
-                $type = ($relation instanceof DefaultMockup) ? 'object' : '';
                 if (!WorkspaceHelper::checkPermission($relation, 'read', $type)) {
                     continue;
                 }

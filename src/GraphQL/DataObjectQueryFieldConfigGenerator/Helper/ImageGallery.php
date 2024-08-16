@@ -21,6 +21,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service as GraphQlService;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -92,7 +93,7 @@ class ImageGallery
                     continue;
                 }
 
-                if ($image instanceof Asset) {
+                if ($image instanceof Asset || $relation instanceof ElementMockupInterface) {
                     if (!WorkspaceHelper::checkPermission($image, 'read')) {
                         continue;
                     }

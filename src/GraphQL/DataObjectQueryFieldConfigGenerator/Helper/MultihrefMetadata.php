@@ -21,7 +21,6 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Data\ElementMetadata;
@@ -77,8 +76,7 @@ class MultihrefMetadata
             /** @var ElementMetadata $relation */
             foreach ($relations as $relation) {
                 $element = $relation->getElement();
-                $type = ($element instanceof DefaultMockup) ? 'object' : '';
-                if (!WorkspaceHelper::checkPermission($element, 'read', $type)) {
+                if (!WorkspaceHelper::checkPermission($element, 'read')) {
                     continue;
                 }
 

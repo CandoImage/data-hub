@@ -20,6 +20,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\Model\PermissionEvent;
 use Pimcore\Bundle\DataHubBundle\Event\GraphQL\PermissionEvents;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\NotAllowedException;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Cache\RuntimeCache;
 use Pimcore\Db;
 use Pimcore\Logger;
@@ -250,7 +251,11 @@ class WorkspaceHelper
         $isAllowed = self::isAllowed($element, $configuration, $type, $elementType);
         if (!$isAllowed && PimcoreDataHubBundle::getNotAllowedPolicy() === PimcoreDataHubBundle::NOT_ALLOWED_POLICY_EXCEPTION) {
             if (!$elementType) {
-                $elementType = Service::getElementType($element);
+                if ($element instanceof ElementMockupInterface) {
+                    $elementType = $element->getElementType();
+                } else {
+                    $elementType = Service::getElementType($element);
+                }
             }
             // Could be dealing with mock objects that can't be loaded due
             // to stale index so be extra cautions when using.
@@ -280,7 +285,11 @@ class WorkspaceHelper
             return false;
         }
         if (!$elementType) {
-            $elementType = Service::getElementType($element);
+            if ($element instanceof ElementMockupInterface) {
+                $elementType = $element->getElementType();
+            } else {
+                $elementType = Service::getElementType($element);
+            }
         }
         // collect properties via parent - ids
         $parentIds = [1];

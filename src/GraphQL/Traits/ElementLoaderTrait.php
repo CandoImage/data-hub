@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL\Traits;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service as ElementService;
 
@@ -33,7 +33,7 @@ trait ElementLoaderTrait
      *
      * @return array
      */
-    protected function setDataElement($data, ElementInterface | DefaultMockup $element)
+    protected function setDataElement($data, ElementInterface | ElementMockupInterface $element)
     {
         $data['id'] = $element->getId();
         $data[ElementInterface::class . '_type'] = $element->getType();

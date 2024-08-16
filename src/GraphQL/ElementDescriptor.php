@@ -15,7 +15,7 @@
 
 namespace Pimcore\Bundle\DataHubBundle\GraphQL;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\Document;
@@ -26,7 +26,7 @@ class ElementDescriptor extends BaseDescriptor
     /**
      * @param ElementInterface|null $element
      */
-    public function __construct(ElementInterface | DefaultMockup $element = null)
+    public function __construct(ElementInterface | ElementMockupInterface $element = null)
     {
         parent::__construct();
         if ($element) {
@@ -34,10 +34,9 @@ class ElementDescriptor extends BaseDescriptor
             $this->offsetSet('__elementType', \Pimcore\Model\Element\Service::getElementType($element));
             $this->offsetSet('__elementSubtype', $element instanceof Concrete ? $element->getClass()->getName() : $element->getType());
 
-            if ($element instanceof DefaultMockup) {
-                $subtype = $element->getClass()->getName();
-                $this->offsetSet('__elementType', 'object');
-                $this->offsetSet('__elementSubtype', $subtype);
+            if ($element instanceof ElementMockupInterface) {
+                $this->offsetSet('__elementType', $element->getElementType());
+                $this->offsetSet('__elementSubtype', $element->getElementType() === 'object' ? $element->getClass()->getName() : $element->getType());
             } elseif ($element instanceof Concrete) {
                 $subtype = $element->getClass()->getName();
 

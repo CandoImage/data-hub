@@ -20,8 +20,8 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\Element\ElementInterface;
@@ -75,9 +75,8 @@ class Href
         if ($value instanceof BaseDescriptor) {
             $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
 
-            if ($relation instanceof ElementInterface || $relation instanceof DefaultMockup) {
-                $type = ($relation instanceof DefaultMockup) ? 'object' : '';
-                if (!WorkspaceHelper::checkPermission($relation, 'read', $type)) {
+            if ($relation instanceof ElementInterface || $relation instanceof ElementMockupInterface) {
+                if (!WorkspaceHelper::checkPermission($relation, 'read')) {
                     return null;
                 }
 

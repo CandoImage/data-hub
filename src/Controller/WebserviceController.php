@@ -110,6 +110,10 @@ class WebserviceController extends FrontendController
             $config['resolveObjectGetter'] = !$request->query->has('datahub-cache-disable-resolveObjectGetter');
         }
 
+        $config['operations'] = false;
+        $config['resolveEdge'] = false;
+        $config['resolveObjectGetter'] = false;
+
         return $config;
     }
 

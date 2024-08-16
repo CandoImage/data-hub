@@ -128,7 +128,7 @@ class AssetFieldHelper extends AbstractFieldHelper
                 }
             }
         } else {
-            if (method_exists($container, $getter)) {
+            if ($this->getGraphQlService()::checkContainerMethodExists($container, $getter)) {
                 if ($languageArgument) {
                     if ($ast->alias) {
                         // defer it
