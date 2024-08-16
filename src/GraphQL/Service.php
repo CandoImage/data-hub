@@ -1077,9 +1077,9 @@ class Service
         } elseif (static::checkContainerMethodExists($container, $getter)) {
             $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
             if ($isLocalizedField) {
-                $result = Service::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null]);
+                $result = self::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null]);
             } else {
-                $result = Service::callContainerGetterMethod($container, $getter);
+                $result = self::callContainerGetterMethod($container, $getter);
             }
         }
 
@@ -1333,6 +1333,7 @@ class Service
                 $container->setGraphQLContext(null);
             }
         }
+
         return $return;
     }
 }
