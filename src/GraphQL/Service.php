@@ -1338,7 +1338,7 @@ class Service
         return $return;
     }
 
-    public static function resolveContainerGetterData($container, &$data, $getter, ResolveInfo $resolveInfo, FieldNode $ast, $languageArgument = null , $defer = null)
+    public static function resolveContainerGetterData($container, &$data, $getter, ResolveInfo $resolveInfo, FieldNode $ast, $languageArgument = null, $defer = null)
     {
         if (static::checkContainerMethodExists($container, $getter)) {
             $realName = $ast->name->value;
@@ -1351,13 +1351,13 @@ class Service
                         $getter,
                         $ast
                     ) {
-                        return Service::callContainerGetterMethod($container, $getter, [$args['language'] ?? null], $info, $ast);
+                        return self::callContainerGetterMethod($container, $getter, [$args['language'] ?? null], $info, $ast);
                     };
                 } else {
-                    $data[$outputName] = $data[$realName] = Service::callContainerGetterMethod($container, $getter, [$languageArgument], $resolveInfo, $ast);
+                    $data[$outputName] = $data[$realName] = self::callContainerGetterMethod($container, $getter, [$languageArgument], $resolveInfo, $ast);
                 }
             } else {
-                $data[$outputName] = $data[$realName] = Service::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
+                $data[$outputName] = $data[$realName] = self::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
             }
         }
     }
