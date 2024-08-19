@@ -42,7 +42,7 @@ class DataObject extends Element
      */
     public function resolveTag($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $object = $this->loadDataElement($value, 'object');
+        $object = $this->loadDataElement($value, 'object', !empty($context['mockup_element_support_enabled']));
 
         if ($object) {
             $result = $this->getTags('object', $object->getId());
@@ -68,7 +68,7 @@ class DataObject extends Element
             return null;
         }
 
-        $object = $this->loadDataElement($value, 'object');
+        $object = $this->loadDataElement($value, 'object', !empty($context['mockup_element_support_enabled']));
 
         if (!$object instanceof AbstractObject) {
             return null;
@@ -91,7 +91,7 @@ class DataObject extends Element
             return null;
         }
 
-        $object = $this->loadDataElement($value, 'object');
+        $object = $this->loadDataElement($value, 'object', !empty($context['mockup_element_support_enabled']));
 
         if (!$object instanceof \Pimcore\Model\DataObject) {
             return null;

@@ -942,10 +942,10 @@ class Service
      *
      * @return mixed
      */
-    public static function resolveValue(BaseDescriptor $descriptor, Data $fieldDefinition, $attribute, $args = [])
+    public static function resolveValue(BaseDescriptor $descriptor, Data $fieldDefinition, $attribute, $args = [], bool $mockupElementSupport = false)
     {
         $getter = 'get' . ucfirst($fieldDefinition->getName());
-        $object = self::staticLoadDataElement($descriptor, 'object');
+        $object = self::staticLoadDataElement($descriptor, 'object', $mockupElementSupport);
         if (!$object) {
             return null;
         }

@@ -46,18 +46,21 @@ trait ElementLoaderTrait
      *
      * @return ElementInterface
      */
-    protected function loadDataElement(&$data, $type)
+    protected function loadDataElement(&$data, $type, bool $mockupElementSupport = false)
     {
-        return self::staticLoadDataElement($data, $type);
+        return self::staticLoadDataElement($data, $type, $mockupElementSupport);
     }
 
     /**
-     *
      * @return ElementInterface
      */
-    protected static function staticLoadDataElement(&$data, $type)
+    protected static function staticLoadDataElement(&$data, $type, bool $mockupElementSupport = false)
     {
-        if (!isset($data[ElementInterface::class . '_instance'])) {
+        // If mockup element support is disabled always load the object initially.
+        if (
+            !isset($data[ElementInterface::class . '_instance'])
+            || (!$mockupElementSupport && $data[ElementInterface::class . '_instance'] instanceof ElementMockupInterface)
+        ) {
             $data[ElementInterface::class . '_type'] = $type;
             $data[ElementInterface::class . '_instance'] = ElementService::getElementById($type, $data['id']);
         }

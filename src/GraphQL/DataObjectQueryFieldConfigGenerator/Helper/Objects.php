@@ -73,7 +73,7 @@ class Objects
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof BaseDescriptor) {
-            $relations = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            $relations = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
             if ($relations) {
                 $result = [];
                 foreach ($relations as $relation) {

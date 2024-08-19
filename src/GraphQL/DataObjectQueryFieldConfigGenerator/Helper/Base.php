@@ -67,7 +67,7 @@ class Base
      */
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $result = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+        $result = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
 
         return $result;
     }

@@ -95,3 +95,52 @@ Open the settings and change `request.credentials` to `include`. Otherwise the
 `XDEBUG_SESSION` cookie header will get removed by default.
 
 ![Settings](../img/graphql/debugging.png)
+
+## Mockup Elements
+
+**!Beware!** It is a quite complex undertaking to implement this correctly, but worth it if you need a high-performance integration of product indexes.
+
+DataHub supports the use of Mockup Objects / Elements as used in Pimcores Ecommerce Framework Bundle IndexService.
+In order to use a Mockup Class it has to implement DataHubs own interface: \Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface
+
+Mockup elements will be resolved differently, operators and or sub-elements are 
+only resolved if the requested data structure isn't already available in the mockup itself.
+As such Mockup Objects have to ensure to return the same output as a non-mocked
+query would.
+
+One particular way to do this is to implement a callback in the mockup and use
+the passed in GraphQl Execution context to resolve the data,
+
+Example of returning Image Thumbnail Path:
+
+```php
+class AssetMockup implements ElementMockupInterface
+{
+    use ElementMockupTrait;
+
+    /**
+     * @return array
+     */
+    public function getFullpath(): ?string
+    {
+        // Check if this is a graphQL callback.
+        $suffix = null;
+        if ($this->isGraphqlCallback(__FUNCTION__)) {
+            if ($thumbnail = $this->getGraphQLArguments()['thumbnail'] ?? null) {
+                $suffix = '_' . $thumbnail;
+            }
+        }
+        return $this->getParam('fullpath' . $suffix) ?? $this->getParam('fullpath') ?? null;
+    }
+}
+```
+
+Will use the returned value, or if null is returned the original Asset is used to resolve the value.
+
+The mockup support can be enabled and configured with a configuration entry like this in your `config.yml` file:
+```yml
+#### DATAHUB MOCKUP ELEMENTS
+pimcore_data_hub:
+    graphql:
+        mockup_element_support_enabled: true
+```

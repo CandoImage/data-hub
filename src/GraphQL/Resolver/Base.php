@@ -87,7 +87,7 @@ class Base
         /** @var \Pimcore\Bundle\DataHubBundle\GraphQL\Query\Operator\AbstractOperator $operatorImpl */
         $operatorImpl = $this->getGraphQlService()->buildQueryOperator($this->typeName, $this->attributes);
 
-        $element = $this->loadDataElement($value, 'object');
+        $element = $this->loadDataElement($value, 'object', !empty($context['mockup_element_support_enabled']));
         $valueFromOperator = $operatorImpl->getLabeledValue($element, $resolveInfo);
 
         $value = $valueFromOperator->value ?? null;

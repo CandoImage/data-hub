@@ -453,7 +453,7 @@ class AssetType
         if (!$value instanceof ElementDescriptor) {
             return null;
         }
-        $asset = $this->loadDataElement($value, 'asset');
+        $asset = $this->loadDataElement($value, 'asset', !empty($context['mockup_element_support_enabled']));
 
         if (!WorkspaceHelper::checkPermission($asset, 'read')) {
             return null;

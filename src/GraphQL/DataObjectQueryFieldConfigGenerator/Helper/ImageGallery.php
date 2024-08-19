@@ -84,7 +84,7 @@ class ImageGallery
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         $result = [];
-        $relations = GraphQlService::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+        $relations = GraphQlService::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
         if ($relations) {
             foreach ($relations as $relation) {
                 if ($relation instanceof Hotspotimage) {

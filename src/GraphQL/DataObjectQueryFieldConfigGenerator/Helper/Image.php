@@ -73,7 +73,7 @@ class Image
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof BaseDescriptor) {
-            $relation = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            $relation = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
 
             if ($relation instanceof Asset || $relation instanceof ElementMockupInterface) {
                 if (!WorkspaceHelper::checkPermission($relation, 'read')) {

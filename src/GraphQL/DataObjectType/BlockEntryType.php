@@ -158,7 +158,7 @@ class BlockEntryType extends ObjectType implements ContainerAwareInterface
                 return $resolve($value, $args, $context, $resolveInfo);
             }
 
-            return $this->graphQlService::resolveValue($value, $this->fieldDefinition, $this->fieldDefinition->getName(), $args);
+            return $this->graphQlService::resolveValue($value, $this->fieldDefinition, $this->fieldDefinition->getName(), $args, !empty($context['mockup_element_support_enabled']));
         };
 
         return $field;

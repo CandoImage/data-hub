@@ -73,7 +73,7 @@ class Href
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof BaseDescriptor) {
-            $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            $relation = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
 
             if ($relation instanceof ElementInterface || $relation instanceof ElementMockupInterface) {
                 if (!WorkspaceHelper::checkPermission($relation, 'read')) {
