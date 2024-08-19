@@ -212,6 +212,14 @@ class AssetType
             $thumbNailConfig = $args['thumbnail'] ?? null;
             $thumbNailFormat = $args['format'] ?? null;
             $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
+            // Check if the value was already resolved in a mockup object.
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
+            }
 
             if ($asset instanceof Asset\Image) {
                 $mediaQueries = [];
