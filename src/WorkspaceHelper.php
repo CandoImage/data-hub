@@ -266,6 +266,7 @@ class WorkspaceHelper
         if (!$element) {
             $permissionCache[$cid] = true;
             RuntimeCache::set(__METHOD__, $permissionCache);
+
             return $permissionCache[$cid];
         }
 
