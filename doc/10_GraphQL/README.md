@@ -144,3 +144,16 @@ pimcore_data_hub:
     graphql:
         mockup_element_support_enabled: true
 ```
+
+## Permission Check Cache
+
+By default only a single permission check per request is executed. 
+This is different from previous versions in which the event 
+`pimcore.datahub.graphql.permission.preCheck` was fired multiple times during the execution.
+
+The new approach limits the performance impact of the permission handling - but can be disabled using following setting:
+```yml
+pimcore_data_hub:
+    graphql:
+        disable_permission_check_cache: true
+```

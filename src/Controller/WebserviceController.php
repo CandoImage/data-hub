@@ -176,6 +176,7 @@ class WebserviceController extends FrontendController
         if (isset($datahubConfig['graphql']) && isset($datahubConfig['graphql']['not_allowed_policy'])) {
             PimcoreDataHubBundle::setNotAllowedPolicy($datahubConfig['graphql']['not_allowed_policy']);
         }
+        $context['disable_permission_check_cache'] = !empty($datahubConfig['graphql']['disable_permission_check_cache']);
         $context['mockup_element_support_enabled'] = !empty($datahubConfig['graphql']['mockup_element_support_enabled']);
 
         $validators = null;

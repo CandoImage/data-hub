@@ -226,7 +226,7 @@ class WorkspaceHelper
      *
      * @throws NotAllowedException
      */
-    public static function checkPermission($element, $type, string $elementType = '')
+    public static function checkPermission($element, $type, string $elementType = '', bool $skipCache = false)
     {
         $context = RuntimeCache::get('datahub_context');
         /** @var Configuration $configuration */
@@ -235,7 +235,26 @@ class WorkspaceHelper
         if ($configuration->skipPermisssionCheck()) {
             return true;
         }
-
+        // This can be called multiple times with the same element - use static
+        // cache to avoid multiple execution in favor of performance.
+        // @TODO Is there really a reason for the configuration?
+        if (!$elementType) {
+            if ($element instanceof ElementMockupInterface) {
+                $elementType = $element->getElementType();
+            } else {
+                $elementType = Service::getElementType($element);
+            }
+        }
+        $cid = $element->getId() . ':' . $type . ':' . $elementType ;
+        if (!$skipCache && empty($context['disable_permission_check_cache'])) {
+            if (!RuntimeCache::isRegistered(__METHOD__)) {
+                RuntimeCache::set(__METHOD__, []);
+            }
+            $permissionCache = RuntimeCache::get(__METHOD__);
+            if (isset($permissionCache[$cid])) {
+                return $permissionCache[$cid];
+            }
+        }
         $event = new PermissionEvent($element, $type);
         /** @var EventDispatcher $eventDispatcher */
         $eventDispatcher = \Pimcore::getContainer()->get('event_dispatcher');
@@ -245,18 +264,15 @@ class WorkspaceHelper
         }
         // we can allow nullable elements e.g. linked Assets where the asset itself was removed
         if (!$element) {
-            return true;
+            $permissionCache[$cid] = true;
+            RuntimeCache::set(__METHOD__, $permissionCache);
+            return $permissionCache[$cid];
         }
 
         $isAllowed = self::isAllowed($element, $configuration, $type, $elementType);
+        $permissionCache[$cid] = $isAllowed;
+        RuntimeCache::set(__METHOD__, $permissionCache);
         if (!$isAllowed && PimcoreDataHubBundle::getNotAllowedPolicy() === PimcoreDataHubBundle::NOT_ALLOWED_POLICY_EXCEPTION) {
-            if (!$elementType) {
-                if ($element instanceof ElementMockupInterface) {
-                    $elementType = $element->getElementType();
-                } else {
-                    $elementType = Service::getElementType($element);
-                }
-            }
             // Could be dealing with mock objects that can't be loaded due
             // to stale index so be extra cautions when using.
             try {
