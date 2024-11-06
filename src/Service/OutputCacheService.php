@@ -27,6 +27,7 @@ use Pimcore\Bundle\DataHubBundle\Event\GraphQL\OutputCacheEvents;
 use Pimcore\Http\RequestHelper;
 use Pimcore\Logger;
 use SplObjectStorage;
+use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -226,9 +227,9 @@ class OutputCacheService
     public function getOperationOutputCid(OperationParams $operation, DocumentNode $parsedQuery): string
     {
         $cid = $this->getOperationCid($operation);
-        $cid .= '-' . ($this->operationData[$operation]['filterValues'] ?? '') .
-            '-' . ($this->operationData[$operation]['sortValues'] ?? '');
-
+        $filterValues = $this->operationData[$operation]['filterValues'] ?? '';
+        $sortValues = $this->operationData[$operation]['sortValues'] ?? '';
+        $cid .= '-' . self::cleanTag($filterValues) . '-' . self::cleanTag($sortValues);
         $event = new OutputCacheGenerateCidEvent($cid, $operation, $parsedQuery);
         $this->eventDispatcher->dispatch($event, OutputCacheEvents::GENERATE_CID);
 
@@ -485,5 +486,10 @@ class OutputCacheService
         }
 
         return implode(',', $filterValues);
+    }
+
+    public static function cleanTag(string $tag): string
+    {
+        return str_replace(str_split(CacheItem::RESERVED_CHARACTERS), '-', $tag);
     }
 }
