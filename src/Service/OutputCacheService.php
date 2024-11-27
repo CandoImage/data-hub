@@ -462,20 +462,16 @@ class OutputCacheService
         foreach ($filters as $filter) {
             if (array_key_exists('values', $filter)) {
                 if (is_array($filter['values'])) {
-                    if (count($filter['values']) > 1) {
-                        $valueList = [];
-                        foreach ($filter['values'] as $filterValue) {
-                            if (is_array($filterValue)) {
-                                $valueList[] = key($filterValue) . '-' . $filterValue[key($filterValue)];
-                            } else {
-                                $valueList[] = ($filter['field'] ?? 'unknown-field') . '-' . implode('-', $filter['values']);
-                                break;
-                            }
+                    $valueList = [];
+                    foreach ($filter['values'] as $filterValue) {
+                        if (is_array($filterValue)) {
+                            $valueList[] = key($filterValue) . '-' . $filterValue[key($filterValue)];
+                        } else {
+                            $valueList[] = ($filter['field'] ?? 'unknown-field') . '-' . implode('-', $filter['values']);
+                            break;
                         }
-                        $filterValues[] = implode($valueList);
-                    } else {
-                        $filterValues[] = ($filter['field'] ?? 'unknown-field') . '-' . implode('-', $filter['values']);
                     }
+                    $filterValues[] = implode($valueList);
                 } else {
                     $filterValues[] = ($filter['field'] ?? 'unknown-field') . '-' . $filter['values'];
                 }
