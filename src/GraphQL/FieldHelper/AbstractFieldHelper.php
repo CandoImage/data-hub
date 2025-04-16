@@ -22,12 +22,14 @@ use GraphQL\Language\AST\InlineFragmentNode;
 use GraphQL\Language\AST\NodeList;
 use GraphQL\Language\AST\SelectionSetNode;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Model\Element\ElementInterface;
 
 abstract class AbstractFieldHelper
 {
-    use ServiceTrait;
+    use ServiceTrait, ElementLoaderTrait;
 
     public function __construct()
     {
@@ -118,10 +120,10 @@ abstract class AbstractFieldHelper
      */
     public function extractData(&$data, $container, $args, $context = [], ResolveInfo $resolveInfo = null)
     {
-        if ($container instanceof ElementInterface) {
+        if ($container instanceof ElementInterface || $container instanceof ElementMockupInterface) {
             // we have to at least add the ID and pass it around even if not requested because we need it internally
             // to resolve fields of linked elements (such as asset image and so on)
-            $data['id'] = $container->getId();
+            $data = $this->setDataElement($data, $container);
         }
 
         $resolveInfoArray = (array)$resolveInfo;

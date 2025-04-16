@@ -1047,7 +1047,13 @@ class QueryType
      */
     public function resolveFilterTotalCount($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        return $value['totalCount']();
+        // Run this deferred because it is very likely that the edges are
+        // resolved "later" which means at this point the totalCount resolved
+        // will be able to re-use the results loaded by them. This can save a
+        // complete call to the search index.
+        return new Deferred(function () use ($value) {
+            return $value['totalCount']();
+        });
     }
 
     /**

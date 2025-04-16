@@ -19,18 +19,26 @@ use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Exception\ClientSafeException;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\File;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
-use Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData;
 use Pimcore\Model\DataObject\Localizedfield;
 use Pimcore\Model\DataObject\Objectbrick\Definition;
+use Pimcore\Model\Factory;
 
 class DataObjectFieldHelper extends AbstractFieldHelper
 {
+    protected Factory $modelFactory;
+
+    public function __construct(\Pimcore\Model\Factory $modelFactory)
+    {
+        parent::__construct();
+        $this->modelFactory = $modelFactory;
+    }
+
     /**
      * @param array $nodeDef
      * @param ClassDefinition|\Pimcore\Model\DataObject\Fieldcollection\Definition $class
@@ -70,8 +78,8 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'key' => $key,
                             'config' => [
                                 'name' => $key,
-                                'type' => Type::int()
-                            ]
+                                'type' => Type::int(),
+                            ],
                         ];
                     case 'filename':
                     case 'fullpath':
@@ -80,8 +88,8 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'key' => $key,
                             'config' => [
                                 'name' => $key,
-                                'type' => Type::string()
-                            ]
+                                'type' => Type::string(),
+                            ],
                         ];
                     case 'published':
                         return [
@@ -89,7 +97,7 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'config' => [
                                 'name' => $key,
                                 'type' => Type::boolean(),
-                            ]
+                            ],
                         ];
                     default:
                         return null;
@@ -269,7 +277,7 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'arg' => ['type' => Type::string()],
                             'processor' => function ($object, $newValue, $args) {
                                 $object->setKey($newValue);
-                            }
+                            },
 
                         ];
                     case 'published':
@@ -278,7 +286,7 @@ class DataObjectFieldHelper extends AbstractFieldHelper
                             'arg' => ['type' => Type::boolean()],
                             'processor' => function ($object, $newValue, $args) {
                                 $object->setPublished($newValue);
-                            }
+                            },
                         ];
                     default:
                         return null;
@@ -361,52 +369,12 @@ class DataObjectFieldHelper extends AbstractFieldHelper
         if ($this->skipField($container, $astName)) {
             return;
         }
-
         // example for http://webonyx.github.io/graphql-php/error-handling/
 //         throw new MySafeException("fieldhelper", "TBD customized error message");
 
         $getter = 'get' . ucfirst($astName);
-
-        $isLocalizedField = false;
-        $containerDefinition = null;
-
-        if ($container instanceof Concrete) {
-            $containerDefinition = $container->getClass();
-        } elseif ($container instanceof AbstractData || $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData) {
-            $containerDefinition = $container->getDefinition();
-        }
-
-        if ($containerDefinition) {
-            /** @var Data\Localizedfields|null $lfDefs */
-            $lfDefs = $containerDefinition->getFieldDefinition('localizedfields');
-            if ($lfDefs && $lfDefs->getFieldDefinition($astName)) {
-                $isLocalizedField = true;
-            }
-        }
-        if (method_exists($container, $getter)) {
-            if ($isLocalizedField) {
-                // defer it
-                $data[$astName] = function ($source, $args, $context, ResolveInfo $info) use (
-                    $container,
-                    $getter
-                ) {
-                    return $container->$getter($args['language'] ?? null);
-                };
-            } else {
-                $data[$astName] = $container->$getter();
-            }
-        } else {
-            // we could also have a Mockup objects from Elastic which not supports the "method_exists"
-            // in this case we just try to get the data directly
-            if ($container instanceof DefaultMockup) {
-                try {
-                    // we don't have to take care about localization because this is already handled in elastic
-                    $data[$astName] = $container->$getter();
-                } catch (\Exception $e) {
-                    Logger::info('Could not get data from Datahub/DataObjectFieldHelper with message: ' . $e->getMessage());
-                }
-            }
-        }
+        $isLocalizedField = Service::isLocalizedField($container, $astName);
+        Service::resolveContainerGetterData($container, $data, $getter, $resolveInfo, $ast, null, $isLocalizedField);
     }
 
     /**

@@ -70,11 +70,11 @@ class Multihref
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         $result = [];
-        $relations = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+        $relations = \Pimcore\Bundle\DataHubBundle\GraphQL\Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
         if ($relations) {
             /** @var AbstractElement $relation */
             foreach ($relations as $relation) {
-                if (!WorkspaceHelper::checkPermission($relation, 'read')) {
+                if (!WorkspaceHelper::checkPermission($relation, 'read', $type)) {
                     continue;
                 }
 

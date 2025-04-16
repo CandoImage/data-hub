@@ -38,18 +38,17 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper\DataObjectFieldHelper;
 use Pimcore\Bundle\DataHubBundle\GraphQL\FieldHelper\DocumentFieldHelper;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\Operator\Factory\OperatorFactoryInterface;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Query\Value\DefaultValue;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\PimcoreDataHubBundle;
 use Pimcore\Cache\RuntimeCache;
 use Pimcore\DataObject\GridColumnConfig\ConfigElementInterface;
 use Pimcore\Localization\LocaleServiceInterface;
-use Pimcore\Model\Asset;
-use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\Concrete;
+use Pimcore\Model\DataObject\Fieldcollection\Definition;
 use Pimcore\Model\DataObject\Objectbrick\Data\AbstractData;
-use Pimcore\Model\DataObject\Objectbrick\Definition;
-use Pimcore\Model\Document;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Factory;
 use Pimcore\Translation\Translator;
@@ -57,6 +56,8 @@ use Psr\Container\ContainerInterface;
 
 class Service
 {
+    use ElementLoaderTrait;
+
     /***
      * @var ContainerInterface
      */
@@ -829,7 +830,7 @@ class Service
         if ($fieldDefinition->isEmpty($value)) {
             $parent = \Pimcore\Model\DataObject\Service::hasInheritableParentObject($object);
             if (!empty($parent)) {
-                if (!($parent instanceof Concrete)) {
+                if (!($parent instanceof Concrete) && !($parent instanceof ElementMockupInterface)) {
                     $parent = Concrete::getById($parent->getId());
                 }
 
@@ -926,7 +927,7 @@ class Service
 
                 return $result;
             }
-        } elseif (method_exists($container, $setter)) {
+        } elseif (static::checkContainerMethodExists($container, $setter)) {
             $result = $callback($container, $setter);
         }
 
@@ -941,11 +942,10 @@ class Service
      *
      * @return mixed
      */
-    public static function resolveValue(BaseDescriptor $descriptor, Data $fieldDefinition, $attribute, $args = [])
+    public static function resolveValue(BaseDescriptor $descriptor, Data $fieldDefinition, $attribute, $args = [], bool $mockupElementSupport = false)
     {
         $getter = 'get' . ucfirst($fieldDefinition->getName());
-        $objectId = $descriptor['id'];
-        $object = Concrete::getById($objectId);
+        $object = self::staticLoadDataElement($descriptor, 'object', $mockupElementSupport);
         if (!$object) {
             return null;
         }
@@ -1074,12 +1074,12 @@ class Service
 
                 return $value;
             }
-        } elseif (method_exists($container, $getter)) {
+        } elseif (static::checkContainerMethodExists($container, $getter)) {
             $isLocalizedField = self::isLocalizedField($container, $fieldDefinition->getName());
             if ($isLocalizedField) {
-                $result = $container->$getter($args['language'] ?? null);
+                $result = self::callContainerGetterMethod($container, $getter, ['language' => $args['language'] ?? null]);
             } else {
-                $result = $container->$getter();
+                $result = self::callContainerGetterMethod($container, $getter);
             }
         }
 
@@ -1121,15 +1121,9 @@ class Service
      *
      * @return bool
      */
-    private static function isLocalizedField($container, $fieldName): bool
+    public static function isLocalizedField($container, $fieldName): bool
     {
-        $containerDefinition = null;
-
-        if ($container instanceof Concrete) {
-            $containerDefinition = $container->getClass();
-        } elseif ($container instanceof AbstractData) {
-            $containerDefinition = $container->getDefinition();
-        }
+        $containerDefinition = static::getContainerClassDefinition($container);
 
         if ($containerDefinition) {
             /** @var Data\Localizedfields|null $lfDefs */
@@ -1176,14 +1170,17 @@ class Service
      */
     public function extractData($data, $target, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $fieldHelper = null;
-        if ($target instanceof Document) {
-            $fieldHelper = $this->getDocumentFieldHelper();
-        } elseif ($target instanceof Asset) {
-            $fieldHelper = $this->getAssetFieldHelper();
-        } elseif ($target instanceof AbstractObject) {
-            $fieldHelper = $this->getObjectFieldHelper();
+        $type = null;
+        if ($target instanceof ElementInterface) {
+            $type = \Pimcore\Model\Element\Service::getElementType($target);
+        } elseif ($target instanceof ElementMockupInterface) {
+            $type = $target->getElementType();
         }
+        $fieldHelper = match ($type) {
+            'document' => $this->getDocumentFieldHelper(),
+            'asset' => $this->getAssetFieldHelper(),
+            'object' => $this->getObjectFieldHelper(),
+        };
 
         if ($fieldHelper) {
             $fieldHelper->extractData($data, $target, $args, $context, $resolveInfo);
@@ -1208,5 +1205,160 @@ class Service
         }
 
         return $enabled;
+    }
+
+    /**
+     * Checks if a container has a given method.
+     *
+     * This works with ElementMockupInterface objects too that's why it's so overly
+     * complex. ElementMockupInterface objects will use the class definition of the
+     * mocked object to determine which model class has to be checked for the
+     * method.
+     *
+     * @param object $container
+     * @param string $method
+     *
+     * @return bool
+     *
+     * @throws \ReflectionException
+     */
+    public static function checkContainerMethodExists(object $container, string $method): bool
+    {
+        // This reflection object is used to determine if the getter can be used.
+        // $container isn't used directly in order to allow specialized handling
+        // of mock objects and other placeholders which act transparently but
+        // don't implement the getters themselves.
+        $methodCheckClass = new \ReflectionClass($container);
+        $skipMethodCallCheck = false;
+
+        // Adjust meta data for data handling on type of the data container.
+        if ($container instanceof ElementMockupInterface) {
+            // If the mockup implements it use it straight away.
+            if (method_exists($container, $method)) {
+                return true;
+            }
+            // Otherwise check if the mocked class implements the method.
+            switch ($container->getElementType()) {
+                case 'object':
+                    $containerDefinition = static::getContainerClassDefinition($container);
+                    if ($containerDefinition) {
+                        // Unfortunately there's no API for this so we re-implement
+                        // what \Pimcore\Model\DataObject\AbstractObject::getById()
+                        // does.
+                        $baseClassName = 'Pimcore\\Model\\DataObject\\' . ucfirst($containerDefinition->getName());
+                    }
+                    break;
+                case 'document':
+                    $baseClassName = 'Pimcore\\Model\\Document\\' . ucfirst($container->getType());
+                    break;
+                case 'asset':
+                    $baseClassName = 'Pimcore\\Model\\Asset\\' . ucfirst($container->getType());
+                    break;
+            }
+            if (isset($baseClassName)) {
+                // @TODO figure out a nicer way to handle this. Really naughty
+                // to call kernel directly - but static doesn't have DI.
+                /** @var self $service */
+                $service = \Pimcore::getKernel()->getContainer()->get(static::class);
+                $className = $service->getModelFactory()->getClassNameFor($baseClassName);
+                $methodCheckClass = new \ReflectionClass($className);
+            } else {
+                $skipMethodCallCheck = true;
+            }
+        }
+        if (
+            (
+                $methodCheckClass->hasMethod($method)
+                && $methodCheckClass->getMethod($method)->isPublic()
+            )
+            || $skipMethodCallCheck
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Returns the ClassDefinition of a container - works with ElementMockupInterface
+     * objects too.
+     *
+     * @param object $container
+     *
+     * @return \Pimcore\Model\DataObject\ClassDefinition|\Pimcore\Model\DataObject\Fieldcollection\Definition|null
+     *
+     */
+    public static function getContainerClassDefinition(object $container): ClassDefinition | Definition | null
+    {
+        // Adjust meta data for data handling on type of the data container.
+        switch (true) {
+            case $container instanceof Concrete:
+            case $container instanceof ElementMockupInterface:
+                return $container->getClass();
+
+            case $container instanceof \Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData:
+            case $container instanceof \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData:
+                return $container->getDefinition();
+        }
+
+        return null;
+    }
+
+    /**
+     * Call the getter function on a container.
+     *
+     * Passes on execution context to containers with the ElementMockupInterface.
+     *
+     * @param object $container
+     * @param string $getter
+     * @param array $getterArgs
+     * @param \GraphQL\Type\Definition\ResolveInfo|null $resolveInfo
+     * @param \GraphQL\Language\AST\FieldNode|null $ast
+     *
+     * @return mixed
+     */
+    public static function callContainerGetterMethod(
+        object $container,
+        string $getter,
+        array $getterArgs = [],
+        ?ResolveInfo $resolveInfo = null,
+        ?FieldNode $ast = null
+    ): mixed {
+        if ($container instanceof ElementMockupInterface) {
+            $container->setGraphQLContext($getter, $getterArgs, $resolveInfo, $ast);
+        }
+        try {
+            $return = call_user_func_array([$container, $getter], $getterArgs);
+        } finally {
+            if ($container instanceof ElementMockupInterface) {
+                $container->setGraphQLContext(null);
+            }
+        }
+
+        return $return;
+    }
+
+    public static function resolveContainerGetterData($container, &$data, $getter, ResolveInfo $resolveInfo, FieldNode $ast, $languageArgument = null, $defer = null)
+    {
+        if (static::checkContainerMethodExists($container, $getter)) {
+            $realName = $ast->name->value;
+            $outputName = $ast->alias?->value ?? $realName;
+            if ($languageArgument) {
+                if ($ast->alias || $defer) {
+                    // defer it
+                    $data[$realName] = function ($source, $args, $context, ResolveInfo $info) use (
+                        $container,
+                        $getter,
+                        $ast
+                    ) {
+                        return self::callContainerGetterMethod($container, $getter, [$args['language'] ?? null], $info, $ast);
+                    };
+                } else {
+                    $data[$outputName] = $data[$realName] = self::callContainerGetterMethod($container, $getter, [$languageArgument], $resolveInfo, $ast);
+                }
+            } else {
+                $data[$outputName] = $data[$realName] = self::callContainerGetterMethod($container, $getter, [], $resolveInfo, $ast);
+            }
+        }
     }
 }

@@ -20,6 +20,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -72,9 +73,9 @@ class Image
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof BaseDescriptor) {
-            $relation = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            $relation = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
 
-            if ($relation instanceof Asset) {
+            if ($relation instanceof Asset || $relation instanceof ElementMockupInterface) {
                 if (!WorkspaceHelper::checkPermission($relation, 'read')) {
                     return null;
                 }

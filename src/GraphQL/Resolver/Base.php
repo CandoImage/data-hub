@@ -19,13 +19,13 @@ use GraphQL\Deferred;
 use GraphQL\Executor\Promise\Adapter\SyncPromise;
 use GraphQL\Language\AST\FieldNode;
 use GraphQL\Type\Definition\ResolveInfo;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
-use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 
 class Base
 {
-    use ServiceTrait;
+    use ServiceTrait, ElementLoaderTrait;
 
     /** @var string */
     protected $typeName;
@@ -87,7 +87,7 @@ class Base
         /** @var \Pimcore\Bundle\DataHubBundle\GraphQL\Query\Operator\AbstractOperator $operatorImpl */
         $operatorImpl = $this->getGraphQlService()->buildQueryOperator($this->typeName, $this->attributes);
 
-        $element = AbstractObject::getById($value['id']);
+        $element = $this->loadDataElement($value, 'object', !empty($context['mockup_element_support_enabled']));
         $valueFromOperator = $operatorImpl->getLabeledValue($element, $resolveInfo);
 
         $value = $valueFromOperator->value ?? null;

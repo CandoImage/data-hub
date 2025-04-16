@@ -20,14 +20,16 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service;
+use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementLoaderTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ElementTagTrait;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset;
 
 class AssetType
 {
-    use ServiceTrait, ElementTagTrait;
+    use ServiceTrait, ElementTagTrait, ElementLoaderTrait;
 
     /**
      * @param ElementDescriptor|null $value
@@ -140,6 +142,15 @@ class AssetType
     {
         if ($value instanceof BaseDescriptor) {
             $asset = $this->getAssetFromValue($value, $context);
+            // Check if the value was already resolved in a mockup object.
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
+            }
+
             $thumbNailConfig = $args['thumbnail'] ?? null;
             $thumbNailFormat = $args['format'] ?? null;
             $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
@@ -201,6 +212,14 @@ class AssetType
             $thumbNailConfig = $args['thumbnail'] ?? null;
             $thumbNailFormat = $args['format'] ?? null;
             $assetFieldHelper = $this->getGraphQLService()->getAssetFieldHelper();
+            // Check if the value was already resolved in a mockup object.
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
+            }
 
             if ($asset instanceof Asset\Image) {
                 $mediaQueries = [];
@@ -256,6 +275,14 @@ class AssetType
         if (!$resolveInfo || $resolveInfo->fieldName !== 'data') {
             $deferredThumbnail = true;
         }
+        // Check if the value was already resolved in a mockup object.
+        $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+        if ($thumbnail instanceof ElementMockupInterface) {
+            if (isset($value[$returnName])) {
+                return $value[$returnName];
+            }
+            $thumbnail = $thumbnail->getOriginalObject();
+        }
 
         if ($thumbnail instanceof Asset\Image\Thumbnail) {
             $resolutions = [];
@@ -290,6 +317,14 @@ class AssetType
             $asset = $this->getAssetFromValue($value, $context);
             if (!$asset) {
                 return [];
+            }
+            // Check if the value was already resolved in a mockup object.
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
             }
             $thumbnail = $assetFieldHelper->getAssetThumbnail($asset, $thumbnailName, $thumbnailFormat, $deferredThumbnail);
             if (isset($thumbnail)) {
@@ -330,6 +365,14 @@ class AssetType
         if ($value instanceof ElementDescriptor) {
             $thumbnailName = $args['thumbnail'] ?? null;
             $asset = $this->getAssetFromValue($value, $context);
+            // Check if the value was already resolved in a mockup object.
+            $returnName = $resolveInfo->fieldNodes[0]?->alias?->value ?? $resolveInfo->fieldName;
+            if ($asset instanceof ElementMockupInterface) {
+                if (isset($value[$returnName])) {
+                    return $value[$returnName];
+                }
+                $asset = $asset->getOriginalObject();
+            }
 
             if ($asset instanceof Asset\Video) {
                 $width = $asset->getCustomSetting('videoWidth');
@@ -410,8 +453,7 @@ class AssetType
         if (!$value instanceof ElementDescriptor) {
             return null;
         }
-
-        $asset = Asset::getById($value['id']);
+        $asset = $this->loadDataElement($value, 'asset', !empty($context['mockup_element_support_enabled']));
 
         if (!WorkspaceHelper::checkPermission($asset, 'read')) {
             return null;

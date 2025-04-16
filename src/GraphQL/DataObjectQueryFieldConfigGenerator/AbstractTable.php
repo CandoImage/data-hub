@@ -41,7 +41,7 @@ abstract class AbstractTable extends Base
             'name' => $fieldDefinition->getName(),
             'type' => $this->getFieldType($fieldDefinition, $class, $container),
             'resolve' => function ($value, $args, $context = [], ResolveInfo $resolveInfo = null) use ($fieldDefinition, $attribute) {
-                $result = Service::resolveValue($value, $fieldDefinition, $attribute, $args);
+                $result = Service::resolveValue($value, $fieldDefinition, $attribute, $args, !empty($context['mockup_element_support_enabled']));
 
                 // The table has no specific definition of columns, so we cannot have a ObjectType in schema for it.
                 // Just return the data JSON encoded

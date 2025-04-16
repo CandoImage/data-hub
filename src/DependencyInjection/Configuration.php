@@ -39,6 +39,8 @@ class Configuration implements ConfigurationInterface
                         ->scalarNode('not_allowed_policy')->info('throw exception = 1, return null = 2')->defaultValue(2)->end()
                         ->booleanNode('output_cache_enabled')->info('enables output cache for graphql responses. It is disabled by default')->defaultValue(false)->end()
                         ->integerNode('output_cache_lifetime')->info('output cache in seconds. Default is 30 seconds')->defaultValue(30)->end()
+                        ->booleanNode('mockup_element_support_enabled')->info('Enable support of mockup elements as used by Ecommerce Framework Bundle IndexService. You have to use your own Mockup class(es) that implement DataHubs ElementMockupInterface')->defaultValue(false)->end()
+                        ->booleanNode('disable_permission_check_cache')->info('Disables the permission check static cache. Use only if you have very specific cases in which the permission can change _within_ the same request!')->defaultValue(false)->end()
                         ->booleanNode('allow_introspection')->info('enables introspection for graphql. It is enabled by default')->defaultValue(true)->end()
                         ->booleanNode('run_subrequest_per_query')->info('If enabled a Symfony Sub-Requet is triggered for each query in a multi-query request.')->defaultValue(false)->end()
                     ->end()

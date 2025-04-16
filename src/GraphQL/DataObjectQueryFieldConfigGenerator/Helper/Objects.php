@@ -73,11 +73,11 @@ class Objects
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         if ($value instanceof BaseDescriptor) {
-            $relations = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+            $relations = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
             if ($relations) {
                 $result = [];
-                /** @var $relation AbstractElement */
                 foreach ($relations as $relation) {
+                    /** @var $relation AbstractElement */
                     if (!WorkspaceHelper::checkPermission($relation, 'read')) {
                         continue;
                     }

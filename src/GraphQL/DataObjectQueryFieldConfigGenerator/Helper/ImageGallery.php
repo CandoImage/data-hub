@@ -21,6 +21,7 @@ use Pimcore\Bundle\DataHubBundle\GraphQL\BaseDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\ElementDescriptor;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Service as GraphQlService;
 use Pimcore\Bundle\DataHubBundle\GraphQL\Traits\ServiceTrait;
+use Pimcore\Bundle\DataHubBundle\Model\ElementMockupInterface;
 use Pimcore\Bundle\DataHubBundle\WorkspaceHelper;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\ClassDefinition;
@@ -83,7 +84,7 @@ class ImageGallery
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
         $result = [];
-        $relations = GraphQlService::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+        $relations = GraphQlService::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
         if ($relations) {
             foreach ($relations as $relation) {
                 if ($relation instanceof Hotspotimage) {
@@ -92,7 +93,7 @@ class ImageGallery
                     continue;
                 }
 
-                if ($image instanceof Asset) {
+                if ($image instanceof Asset || $relation instanceof ElementMockupInterface) {
                     if (!WorkspaceHelper::checkPermission($image, 'read')) {
                         continue;
                     }

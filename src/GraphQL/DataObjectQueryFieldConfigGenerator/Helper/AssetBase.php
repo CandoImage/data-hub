@@ -69,7 +69,7 @@ class AssetBase
      */
     public function resolve($value = null, $args = [], $context = [], ResolveInfo $resolveInfo = null)
     {
-        $asset = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args = []);
+        $asset = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args = [], !empty($context['mockup_element_support_enabled']));
 
         if (!$asset) {
             return null;

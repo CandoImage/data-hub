@@ -84,7 +84,7 @@ class Hotspotimage
             return Service::resolveCachedValue($value, $resolveInfo);
         }
         /** @var $container Hotspotimage */
-        $container = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args);
+        $container = Service::resolveValue($value, $this->fieldDefinition, $this->attribute, $args, !empty($context['mockup_element_support_enabled']));
         if ($container instanceof \Pimcore\Model\DataObject\Data\Hotspotimage) {
             $image = $container->getImage();
             if ($image instanceof Asset) {
