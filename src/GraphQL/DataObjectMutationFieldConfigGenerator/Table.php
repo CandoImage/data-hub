@@ -71,8 +71,8 @@ class Table extends Base
         $tableHeaderStr = $tableDef->getData();
         $tableHeader = [];
 
-        if (strlen($tableHeaderStr) > 0) {
-            $tableHeader = explode('|', $tableHeaderStr);
+        if (strlen((string) $tableHeaderStr) > 0) {
+            $tableHeader = explode('|', (string) $tableHeaderStr);
         }
 
         $processors = ['tableHeader' => $tableHeader];

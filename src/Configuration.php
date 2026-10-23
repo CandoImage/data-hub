@@ -271,7 +271,7 @@ class Configuration extends AbstractModel
             }
 
             foreach ($securityConfig['apikey'] as $apiKey) {
-                if (strlen($apiKey) < 16) {
+                if (strlen((string) $apiKey) < 16) {
                     throw new \Exception('API key ' . $apiKey . ' does not satisfy the minimum length of 16 characters');
                 }
             }

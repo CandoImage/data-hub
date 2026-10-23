@@ -45,7 +45,7 @@ class FileUploadService
             foreach ($locations as $location) {
                 $items = &$result;
 
-                foreach (explode('.', $location) as $key) {
+                foreach (explode('.', (string) $location) as $key) {
                     if (!isset($items[$key]) || !is_array($items[$key])) {
                         $items[$key] = [];
                     }

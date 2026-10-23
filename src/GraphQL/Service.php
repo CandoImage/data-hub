@@ -904,22 +904,22 @@ class Service
                         $def = $locFields->getFieldDefinition($key, $context);
                     }
                 }
-                $brickGetter = 'get' . ucfirst($key);
+                $brickGetter = 'get' . ucfirst((string) $key);
 
                 $brickContainer = $object->$brickGetter();
-                $subBrickGetter = 'get' . ucfirst($brickType);
-                $subBrickSetter = 'set' . ucfirst($brickType);
+                $subBrickGetter = 'get' . ucfirst((string) $brickType);
+                $subBrickSetter = 'set' . ucfirst((string) $brickType);
                 $subBrickType = $brickContainer->$subBrickGetter();
 
                 if (!$subBrickType) {
                     /** @var AbstractData $brickClass */
-                    $brickClass = 'Pimcore\\Model\\DataObject\\Objectbrick\\Data\\' . ucfirst($brickType);
+                    $brickClass = 'Pimcore\\Model\\DataObject\\Objectbrick\\Data\\' . ucfirst((string) $brickType);
                     $subBrickType = new $brickClass($object);
-                    $subBrickSetter = 'set' . ucfirst($brickType);
+                    $subBrickSetter = 'set' . ucfirst((string) $brickType);
                     $brickContainer->$subBrickSetter($subBrickType);
                 }
 
-                $innerSetter = 'set' . ucfirst($def->getName());
+                $innerSetter = 'set' . ucfirst((string) $def->getName());
                 $result = $callback($subBrickType, $innerSetter);
 
                 $brickContainer->$subBrickSetter($subBrickType);
@@ -943,7 +943,7 @@ class Service
      */
     public static function resolveValue(BaseDescriptor $descriptor, Data $fieldDefinition, $attribute, $args = [])
     {
-        $getter = 'get' . ucfirst($fieldDefinition->getName());
+        $getter = 'get' . ucfirst((string) $fieldDefinition->getName());
         $objectId = $descriptor['id'];
         $object = Concrete::getById($objectId);
         if (!$object) {

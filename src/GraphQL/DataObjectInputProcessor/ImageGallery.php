@@ -35,7 +35,7 @@ class ImageGallery extends Base
     public function process($object, $newValue, $args, $context, ResolveInfo $info)
     {
         $attribute = $this->getAttribute();
-        $getter = 'get' . ucfirst($attribute);
+        $getter = 'get' . ucfirst((string) $attribute);
         $currentGallery = $object->$getter();
 
         if ($currentGallery instanceof \Pimcore\Model\DataObject\Data\ImageGallery) {

@@ -172,7 +172,7 @@ class ExecutorEvent extends Event
         $this->operation = $operation;
         $this->schema = $schema;
         $this->context = $context;
-        $this->queryHash = md5($this->operation->query);
+        $this->queryHash = md5((string) $this->operation->query);
         $this->parsedQuery = $parsedQuery;
     }
 }

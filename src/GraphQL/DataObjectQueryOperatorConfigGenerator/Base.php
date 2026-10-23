@@ -60,7 +60,7 @@ abstract class Base implements OperatorTypeDefinitionInterface
     {
         $attributes = $nodeDef['attributes'];
         $label = (isset($attributes['label']) ? $attributes['label'] : '#' . uniqid());
-        $label = lcfirst($label);
+        $label = lcfirst((string) $label);
         $fieldname = preg_replace('/[^A-Za-z0-9\-\.~_]+/', '_', $label);
 
         $type = $this->getGraphQlType($typeName, $nodeDef, $class, $container, $params);

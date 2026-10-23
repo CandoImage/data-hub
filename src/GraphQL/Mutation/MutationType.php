@@ -169,7 +169,7 @@ class MutationType extends ObjectType
 
             $queryResolver = [$queryResolver, 'resolveDocumentGetter'];
 
-            $opName = $mutationType . 'Document' . ucfirst($documentType);
+            $opName = $mutationType . 'Document' . ucfirst((string) $documentType);
 
             $service = $this->getGraphQlService();
             $graphQlDocumentType = $service->getDocumentTypeDefinition('document_' . $documentType);    // this is for the return stuff
@@ -211,8 +211,8 @@ class MutationType extends ObjectType
                 ];
             }
 
-            $inputTypeGetter = 'getDocument' . ucfirst($documentType) . 'MutationInputType';
-            $inputProcessorFn = 'processDocument' . ucfirst($documentType) . 'MutationInput';
+            $inputTypeGetter = 'getDocument' . ucfirst((string) $documentType) . 'MutationInputType';
+            $inputProcessorFn = 'processDocument' . ucfirst((string) $documentType) . 'MutationInput';
 
             $processors = [];
             $inputType = $this->{$inputTypeGetter}($context, $processors);
@@ -261,7 +261,7 @@ class MutationType extends ObjectType
                             ];
                         }
 
-                        $className = 'Pimcore\\Model\\Document\\' . ucfirst($documentType);
+                        $className = 'Pimcore\\Model\\Document\\' . ucfirst((string) $documentType);
                         $factory = \Pimcore::getContainer()->get('pimcore.model.factory');
                         /** @var Document $element */
                         $element = $factory->build($className);
@@ -391,7 +391,7 @@ class MutationType extends ObjectType
                 $element->setDirect($value);
                 $element->setLinktype('direct');
             } else {
-                $setter = 'set' . ucfirst($key);
+                $setter = 'set' . ucfirst((string) $key);
 
                 $element->$setter($value);
             }
@@ -443,7 +443,7 @@ class MutationType extends ObjectType
             } elseif ($key == 'tags') {
                 //skip it to process in callee method
             } else {
-                $setter = 'set' . ucfirst($key);
+                $setter = 'set' . ucfirst((string) $key);
 
                 $element->$setter($value);
             }
@@ -540,7 +540,7 @@ class MutationType extends ObjectType
             if (isset($entityConfig['create']) && $entityConfig['create']) {
                 // create
                 $createResultType = new ObjectType([
-                    'name' => 'Create' . ucfirst($entity) . 'Result',
+                    'name' => 'Create' . ucfirst((string) $entity) . 'Result',
                     'fields' => [
                         'success' => ['type' => Type::boolean()],
                         'message' => ['type' => Type::string()],
@@ -559,13 +559,13 @@ class MutationType extends ObjectType
                     ],
                 ]);
 
-                $opName = 'create' . ucfirst($entity);
+                $opName = 'create' . ucfirst((string) $entity);
 
                 $this->generateInputFieldsAndProcessors($inputFields, $processors, $context, $entity, $class);
 
                 $inputFields['tags'] = ElementTag::getElementTagInputTypeDefinition();
 
-                $inputTypeName = 'Update' . ucfirst($entity) . 'Input';
+                $inputTypeName = 'Update' . ucfirst((string) $entity) . 'Input';
                 $inputType = self::$typeCache[$inputTypeName] ?? new InputObjectType([
                         'name' => $inputTypeName,
                         'fields' => $inputFields
@@ -622,7 +622,7 @@ class MutationType extends ObjectType
                         $key = $args['key'];
                         $key = DataObject\Service::getValidKey($key, 'object');
 
-                        $className = 'Pimcore\\Model\\DataObject\\' . ucfirst($entity);
+                        $className = 'Pimcore\\Model\\DataObject\\' . ucfirst((string) $entity);
                         /** @var Concrete $newInstance */
                         $newInstance = $modelFactory->build($className);
                         $newInstance->setPublished($published);
@@ -682,10 +682,10 @@ class MutationType extends ObjectType
             if (isset($entityConfig['update']) && $entityConfig['update']) {
 
                 // update
-                $opName = 'update' . ucfirst($entity);
+                $opName = 'update' . ucfirst((string) $entity);
 
                 $updateResultType = new ObjectType([
-                    'name' => 'Update' . ucfirst($entity) . 'Result',
+                    'name' => 'Update' . ucfirst((string) $entity) . 'Result',
                     'fields' => [
                         'success' => ['type' => Type::boolean()],
                         'message' => ['type' => Type::string()],
@@ -708,7 +708,7 @@ class MutationType extends ObjectType
 
                 $inputFields['tags'] = ElementTag::getElementTagInputTypeDefinition();
 
-                $inputTypeName = 'Update' . ucfirst($entity) . 'Input';
+                $inputTypeName = 'Update' . ucfirst((string) $entity) . 'Input';
                 $inputType = isset(self::$typeCache[$inputTypeName]) ? self::$typeCache[$inputTypeName] : new InputObjectType([
                     'name' => $inputTypeName,
                     'fields' => $inputFields
@@ -733,10 +733,10 @@ class MutationType extends ObjectType
             }
 
             if (isset($entityConfig['delete']) && $entityConfig['delete']) {
-                $opName = 'delete' . ucfirst($entity);
+                $opName = 'delete' . ucfirst((string) $entity);
 
                 $deleteResultType = new ObjectType([
-                    'name' => 'Delete' . ucfirst($entity) . 'Result',
+                    'name' => 'Delete' . ucfirst((string) $entity) . 'Result',
                     'fields' => [
                         'success' => ['type' => Type::boolean()],
                         'message' => ['type' => Type::string()]

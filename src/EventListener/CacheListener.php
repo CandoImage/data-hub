@@ -178,7 +178,7 @@ class CacheListener
         $tags = $concrete->getCacheTags();
         foreach ($concrete->getClass()->getFieldDefinitions() as $name => $def) {
             if ($def instanceof Data) {
-                $getter = 'get' . ucfirst($name);
+                $getter = 'get' . ucfirst((string) $name);
                 $data = $concrete->{$getter}();
                 // Use the getCacheTags integration of the field definition.
                 // This might be not enough hence the further resolving further

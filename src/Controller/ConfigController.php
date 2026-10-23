@@ -56,7 +56,7 @@ class ConfigController extends \Pimcore\Controller\UserAwareController
 
         return [
             'id' => $name,
-            'text' => htmlspecialchars($name),
+            'text' => htmlspecialchars((string) $name),
             'type' => 'config',
             'iconCls' => 'plugin_pimcore_datahub_icon_' . $type,
             'expandable' => false,
@@ -412,7 +412,7 @@ class ConfigController extends \Pimcore\Controller\UserAwareController
             $data = $request->get('data');
             $modificationDate = $request->get('modificationDate', 0);
 
-            $dataDecoded = json_decode($data, true);
+            $dataDecoded = json_decode((string) $data, true);
 
             $name = $dataDecoded['general']['name'];
             $config = Configuration::getByName($name);

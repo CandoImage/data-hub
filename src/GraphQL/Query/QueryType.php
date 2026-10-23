@@ -110,17 +110,17 @@ class QueryType extends ObjectType
 
             // GETTER DEFINITION
             $defGet = [
-                'name' => 'get' . ucfirst($type) . 'Folder',
+                'name' => 'get' . ucfirst((string) $type) . 'Folder',
                 'args' => [
                     'id' => ['type' => Type::id()],
                     'fullpath' => ['type' => Type::string()],
                     'defaultLanguage' => ['type' => Type::string()],
                 ],
                 'type' => $graphQlType,
-                'resolve' => [$resolver, 'resolve' . ucfirst($type) . 'FolderGetter']
+                'resolve' => [$resolver, 'resolve' . ucfirst((string) $type) . 'FolderGetter']
             ];
 
-            $config['fields']['get' . ucfirst($type) . 'Folder'] = $defGet;
+            $config['fields']['get' . ucfirst((string) $type) . 'Folder'] = $defGet;
         }
     }
 
@@ -212,7 +212,7 @@ class QueryType extends ObjectType
         static $instances = [];
         $configuration = $context['configuration'];
         $resolver = $this->getResolver($class, $configuration);
-        $ucFirstClassName = ucfirst($class->getName());
+        $ucFirstClassName = ucfirst((string) $class->getName());
 
         if (!isset($instances[$ucFirstClassName])) {
             $instances[$ucFirstClassName] = new ObjectType(
@@ -252,7 +252,7 @@ class QueryType extends ObjectType
             }
 
             $resolver = $this->getResolver($class, $configuration);
-            $ucFirstClassName = ucfirst($class->getName());
+            $ucFirstClassName = ucfirst((string) $class->getName());
 
             // GETTER DEFINITION
             $defGet = [
@@ -349,7 +349,7 @@ class QueryType extends ObjectType
             }
 
             $resolver = $this->getResolver($class, $configuration);
-            $ucFirstClassName = ucfirst($class->getName());
+            $ucFirstClassName = ucfirst((string) $class->getName());
 
             $edgeType = $this->getEdgeTypeDefinition($class, $context);
 
