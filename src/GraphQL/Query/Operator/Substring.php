@@ -72,12 +72,12 @@ class Substring extends AbstractOperator
         if ($childValue && $this->getEllipses()) {
             $start = $this->getStart() ?: 0;
             $length = $this->getLength() ?: 0;
-            if (strlen($childValue) > $start + $length) {
+            if (strlen((string) $childValue) > $start + $length) {
                 $showEllipses = true;
             }
         }
 
-        $childValue = substr($childValue, $this->getStart(), $this->getLength());
+        $childValue = substr((string) $childValue, $this->getStart(), $this->getLength());
         if ($showEllipses) {
             $childValue .= '...';
         }

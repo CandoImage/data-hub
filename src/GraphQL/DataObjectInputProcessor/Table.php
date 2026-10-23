@@ -49,7 +49,7 @@ class Table extends Base
     public function process($object, $newValue, $args, $context, ResolveInfo $info)
     {
         $attribute = $this->getAttribute();
-        $getter = 'get' . ucfirst($attribute);
+        $getter = 'get' . ucfirst((string) $attribute);
         $currentTable = $object->$getter();
 
         Service::setValue($object, $attribute, function ($container, $setter) use ($newValue, $currentTable) {

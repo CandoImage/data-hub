@@ -128,7 +128,7 @@ class QueryType
         }
 
         $data = new ElementDescriptor();
-        $getter = 'get' . ucfirst($elementType) . 'FieldHelper';
+        $getter = 'get' . ucfirst((string) $elementType) . 'FieldHelper';
         $fieldHelper = $this->getGraphQlService()->$getter();
         $fieldHelper->extractData($data, $element, $args, $context, $resolveInfo);
         $data = $data->getArrayCopy();
@@ -312,7 +312,7 @@ class QueryType
         }
 
         $modelFactory = $this->getGraphQlService()->getModelFactory();
-        $listClass = 'Pimcore\\Model\\DataObject\\' . ucfirst($this->class->getName()) . '\\Listing';
+        $listClass = 'Pimcore\\Model\\DataObject\\' . ucfirst((string) $this->class->getName()) . '\\Listing';
         /** @var Listing $objectList */
         $objectList = $modelFactory->build($listClass);
         $conditionParts = [];
@@ -510,7 +510,7 @@ class QueryType
         }
 
         $modelFactory = $this->getGraphQlService()->getModelFactory();
-        $listClass = 'Pimcore\\Model\\DataObject\\' . ucfirst($this->class->getName()) . '\\Listing';
+        $listClass = 'Pimcore\\Model\\DataObject\\' . ucfirst((string) $this->class->getName()) . '\\Listing';
         /** @var Listing\Concrete $objectList */
         $objectList = $modelFactory->build($listClass);
         $tableName = $objectList->getDao()->getTableName();
@@ -860,7 +860,7 @@ class QueryType
                             //check for fragments type name because fragments can have any name
                             foreach ($filters as $savedFilter) {
                                 foreach ($resolveInfo->fragments as $fragment) {
-                                    if (strpos($fragment->typeCondition->name->value, $savedFilter->getType()) !== false) {
+                                    if (strpos($fragment->typeCondition->name->value, (string) $savedFilter->getType()) !== false) {
                                         if ($filterNode->name->value == $fragment->name->value) {
                                             $requestFilters[] = $fragment->typeCondition->name->value;
                                         }
@@ -885,7 +885,7 @@ class QueryType
                         // Check if filter is requested from GraphQL Query
                         $hasFilter = false;
                         foreach ($requestFilters as $requestFilter) {
-                            if (strpos($requestFilter, $filter->getType()) !== false) {
+                            if (strpos($requestFilter, (string) $filter->getType()) !== false) {
                                 $hasFilter = true;
                                 break;
                             }
@@ -1104,7 +1104,7 @@ class QueryType
                 }
                 // check filterName string and duplicates
                 // e.g. FilterSelect and FilterSelectSortable has the same beginning name
-                if (str_contains($filterName, $filterType) && !in_array($fieldName, $filterFields)) {
+                if (str_contains($filterName, (string) $filterType) && !in_array($fieldName, $filterFields)) {
                     $facets[] = $facet;
                     $filterFields[] = $fieldName;
                 }

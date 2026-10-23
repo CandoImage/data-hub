@@ -57,7 +57,7 @@ class RebuildDefinitionsCommand extends AbstractCommand
         $included = [];
         if ($input->getOption('definitions')) {
             $included = $input->getOption('definitions');
-            $included = explode(',', $included);
+            $included = explode(',', (string) $included);
         } else {
             $list = Configuration::getList();
             foreach ($list as $configuration) {

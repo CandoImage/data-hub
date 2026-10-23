@@ -113,8 +113,8 @@ class Helper
         }
 
         foreach ($q as $key => $value) {
-            if (array_search(strtolower($key), ['$and', '$or']) !== false) {
-                $childOp = strtolower($key) == '$and' ? 'AND' : 'OR';
+            if (array_search(strtolower((string) $key), ['$and', '$or']) !== false) {
+                $childOp = strtolower((string) $key) == '$and' ? 'AND' : 'OR';
 
                 if (is_array($value)) {
                     $childParts = [];
@@ -139,8 +139,8 @@ class Helper
                 } elseif ($value instanceof \stdClass) {
                     $objectVars = get_object_vars($value);
                     foreach ($objectVars as $objectVar => $objectValue) {
-                        if (array_search(strtolower($objectVar), $ops) !== false) {
-                            $innerOp = $mappingTable[strtolower($objectVar)];
+                        if (array_search(strtolower((string) $objectVar), $ops) !== false) {
+                            $innerOp = $mappingTable[strtolower((string) $objectVar)];
                             if ($innerOp == 'NOT') {
                                 $valuePart = ' IS NULL';
                                 if (!is_null($objectValue)) {
@@ -182,8 +182,8 @@ class Helper
                     $combinedParts = implode(' ' . $op . ' ', $parts);
                     $parts = [$combinedParts];
                 } else {
-                    if (array_search(strtolower($key), $ops) !== false) {
-                        $innerOp = $mappingTable[strtolower($key)];
+                    if (array_search(strtolower((string) $key), $ops) !== false) {
+                        $innerOp = $mappingTable[strtolower((string) $key)];
                         if ($innerOp == 'NOT') {
                             $parts[] = '(NOT' . self::quoteAbsoluteColumnName(
                                     $defaultTable,

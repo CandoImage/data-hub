@@ -27,7 +27,7 @@ class JsonType extends ScalarType
 
     public function parseValue(mixed $value): mixed
     {
-        return json_decode($value);
+        return json_decode((string) $value);
     }
 
     public function parseLiteral(mixed $valueNode, ?array $variables = null): mixed
@@ -36,6 +36,6 @@ class JsonType extends ScalarType
             throw new \Exception('Can only parse objects with a value property. Input: ' . GraphQLUtils::printSafeJson($valueNode));
         }
 
-        return json_decode($valueNode->value);
+        return json_decode((string) $valueNode->value);
     }
 }

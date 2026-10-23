@@ -471,7 +471,7 @@ class OutputCacheService
                             break;
                         }
                     }
-                    $filterValues[] = implode($valueList);
+                    $filterValues[] = implode('', $valueList);
                 } else {
                     $filterValues[] = ($filter['field'] ?? 'unknown-field') . '-' . $filter['values'];
                 }
